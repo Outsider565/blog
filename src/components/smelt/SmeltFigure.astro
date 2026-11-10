@@ -1,0 +1,39 @@
+---
+import figures from '../../data/smelt/figures.json';
+import { assetPath, type Language } from '../../lib/site';
+import AttentionSink from './AttentionSink.astro';
+import AttentionStages from './AttentionStages.astro';
+import BeyondLoss from './BeyondLoss.astro';
+import BudgetMatch from './BudgetMatch.astro';
+import ComputeFrontier from './ComputeFrontier.astro';
+import DomainGain from './DomainGain.astro';
+import DownstreamPairs from './DownstreamPairs.astro';
+import DyckAttention from './DyckAttention.astro';
+import ExpertReuse from './ExpertReuse.astro';
+import IclGain from './IclGain.astro';
+import LengthGain from './LengthGain.astro';
+import LossCompute from './LossCompute.astro';
+import RecipeSearch from './RecipeSearch.astro';
+import ResidualFlow from './ResidualFlow.astro';
+import ScalingFit from './ScalingFit.astro';
+import '../../styles/smelt.css';
+interface Props { id: keyof typeof figures; language: Language }
+const { id, language } = Astro.props;
+const components = { AttentionSink, AttentionStages, BeyondLoss, BudgetMatch, ComputeFrontier, DomainGain, DownstreamPairs, DyckAttention, ExpertReuse, IclGain, LengthGain, LossCompute, RecipeSearch, ResidualFlow, ScalingFit };
+const figure = figures[id];
+const Chart = components[figure.component as keyof typeof components];
+const caption = figure.captions[language];
+const prefix = language === 'zh' ? `图 ${figure.number}｜` : `Figure ${figure.number} | `;
+const title = `${prefix}${caption.title || figures[id].captions.zh.title}`;
+const original = figure.file ? assetPath(figure.file, 'smelt') : undefined;
+---
+<figure class:list={['research-figure', 'smelt-figure', `figure-${id}`]} id={`figure-${id}`} data-figure={id} data-figure-number={figure.number}>
+  <div class="smelt-figure-body">
+    <Chart language={language} {...figure.props}>
+      {original && figure.dimensions && <a class="figure-image-link" href={original} target="_blank" rel="noopener noreferrer" data-enlarge aria-label={`${language === 'zh' ? '放大查看' : 'Enlarge'}: ${title}`}>
+        <img src={original} width={figure.dimensions[0]} height={figure.dimensions[1]} alt={title} loading="lazy" decoding="async" />
+      </a>}
+    </Chart>
+  </div>
+  <figcaption><span class="caption-title">{title}</span>{caption.detail && <span class="caption-detail">{caption.detail}</span>}</figcaption>
+</figure>

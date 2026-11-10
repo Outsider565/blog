@@ -1,0 +1,199 @@
+{
+ "provenance": {
+  "paperCommit": "668dbc2",
+  "pair": "200M scale, S ≈ 95% (grid_es_bucket 24): the pair drawn in the paper figure smelt_arch",
+  "sources": [
+   {
+    "path": "img/smelt_arch/raw.json",
+    "sha256": "5a3eeb237be8dff930c338d516ab2e50a873c093104767fc88d1f23ad0db9613",
+    "used": "physical/executed layers, looped span, hidden 1280 → 1056, experts 192 → 288, top-8"
+   },
+   {
+    "path": "raw_data/conf/index.csv",
+    "sha256": "a284b438ffd50b1610ce14036deace09910650321ea9627ce7a0367bc5e88a5f",
+    "used": "rows Baseline,200M,24 and SMELT,200M,24: heads, KV heads, head dim, expert FFN width, parameters per expert"
+   },
+   {
+    "path": "sections/design.tex",
+    "sha256": "2d9a734de7a980418eb06b1ed886ed424eac12543ac8b8012d87d5d830c3bc07",
+    "used": "Sec. 3.2: FLOPs 1.33e9 → 1.37e9 (+2.9%), params 3.87e9 → 3.89e9 (+0.4%), KV within 4%; tab:matching tolerances"
+   },
+   {
+    "path": "sections/appendix.tex",
+    "sha256": "8ba90a0eacd745bf0a6f489eac9e5c46bf42f4d59b4029875fcbaa1ee1bdfc9d",
+    "used": "tab:app-configs / tab:app-smelt-configs: active params, S, F and KV ratios (1.029, 1.031)"
+   }
+  ],
+  "formulas": {
+   "params": "per layer: attention H·d_head·(2·n_q + 2·n_kv) + router H·E + E experts × 3·H·d_ffn (SwiGLU); × 12 physical layers. Norm weights omitted (< 0.01%). Reproduces 3.87B and 3.89B.",
+   "flops": "F ≈ 6 · (active non-embedding params per executed layer) · L_exec + k · n_q·d_head · L_exec. The second term is the attention-score cost that grows with document length; its single coefficient k is calibrated so the Baseline gives 1.33e9. The same k then gives 1.0290× for SMELT (paper: 1.029×), and the matmul part is exact config arithmetic.",
+   "kv": "KV entries per token = 2 · n_kv · d_head · L_exec (each visit of a looped layer keeps its own cache: share_kv_cache = false in the SMELT config). Reproduces the appendix ratio 1.031."
+  },
+  "attentionCoefficient": 4796.5,
+  "notes": [
+   "Steps loop, narrow and experts are hypothetical intermediate configurations used to teach the recipe; only Baseline and SMELT were trained. In the paper all knobs are solved jointly.",
+   "Intermediate FLOPs ratios are approximate (they inherit the calibrated attention term); parameter and KV ratios are config arithmetic.",
+   "Narrow shrinks every width that scales with H: hidden 1280 → 1056, expert FFN 432 → 352 and the query projection 10 → 8 heads at head dim 128 (query width 1024 ≈ H; n_q·d_head = H holds in every row of raw_data/conf/index.csv, and 8 is the closest whole number of heads that keeps head dim and KV heads fixed). KV cache is therefore unchanged by this step.",
+   "The attention step changes head dim 128 → 88 and query heads 8 → 12 (KV heads stay 2; GQA 4:1 → 6:1), reaching the trained SMELT configuration (12 · 88 = 1056 = H).",
+   "So each step restores one budget, in the order of the article and paper Sec. 3.2: narrow → FLOPs, experts → total parameters, attention → KV cache."
+  ]
+ },
+ "paper": {
+  "flopsBase": 1330000000.0,
+  "flopsSmelt": 1370000000.0,
+  "flopsRatio": 1.029,
+  "paramsBase": 3870000000.0,
+  "paramsSmelt": 3890000000.0,
+  "kvRatio": 1.031,
+  "activeBase": 209000000.0,
+  "activeSmelt": 142000000.0,
+  "sparsityBase": 0.946,
+  "sparsitySmelt": 0.947
+ },
+ "tolerance": {
+  "flops": 0.04,
+  "params": 0.01,
+  "kv": 0.04
+ },
+ "loopedSpan": [
+  4,
+  9
+ ],
+ "steps": [
+  {
+   "id": "baseline",
+   "config": {
+    "physical": 12,
+    "executed": 12,
+    "hidden": 1280,
+    "ffn": 432,
+    "experts": 192,
+    "topk": 8,
+    "heads": 10,
+    "kvHeads": 2,
+    "headDim": 128,
+    "paramsPerExpert": 1658880
+   },
+   "ratio": {
+    "flops": 1.0,
+    "params": 1.0,
+    "kv": 1.0
+   },
+   "absolute": {
+    "flops": 1330000000.0,
+    "params": 3872000000,
+    "kvValues": 6144,
+    "activePhysical": 209400000
+   },
+   "trained": true
+  },
+  {
+   "id": "loop",
+   "config": {
+    "physical": 12,
+    "executed": 18,
+    "hidden": 1280,
+    "ffn": 432,
+    "experts": 192,
+    "topk": 8,
+    "heads": 10,
+    "kvHeads": 2,
+    "headDim": 128,
+    "paramsPerExpert": 1658880
+   },
+   "ratio": {
+    "flops": 1.5,
+    "params": 1.0,
+    "kv": 1.5
+   },
+   "absolute": {
+    "flops": 1995000000.0,
+    "params": 3872000000,
+    "kvValues": 9216,
+    "activePhysical": 209400000
+   },
+   "trained": false
+  },
+  {
+   "id": "narrow",
+   "config": {
+    "physical": 12,
+    "executed": 18,
+    "hidden": 1056,
+    "ffn": 352,
+    "experts": 192,
+    "topk": 8,
+    "heads": 8,
+    "kvHeads": 2,
+    "headDim": 128,
+    "paramsPerExpert": 1115136
+   },
+   "ratio": {
+    "flops": 1.0269,
+    "params": 0.6725,
+    "kv": 1.5
+   },
+   "absolute": {
+    "flops": 1366000000.0,
+    "params": 2604000000,
+    "kvValues": 9216,
+    "activePhysical": 141900000
+   },
+   "trained": false
+  },
+  {
+   "id": "experts",
+   "config": {
+    "physical": 12,
+    "executed": 18,
+    "hidden": 1056,
+    "ffn": 352,
+    "experts": 288,
+    "topk": 8,
+    "heads": 8,
+    "kvHeads": 2,
+    "headDim": 128,
+    "paramsPerExpert": 1115136
+   },
+   "ratio": {
+    "flops": 1.0351,
+    "params": 1.0046,
+    "kv": 1.5
+   },
+   "absolute": {
+    "flops": 1377000000.0,
+    "params": 3890000000,
+    "kvValues": 9216,
+    "activePhysical": 143100000
+   },
+   "trained": false
+  },
+  {
+   "id": "smelt",
+   "config": {
+    "physical": 12,
+    "executed": 18,
+    "hidden": 1056,
+    "ffn": 352,
+    "experts": 288,
+    "topk": 8,
+    "heads": 12,
+    "kvHeads": 2,
+    "headDim": 88,
+    "paramsPerExpert": 1115136
+   },
+   "ratio": {
+    "flops": 1.029,
+    "params": 1.0043,
+    "kv": 1.0312
+   },
+   "absolute": {
+    "flops": 1369000000.0,
+    "params": 3889000000,
+    "kvValues": 6336,
+    "activePhysical": 141900000
+   },
+   "trained": true
+  }
+ ]
+}

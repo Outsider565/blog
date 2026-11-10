@@ -1,0 +1,144 @@
+/* Shared design system for the SMELT article's interactive figures. */
+:root {
+  --smelt-base: light-dark(#3b6aa0, #93b8e3);
+  --smelt-loop: light-dark(#d15a47, #f29b87);
+  --smelt-base-ink: light-dark(#2f5b8c, #a9c8ec);
+  --smelt-loop-ink: light-dark(#b44a3a, #f6ac9b);
+  --smelt-base-soft: color-mix(in srgb, var(--smelt-base) 13%, var(--paper));
+  --smelt-loop-soft: color-mix(in srgb, var(--smelt-loop) 13%, var(--paper));
+  --smelt-gain: light-dark(#2d7f70, #7fcdb9);
+  --smelt-s100: light-dark(#2f6b9a, #8ab8de);
+  --smelt-s200: light-dark(#13907a, #6fcfb9);
+  --smelt-s600: light-dark(#c47420, #f0b36a);
+  --smelt-s1p6: light-dark(#a8384f, #ee8fa2);
+  --smelt-node: light-dark(#ffffff, #1b231e);
+  --smelt-node-line: light-dark(#cfd6d0, #4a5a50);
+  --smelt-ease: cubic-bezier(.2, .7, .2, 1);
+}
+
+.smelt-figure { container-type: inline-size; container-name: smelt-figure; }
+.smelt-figure-body { position: relative; }
+.smelt-figure figcaption .caption-title { color: var(--caption-ink); }
+.smelt-figure figcaption { margin-top: 16px; }
+
+/* Chart surface. SVG viewBoxes are authored about 760 user units wide so that
+   user units read as CSS pixels on desktop; text is at least 13 units. */
+.smelt-chart { display: block; width: 100%; height: auto; overflow: visible; font-family: var(--serif); color: var(--plot-ink); }
+.smelt-chart text { fill: var(--plot-muted); font-size: 13px; }
+.smelt-chart .axis-title { fill: var(--plot-ink); font-size: 14px; }
+.smelt-chart .label { fill: var(--plot-ink); font-size: 14px; }
+.smelt-chart .label-strong { fill: var(--plot-ink); font-size: 15px; font-weight: 700; }
+.smelt-chart .grid { stroke: var(--plot-grid); stroke-width: 1; }
+.smelt-chart .axis { fill: none; stroke: var(--plot-axis); stroke-width: 1.1; }
+.smelt-chart .base-line { fill: none; stroke: var(--smelt-base); stroke-width: 2; }
+.smelt-chart .loop-line { fill: none; stroke: var(--smelt-loop); stroke-width: 2.2; }
+.smelt-chart .base-dot { fill: var(--paper); stroke: var(--smelt-base); stroke-width: 1.8; }
+.smelt-chart .loop-dot { fill: var(--smelt-loop); stroke: var(--paper); stroke-width: 1.2; }
+.smelt-chart .base-text { fill: var(--smelt-base-ink); }
+.smelt-chart .loop-text { fill: var(--smelt-loop-ink); }
+.smelt-chart .gain-text { fill: var(--smelt-gain); }
+.smelt-chart .hit { fill: transparent; stroke: none; cursor: pointer; }
+.smelt-chart [data-tip], .smelt-chart [data-select] { outline: none; }
+.smelt-chart [data-tip]:focus-visible .hit, .smelt-chart [data-select]:focus-visible .hit { stroke: var(--accent); stroke-width: 2; }
+
+.smelt-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.smelt-scroll-hint { display: none; margin: 6px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
+@container smelt-figure (width < 640px) { .smelt-scroll-hint { display: block; } }
+
+/* Controls */
+.smelt-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; margin: 0 0 16px; font: 12px/1.6 var(--sans); }
+.smelt-control { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.smelt-control-label { color: var(--muted); font-size: 12px; letter-spacing: .02em; }
+.smelt-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border-strong); border-radius: 999px; padding: 2px; background: var(--paper); }
+.smelt-seg button { border: 0; border-radius: 999px; padding: 5px 13px; background: transparent; color: var(--muted); font-size: 12px; line-height: 1.5; font-variant-numeric: tabular-nums; transition: background 180ms var(--smelt-ease), color 180ms var(--smelt-ease); }
+.smelt-seg button:hover { color: var(--ink); }
+.smelt-seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+@media (forced-colors: active) { .smelt-seg button[aria-pressed="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; } }
+.smelt-range { display: inline-flex; align-items: center; gap: 12px; min-width: min(100%, 260px); }
+.smelt-range input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--accent); }
+.smelt-range output { min-width: 4.5em; font: 12px var(--mono); color: var(--accent); text-align: right; }
+.smelt-button { border: 1px solid var(--border-strong); border-radius: 999px; padding: 5px 13px; background: var(--paper); color: var(--ink); font-size: 12px; }
+.smelt-button:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Legend: a swatch per series; Baseline hollow, SMELT filled. */
+.smelt-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin: 8px 0 0; font: 12px/1.7 var(--sans); color: var(--muted); }
+.smelt-legend > span, .smelt-legend > button { display: inline-flex; align-items: center; gap: 7px; }
+.smelt-legend > button { border: 0; padding: 0; background: none; color: inherit; }
+.smelt-legend > button[aria-pressed="false"] { opacity: .4; }
+.smelt-swatch { width: 18px; height: 0; border-top: 2px solid currentColor; display: inline-block; }
+.smelt-swatch-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: currentColor; }
+.smelt-swatch-ring { width: 9px; height: 9px; border-radius: 50%; display: inline-block; border: 1.8px solid currentColor; background: var(--paper); }
+.smelt-legend .is-base { color: var(--smelt-base-ink); }
+.smelt-legend .is-loop { color: var(--smelt-loop-ink); }
+
+/* Headline numbers next to a chart. */
+.smelt-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0; margin: 18px 0 6px; border-top: 1px solid var(--line); }
+.smelt-stat { padding: 12px 16px 4px 0; font-family: var(--sans); }
+.smelt-stat + .smelt-stat { padding-left: 16px; border-left: 1px solid var(--line); }
+.smelt-stat-value { display: block; font: 400 28px/1.2 var(--serif); letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.smelt-stat-value.is-loop { color: var(--smelt-loop-ink); }
+.smelt-stat-value.is-base { color: var(--smelt-base-ink); }
+.smelt-stat-value.is-gain { color: var(--smelt-gain); }
+.smelt-stat-label { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+/* Panel captions inside a figure (for multi-panel layouts). */
+.smelt-panels { display: grid; gap: 22px 28px; grid-template-columns: repeat(var(--smelt-columns, 2), minmax(0, 1fr)); }
+.smelt-panel h4 { margin: 0 0 6px; font: 600 13px/1.6 var(--sans); color: var(--ink); }
+.smelt-panel p { margin: 0 0 8px; font: 12px/1.7 var(--sans); color: var(--muted); }
+@container smelt-figure (width < 640px) { .smelt-panels { grid-template-columns: minmax(0, 1fr); } }
+
+/* Live readout text under or beside a chart. */
+.smelt-readout { margin: 10px 0 0; min-height: 1.8em; font: 12px/1.8 var(--sans); color: var(--muted); }
+.smelt-readout strong { color: var(--ink); font-weight: 700; }
+
+/* Data fallback tables (also the no-JS view). */
+.smelt-data { margin: 14px 0 0; }
+.smelt-data .data-table td.is-best, .smelt-data .data-table th.is-best { color: var(--accent); font-weight: 700; }
+
+/* Reveal-on-scroll. Only elements armed by script start hidden, so the page
+   reads fully without JavaScript. */
+[data-reveal="armed"] .reveal-draw { stroke-dashoffset: 1; }
+.reveal-draw { stroke-dasharray: 1; stroke-dashoffset: 0; transition: stroke-dashoffset 1100ms var(--smelt-ease); transition-delay: calc(var(--i, 0) * 70ms); }
+[data-reveal="armed"] .reveal-fade { opacity: 0; transform: translateY(6px); }
+.reveal-fade { transition: opacity 600ms var(--smelt-ease), transform 600ms var(--smelt-ease); transition-delay: calc(240ms + var(--i, 0) * 45ms); }
+[data-reveal="armed"] .reveal-grow { transform: scaleY(0); }
+[data-reveal="armed"] .reveal-grow-x { transform: scaleX(0); }
+.reveal-grow, .reveal-grow-x { transform-box: fill-box; transition: transform 900ms var(--smelt-ease); transition-delay: calc(var(--i, 0) * 60ms); }
+.reveal-grow { transform-origin: 50% 100%; }
+.reveal-grow-x { transform-origin: 0 50%; }
+[data-reveal="armed"] .reveal-pop { opacity: 0; transform: scale(.4); }
+.reveal-pop { transform-box: fill-box; transform-origin: center; transition: opacity 450ms var(--smelt-ease), transform 450ms var(--smelt-ease); transition-delay: calc(300ms + var(--i, 0) * 30ms); }
+.smelt-arming, .smelt-arming * { transition: none !important; }
+
+@media (max-width: 600px) {
+  .smelt-stat-value { font-size: 24px; }
+  .smelt-stat { padding-right: 10px; }
+  .smelt-stat + .smelt-stat { padding-left: 10px; }
+}
+@media print {
+  .smelt-controls, .smelt-scroll-hint { display: none; }
+}
+
+/* Inline variables and the scaling-law formula. */
+.article-prose var, .smelt-formula var { font-family: var(--serif); font-style: italic; }
+.smelt-formula { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 6px 0 30px; padding: 22px 12px 16px; border-block: 1px solid var(--line); font: 21px/1.4 var(--serif); color: var(--ink); overflow-x: auto; }
+.smelt-formula-line { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.smelt-formula .op { color: var(--muted); padding: 0 2px; }
+.smelt-formula .frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; line-height: 1.25; }
+.smelt-formula .frac .num { padding: 0 4px 3px; border-bottom: 1px solid currentColor; }
+.smelt-formula .frac .den { padding: 3px 4px 0; }
+/* Superscripts leave line heights alone, so every numerator and denominator is one line tall and
+   both fraction bars sit at the same height; terms stretch to the tallest one so their underlines align. */
+.smelt-formula sup { font-size: .62em; margin-left: 1px; line-height: 0; }
+.smelt-formula .term { align-self: stretch; display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 4px; transition: background 200ms var(--smelt-ease); }
+.smelt-formula .term-e { --term: var(--plot-neutral); }
+.smelt-formula .term-capacity { --term: var(--smelt-loop); }
+.smelt-formula .term-data { --term: var(--smelt-base); }
+.smelt-formula .term { box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--term) 55%, transparent); }
+.smelt-formula .term:hover, .smelt-formula .term[data-active] { background: color-mix(in srgb, var(--term) 12%, transparent); }
+.smelt-formula-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 20px; font: 12px/1.6 var(--sans); color: var(--muted); }
+.smelt-formula-key > span { display: inline-flex; align-items: center; gap: 7px; }
+.smelt-formula-key > span::before { content: ''; width: 14px; height: 2px; background: color-mix(in srgb, var(--term) 70%, transparent); }
+@media (max-width: 600px) { .smelt-formula { font-size: 17px; justify-content: flex-start; align-items: flex-start; } }
+
+.smelt-placeholder { min-height: 40px; }

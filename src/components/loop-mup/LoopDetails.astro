@@ -1,0 +1,12 @@
+---
+// A folded block for the full algebra behind one step of the Loop-μP
+// derivation. The article reads completely with every block closed; the
+// content is still in the page for search, printing and readers who open it.
+import '../../styles/loop-mup.css';
+interface Props { title: string }
+const { title } = Astro.props;
+---
+<details class="disclosure lm-details">
+  <summary><span>{title}</span><span class="disclosure-plus" aria-hidden="true">+</span></summary>
+  <div class="disclosure-body"><slot /></div>
+</details>

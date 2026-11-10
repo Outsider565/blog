@@ -1,0 +1,48 @@
+{
+  "zh": {
+    "names": [
+      { "name": "王少文", "markers": "1,2,3,*" },
+      { "name": "张舸", "markers": "2,3,*" },
+      { "name": "罗开荣", "markers": "1" },
+      { "name": "吴宇皓", "markers": "2,3" },
+      { "name": "刘少凡", "markers": "3" },
+      { "name": "刘佳恒", "markers": "3,4" },
+      { "name": "黄文灏", "markers": "2" },
+      { "name": "严珅", "markers": "2" },
+      { "name": "李建", "markers": "1,†" }
+    ],
+    "affiliations": [
+      { "marker": "1", "name": "清华大学" },
+      { "marker": "2", "name": "字节跳动 Seed" },
+      { "marker": "3", "name": "M-A-P" },
+      { "marker": "4", "name": "TokenWave.AI" }
+    ],
+    "roles": [
+      "* 核心贡献者",
+      "† 指导老师"
+    ]
+  },
+  "en": {
+    "names": [
+      { "name": "Shaowen Wang", "markers": "1,2,3,*" },
+      { "name": "Ge Zhang", "markers": "2,3,*" },
+      { "name": "Kairong Luo", "markers": "1" },
+      { "name": "Yuhao Wu", "markers": "2,3" },
+      { "name": "Shaofan Liu", "markers": "3" },
+      { "name": "Jiaheng Liu", "markers": "3,4" },
+      { "name": "Wenhao Huang", "markers": "2" },
+      { "name": "Shen Yan", "markers": "2" },
+      { "name": "Jian Li", "markers": "1,†" }
+    ],
+    "affiliations": [
+      { "marker": "1", "name": "Tsinghua University" },
+      { "marker": "2", "name": "ByteDance Seed" },
+      { "marker": "3", "name": "M-A-P" },
+      { "marker": "4", "name": "TokenWave.AI" }
+    ],
+    "roles": [
+      "* Core contributors",
+      "† Advisor"
+    ]
+  }
+}

@@ -1,0 +1,131 @@
+---
+// Figure 17: the Dyck head's attention over the real k = 4 prompt. The default
+// (server-rendered) state is visit 2; the script plays visit 1 -> visit 2 once
+// on reveal and lets the reader toggle visits and prediction targets.
+import data from '../../data/smelt/dyck-attention.json';
+import type { Language } from '../../lib/site';
+import { answers, attention, blocks, budget, copy, display, firstTarget, strength, stripBarWidth, stripHeight, stripWidth, stripX, targets, tokens, two, type Target, type Visit } from '../../lib/smelt/dyck-attention';
+import '../../styles/smelt/dyck-attention.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language } = Astro.props;
+const text = copy[language];
+const visit: Visit = 2;
+const target: Target = 'avg';
+const weights = attention(visit, target);
+const budgets = { 1: budget(attention(1, target)), 2: budget(attention(2, target)) } as const;
+const layout = blocks();
+const percent = (value: number) => `${(value * 100).toFixed(3)}%`;
+const stripScale = (value: number) => stripHeight(value).toFixed(4);
+const blockOf = (index: number) => layout.find(block => index >= block.start && index <= block.end);
+const lead = (token: string) => token.startsWith(' ') && !token.includes('\n') ? ' ' : '';
+const tokenClass = (index: number) => ['dyck-tok', { 'is-answer': answers.has(index), 'is-target': index >= firstTarget, 'is-predicting': index >= firstTarget, 'is-newline': (tokens[index] ?? '').includes('\n'), 'is-bos': index === 0, 'is-strong': strength(weights[index] ?? 0) > 0.62 }];
+const instructionWeight = (start: number, end: number) => weights.slice(start, end + 1).reduce((sum, value) => sum + value, 0);
+---
+<div class="dyck-attention" data-dyck-attention data-language={language} data-visit={visit} data-target={target} role="group" aria-label={text.aria}>
+  <div class="smelt-controls">
+    <div class="smelt-control">
+      <span class="smelt-control-label" id={`dyck-visit-${language}`}>{text.visit}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`dyck-visit-${language}`} data-dyck-visit>
+        {([1, 2] as const).map(value => <button type="button" data-value={value} aria-pressed={value === visit ? 'true' : 'false'}>{text.visits[value]}</button>)}
+      </div>
+      <button type="button" class="smelt-button dyck-play" data-dyck-play><span aria-hidden="true">▶</span> {text.play}</button>
+    </div>
+    <div class="smelt-control">
+      <span class="smelt-control-label" id={`dyck-target-${language}`}>{text.target}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`dyck-target-${language}`} data-dyck-target>
+        <button type="button" data-value="avg" aria-pressed="true">{text.avg}</button>
+        {targets.map((token, index) => <button type="button" data-value={String(index)} aria-pressed="false" aria-label={`${text.target} ${index + 1}: ${token.trim()}`}><span class="dyck-target-n">{index + 1}</span><code class="dyck-target-b">{token.trim()}</code></button>)}
+      </div>
+    </div>
+  </div>
+
+  <div class="dyck-mass" data-reveal>
+    <div class="dyck-mass-head" aria-hidden="true">
+      <span></span>
+      <span class="is-bos"><i></i>{text.segments.bos}</span>
+      <span class="is-answers"><i></i>{text.segments.answers}</span>
+      <span class="dyck-mass-key"><i class="is-other"></i>{text.segments.other}</span>
+    </div>
+    {([1, 2] as const).map((row, index) => {
+      const values = budgets[row];
+      return <div class="dyck-mass-row" data-row={row} aria-current={row === visit ? 'true' : undefined}>
+        <span class="dyck-mass-label">{text.visits[row]}</span>
+        <span class="dyck-mass-num is-bos" data-num="bos">{two(values.bos)}</span>
+        <span class="dyck-mass-num is-answers" data-num="answers">{two(values.answers)}</span>
+        <span class="dyck-mass-bar reveal-grow-x" style={`--i:${index * 3}`} role="img" aria-label={`${text.visits[row]}: ${text.segments.bos} ${two(values.bos)}, ${text.segments.answers} ${two(values.answers)}, ${text.segments.other} ${two(values.other)}`}>
+          <i class="seg is-bos" data-seg="bos" style={`flex-basis:${percent(values.bos)}`}></i>
+          <i class="seg is-answers" data-seg="answers" style={`flex-basis:${percent(values.answers)}`}></i>
+          <i class="seg is-other" data-seg="other" style={`flex-basis:${percent(values.other)}`}></i>
+        </span>
+      </div>;
+    })}
+  </div>
+
+  <div class="dyck-strip" aria-label={text.strip} role="img">
+    <div class="dyck-strip-labels" aria-hidden="true">
+      <span class="dyck-strip-bos">BOS <b data-strip-bos>{two(weights[0] ?? 0)}</b></span>
+      <span class="dyck-strip-scale">{text.stripScale}</span>
+    </div>
+    <svg class="dyck-strip-bars" viewBox={`0 0 ${stripWidth} 100`} preserveAspectRatio="none" aria-hidden="true">
+      {[0.1, 0.4].map(value => <line x1="0" x2={stripWidth} y1={100 - stripHeight(value) * 100} y2={100 - stripHeight(value) * 100} class="dyck-strip-grid" vector-effect="non-scaling-stroke" />)}
+      {layout.map(block => <line x1={stripX(block.start) - 0.5} x2={stripX(block.start) - 0.5} y1="0" y2="100" class="dyck-strip-sep" vector-effect="non-scaling-stroke" />)}
+      {weights.map((value, index) => <rect x={stripX(index) + (index === 0 ? 0 : 0.12)} y="0" width={index === 0 ? stripBarWidth(0) : 0.76} height="100" class:list={['dyck-bar', { 'is-answer': answers.has(index), 'is-bos': index === 0 }]} style={`transform:scaleY(${stripScale(value)})`} data-i={index} />)}
+      <line x1="0" x2={stripWidth} y1="100" y2="100" class="dyck-strip-axis" vector-effect="non-scaling-stroke" />
+    </svg>
+    <svg class="dyck-strip-ticks" viewBox={`0 0 ${stripWidth} 10`} preserveAspectRatio="none" aria-hidden="true">
+      {[...answers].map(index => <rect x={stripX(index) + 0.05} y="1" width="0.9" height="9" class="dyck-tick" />)}
+      {[0, 1, 2].map(offset => <rect x={stripX(firstTarget + offset) + 0.15} y="1" width="0.7" height="9" class="dyck-tick is-target" />)}
+    </svg>
+    <div class="dyck-strip-shots" aria-hidden="true">
+      {layout.map(block => <span style={`left:${(stripX(block.start) / stripWidth * 100).toFixed(2)}%;width:${((stripX(block.end) + 1 - stripX(block.start)) / stripWidth * 100).toFixed(2)}%`}>{block.kind === 'query' ? text.query : text.shot(block.index)}</span>)}
+    </div>
+  </div>
+
+  <div class="dyck-prompt" lang="en" data-dyck-prompt>
+    {layout.map(block => <section class:list={['dyck-block', `is-${block.kind}`]}>
+      <h4 class="dyck-block-label" lang={language}>{block.kind === 'query' ? text.query : text.shot(block.index)}</h4>
+      <div class="dyck-block-body">
+        {block.lines.map(line => {
+          const indices = Array.from({ length: line.end - line.start + 1 }, (_, offset) => line.start + offset);
+          if (line.kind === 'instruction' && block.index > 0) {
+            const sum = instructionWeight(line.start, line.end);
+            return <p class="dyck-line is-instruction"><span class="dyck-tok is-instruction" data-range={`${line.start}-${line.end}`} style={`--w:${strength(sum).toFixed(3)}`}>Complete the rest of the sequence, … properly.</span></p>;
+          }
+          return <p class:list={['dyck-line', `is-${line.kind}`]}>
+            {block.index === 0 && line.kind === 'instruction' && <><span class:list={tokenClass(0)} data-i="0" style={`--w:${strength(weights[0] ?? 0).toFixed(3)}`} tabindex="0" role="img" aria-label={`BOS: ${text.tipBos}`}>BOS</span>{' '}</>}
+            {indices.map(index => {
+              const token = tokens[index] ?? '';
+              const focusable = answers.has(index) || index >= firstTarget;
+              return <>{lead(token)}<span class:list={tokenClass(index)} data-i={index} style={`--w:${strength(weights[index] ?? 0).toFixed(3)}`} tabindex={focusable ? '0' : undefined} role={focusable ? 'img' : undefined} aria-label={focusable ? `${display(token)} · ${answers.has(index) ? text.tipAnswer(blockOf(index)?.index ?? 0) : text.tipTarget(index - firstTarget)}` : undefined}>{display(token)}</span></>;
+            })}
+          </p>;
+        })}
+      </div>
+    </section>)}
+  </div>
+
+  <div class="smelt-legend dyck-legend">
+    <span><i class="dyck-key-ramp" aria-hidden="true"><b style="--w:.15"></b><b style="--w:.4"></b><b style="--w:.7"></b><b style="--w:1"></b></i>{text.legendWeight}</span>
+    <span><i class="dyck-key-answer" aria-hidden="true">]</i>{text.legendAnswer}</span>
+    <span><i class="dyck-key-target" aria-hidden="true">]</i>{text.legendTarget}</span>
+  </div>
+  <p class="smelt-readout" aria-live="polite" data-dyck-readout set:html={text.readout(visit, text.targetName(target), two(budgets[2].bos), two(budgets[2].answers))}></p>
+  <p class="smelt-readout dyck-meta">{text.meta(data.layer, data.head)}</p>
+
+  <details class="disclosure smelt-data">
+    <summary>{text.table}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="disclosure-body">
+      <div class="data-scroll" tabindex="0" role="region" aria-label={text.table}>
+        <table class="data-table">
+          <thead><tr><th scope="col">{text.tableHead.target}</th><th scope="col">{text.tableHead.bos} · {text.visits[1]}</th><th scope="col">{text.tableHead.bos} · {text.visits[2]}</th><th scope="col">{text.tableHead.answers} · {text.visits[1]}</th><th scope="col">{text.tableHead.answers} · {text.visits[2]}</th></tr></thead>
+          <tbody>
+            {targets.map((token, index) => <tr><th scope="row">{text.targetLabel(index, token.trim())}</th><td>{data.summary.bos[0]![index]!.toFixed(3)}</td><td>{data.summary.bos[1]![index]!.toFixed(3)}</td><td>{data.summary.answers[0]![index]!.toFixed(3)}</td><td>{data.summary.answers[1]![index]!.toFixed(3)}</td></tr>)}
+            <tr><th scope="row">{text.avg}</th><td>{budgets[1].bos.toFixed(3)}</td><td>{budgets[2].bos.toFixed(3)}</td><td>{budgets[1].answers.toFixed(3)}</td><td>{budgets[2].answers.toFixed(3)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+  <div hidden><slot /></div>
+</div>
+<script src="../../scripts/smelt/dyck-attention.ts"></script>

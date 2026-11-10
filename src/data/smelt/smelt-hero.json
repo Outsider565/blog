@@ -1,0 +1,15 @@
+{
+ "provenance": {
+  "paperCommit": "668dbc2",
+  "source": "img/smelt_arch/raw.json",
+  "sha256": "5a3eeb237be8dff930c338d516ab2e50a873c093104767fc88d1f23ad0db9613",
+  "note": "Layer counts only; no measured value."
+ },
+ "physicalLayers": 12,
+ "loopedSpan": [
+  4,
+  9
+ ],
+ "visits": 2,
+ "executedLayers": 18
+}

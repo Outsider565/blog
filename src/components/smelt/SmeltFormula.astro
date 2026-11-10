@@ -1,0 +1,31 @@
+---
+// The separate-fit scaling law, typeset with HTML so it needs no math library.
+// Hovering, focusing or tapping a term highlights it here and, when Figure 6
+// (ScalingFit) is on the page, the matching coefficients, bar segments and rows.
+import type { Language } from '../../lib/site';
+import '../../styles/smelt.css';
+import '../../styles/smelt/smelt-formula.css';
+interface Props { language: Language }
+const { language } = Astro.props;
+const zh = language === 'zh';
+const label = 'L(F, S, D) = E + A (1 − S)^b / F^a + K / D^c';
+const keys = [
+  { term: 'E', name: zh ? '不可约损失' : 'irreducible loss', math: 'E' },
+  { term: 'capacity', name: zh ? '容量项' : 'capacity term', math: 'A (1 − S)^b / F^a' },
+  { term: 'data', name: zh ? '数据项' : 'data term', math: 'K / D^c' },
+] as const;
+---
+<div class="smelt-formula" data-smelt-formula>
+  <span class="smelt-formula-line" role="math" aria-label={label}>
+    <span aria-hidden="true" class="smelt-formula-lhs"><var>L</var>(<var>F</var>, <var>S</var>, <var>D</var>)</span> <span class="op" aria-hidden="true">=</span>
+    <span class="term term-e" data-term="E" aria-hidden="true"><var>E</var></span> <span class="op" aria-hidden="true">+</span>
+    <span class="term term-capacity" data-term="capacity" aria-hidden="true"><span class="frac"><span class="num"><var>A</var>(1 − <var>S</var>)<sup><var>b</var></sup></span><span class="den"><var>F</var><sup><var>a</var></sup></span></span></span> <span class="op" aria-hidden="true">+</span>
+    <span class="term term-data" data-term="data" aria-hidden="true"><span class="frac"><span class="num"><var>K</var></span><span class="den"><var>D</var><sup><var>c</var></sup></span></span></span>
+  </span>
+  <span class="smelt-formula-key" role="group" aria-label={zh ? '公式的三项（点击可固定高亮）' : 'Terms of the law (click to pin the highlight)'}>
+    {keys.map(key => <button type="button" class={`term-${key.term === 'E' ? 'e' : key.term}`} data-term={key.term} aria-pressed="false" aria-label={`${key.name}: ${key.math}`}>{key.name}</button>)}
+  </span>
+</div>
+{/* Without JavaScript the key is a plain legend, not a row of buttons. */}
+<noscript><style is:inline>.smelt-formula[data-smelt-formula] .term, .smelt-formula[data-smelt-formula] .smelt-formula-key > button { cursor: default; pointer-events: none; }</style></noscript>
+<script src="../../scripts/smelt/smelt-formula.ts"></script>

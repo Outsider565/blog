@@ -1,0 +1,396 @@
+{
+  "recipe": {
+    "id": "recipe",
+    "number": 1,
+    "component": "BudgetMatch",
+    "props": {},
+    "file": "smelt-arch.svg",
+    "dimensions": [
+      480,
+      386
+    ],
+    "paperBundle": "smelt_arch",
+    "captions": {
+      "zh": {
+        "title": "SMELT 的核心做法：将中间 50% 的层执行两次，同时匹配计算量、参数量和 KV cache。",
+        "detail": ""
+      },
+      "en": {
+        "title": "The core of SMELT: run the middle 50% of layers twice while matching compute, parameters, and KV cache.",
+        "detail": ""
+      }
+    }
+  },
+  "loop-span": {
+    "id": "loop-span",
+    "number": 2,
+    "component": "RecipeSearch",
+    "props": {
+      "mode": "span"
+    },
+    "file": null,
+    "dimensions": null,
+    "paperBundle": "design_ablations",
+    "captions": {
+      "zh": {
+        "title": "循环中间约 50% 的层时验证损失最低。",
+        "detail": ""
+      },
+      "en": {
+        "title": "Validation loss is lowest when roughly the middle 50% of layers are looped.",
+        "detail": ""
+      }
+    }
+  },
+  "depth-width": {
+    "id": "depth-width",
+    "number": 3,
+    "component": "RecipeSearch",
+    "props": {
+      "mode": "aspect"
+    },
+    "file": null,
+    "dimensions": null,
+    "paperBundle": "design_ablations",
+    "captions": {
+      "zh": {
+        "title": "Looped Transformer 的最优执行深宽比高于基线。",
+        "detail": ""
+      },
+      "en": {
+        "title": "Looped Transformers have a larger optimal effective depth-to-width ratio than the Baseline.",
+        "detail": ""
+      }
+    }
+  },
+  "loop-count": {
+    "id": "loop-count",
+    "number": 4,
+    "component": "RecipeSearch",
+    "props": {
+      "mode": "count"
+    },
+    "file": null,
+    "dimensions": null,
+    "paperBundle": "design_ablations",
+    "captions": {
+      "zh": {
+        "title": "循环两次效果最好；三次和四次不如两次（我们归因于模型被迫变窄），但仍优于基线。",
+        "detail": ""
+      },
+      "en": {
+        "title": "Looping twice works best; three or four loops trail two (we attribute this to the narrower model that matching requires) but still beat the Baseline.",
+        "detail": ""
+      }
+    }
+  },
+  "loss-compute": {
+    "id": "loss-compute",
+    "number": 5,
+    "component": "LossCompute",
+    "props": {},
+    "file": "loss-vs-compute.svg",
+    "dimensions": [
+      1129,
+      325
+    ],
+    "paperBundle": "loss_vs_compute",
+    "captions": {
+      "zh": {
+        "title": "在所有模型规模和稀疏度下，SMELT 都能以相近计算量获得更低的验证损失。",
+        "detail": ""
+      },
+      "en": {
+        "title": "At every model scale and sparsity level, SMELT reaches lower validation loss at comparable compute.",
+        "detail": ""
+      }
+    }
+  },
+  "coefficients": {
+    "id": "coefficients",
+    "number": 6,
+    "component": "ScalingFit",
+    "props": {},
+    "file": null,
+    "dimensions": null,
+    "paperBundle": "frontier_ce_gain",
+    "captions": {
+      "zh": {
+        "title": "分别拟合基线和 SMELT 得到的 Scaling Law 系数。",
+        "detail": ""
+      },
+      "en": {
+        "title": "Scaling-law coefficients fitted separately for the Baseline and SMELT.",
+        "detail": ""
+      }
+    }
+  },
+  "frontier": {
+    "id": "frontier",
+    "number": 7,
+    "component": "ComputeFrontier",
+    "props": {},
+    "file": "frontier-ce-gain.svg",
+    "dimensions": [
+      360,
+      380
+    ],
+    "paperBundle": "frontier_ce_gain",
+    "captions": {
+      "zh": {
+        "title": "从 10²⁰ FLOPs 起，SMELT 的计算最优前沿更低；在 S ≈ 97%、10²¹ FLOPs 时可节省 14.7% 的训练计算量。",
+        "detail": ""
+      },
+      "en": {
+        "title": "From 10²⁰ FLOPs onward, SMELT’s compute-optimal frontier is lower; at S ≈ 97% and 10²¹ FLOPs, it saves 14.7% of training compute.",
+        "detail": ""
+      }
+    }
+  },
+  "dclm-core": {
+    "id": "dclm-core",
+    "number": 8,
+    "component": "DownstreamPairs",
+    "props": {
+      "metric": "core"
+    },
+    "file": "downstream-core-vs-compute.svg",
+    "dimensions": [
+      1095,
+      322
+    ],
+    "paperBundle": "downstream_core_vs_compute",
+    "captions": {
+      "zh": {
+        "title": "SMELT 在 96 组匹配对中的 83 组上取得更高的 DCLM Core 分数。",
+        "detail": ""
+      },
+      "en": {
+        "title": "SMELT scores higher on DCLM Core in 83 of 96 matched pairs.",
+        "detail": ""
+      }
+    }
+  },
+  "mmlu": {
+    "id": "mmlu",
+    "number": 9,
+    "component": "DownstreamPairs",
+    "props": {
+      "metric": "mmlu"
+    },
+    "file": "downstream-mmlu-vs-compute.svg",
+    "dimensions": [
+      1095,
+      322
+    ],
+    "paperBundle": "downstream_mmlu_vs_compute",
+    "captions": {
+      "zh": {
+        "title": "在基线明显高于随机水平的 30 组匹配对中，SMELT 在 29 组上取得更高的 MMLU 准确率。",
+        "detail": ""
+      },
+      "en": {
+        "title": "Among the 30 matched pairs whose Baseline scores clearly above chance, SMELT has higher MMLU accuracy in 29.",
+        "detail": ""
+      }
+    }
+  },
+  "beyond-loss": {
+    "id": "beyond-loss",
+    "number": 10,
+    "component": "BeyondLoss",
+    "props": {},
+    "file": "loss-to-benchmark.svg",
+    "dimensions": [
+      920,
+      264
+    ],
+    "paperBundle": "loss_to_benchmark",
+    "captions": {
+      "zh": {
+        "title": "即使验证损失相同，SMELT 在三项下游指标上的平均表现也都高于基线预测；相对这条合并拟合的基线曲线，这一额外收益大体随模型规模增大。",
+        "detail": ""
+      },
+      "en": {
+        "title": "Even at the same validation loss, SMELT on average beats the Baseline curve on all three downstream metrics; measured against this pooled curve, the extra gain broadly grows with model scale.",
+        "detail": ""
+      }
+    }
+  },
+  "domain-gain": {
+    "id": "domain-gain",
+    "number": 11,
+    "component": "DomainGain",
+    "props": {},
+    "file": "per-source.svg",
+    "dimensions": [
+      431.7,
+      236.9
+    ],
+    "paperBundle": "per_source",
+    "captions": {
+      "zh": {
+        "title": "SMELT 在所有数据领域上都有收益，其中代码数据收益最大。",
+        "detail": ""
+      },
+      "en": {
+        "title": "SMELT gains in every data domain, and the gain is largest on Code.",
+        "detail": ""
+      }
+    }
+  },
+  "length-gain": {
+    "id": "length-gain",
+    "number": 12,
+    "component": "LengthGain",
+    "props": {},
+    "file": "length-icl.svg",
+    "dimensions": [
+      928,
+      243
+    ],
+    "paperBundle": "length_icl",
+    "captions": {
+      "zh": {
+        "title": "长文本上 SMELT 相对基线的收益更明显：按各匹配对归一化后，约为短文本的 1.5 倍。",
+        "detail": ""
+      },
+      "en": {
+        "title": "SMELT’s gain over the Baseline is larger on long texts: after normalizing each matched pair, about 1.5× its gain on short ones.",
+        "detail": ""
+      }
+    }
+  },
+  "icl-gain": {
+    "id": "icl-gain",
+    "number": 13,
+    "component": "IclGain",
+    "props": {},
+    "file": "length-icl.svg",
+    "dimensions": [
+      928,
+      243
+    ],
+    "paperBundle": "length_icl",
+    "captions": {
+      "zh": {
+        "title": "给出 in-context 示例后，SMELT 的优势明显扩大；在 Dyck Languages 上，差距从 8 个示例起逐渐拉开。",
+        "detail": ""
+      },
+      "en": {
+        "title": "Once in-context examples are given, SMELT’s advantage widens markedly; on Dyck Languages, the gap opens up from 8 examples on.",
+        "detail": ""
+      }
+    }
+  },
+  "expert-reuse": {
+    "id": "expert-reuse",
+    "number": 14,
+    "component": "ExpertReuse",
+    "props": {},
+    "file": "moe-expert-set-reuse.svg",
+    "dimensions": [
+      1018,
+      213
+    ],
+    "paperBundle": "moe_expert_set_reuse",
+    "captions": {
+      "zh": {
+        "title": "第二次执行会复用部分专家，同时选择一些新专家；实际重叠远高于随机水平。",
+        "detail": ""
+      },
+      "en": {
+        "title": "The second visit reuses some experts and selects some new ones; the overlap is far above chance.",
+        "detail": ""
+      }
+    }
+  },
+  "residual-flow": {
+    "id": "residual-flow",
+    "number": 15,
+    "component": "ResidualFlow",
+    "props": {},
+    "file": "residual-flow-loop-block-zoom.svg",
+    "dimensions": [
+      1080,
+      634
+    ],
+    "paperBundle": "residual_flow_loop_block_zoom",
+    "captions": {
+      "zh": {
+        "title": "第二次执行向残差流写入的更新整体更大。",
+        "detail": ""
+      },
+      "en": {
+        "title": "The second visit writes larger updates to the residual stream overall.",
+        "detail": ""
+      }
+    }
+  },
+  "attention-stages": {
+    "id": "attention-stages",
+    "number": 16,
+    "component": "AttentionStages",
+    "props": {},
+    "file": "attention-qkv-decomposition.svg",
+    "dimensions": [
+      809,
+      452
+    ],
+    "paperBundle": "attention_qkv_decomposition",
+    "captions": {
+      "zh": {
+        "title": "两次执行通常看向相似的位置，但读取和写回的内容发生了更大变化。",
+        "detail": ""
+      },
+      "en": {
+        "title": "The two visits usually attend to similar positions, but what they read and write back changes more.",
+        "detail": ""
+      }
+    }
+  },
+  "dyck-attention": {
+    "id": "dyck-attention",
+    "number": 17,
+    "component": "DyckAttention",
+    "props": {},
+    "file": "dyck-attention-map-1p6b.svg",
+    "dimensions": [
+      1008,
+      446
+    ],
+    "paperBundle": "dyck_attention_map_1p6b",
+    "captions": {
+      "zh": {
+        "title": "在 Dyck 任务中，第二次执行把注意力从 BOS 转移到示例答案。",
+        "detail": ""
+      },
+      "en": {
+        "title": "On the Dyck task, the second visit shifts attention from BOS to the answers in the examples.",
+        "detail": ""
+      }
+    }
+  },
+  "attention-sink": {
+    "id": "attention-sink",
+    "number": 18,
+    "component": "AttentionSink",
+    "props": {},
+    "file": "attention-sink-physical-depth-1p6b.svg",
+    "dimensions": [
+      331,
+      274
+    ],
+    "paperBundle": "attention_sink_physical_depth_1p6b",
+    "captions": {
+      "zh": {
+        "title": "普通模型的 attention sink 随深度增强，而 SMELT 的第二次执行会减弱 attention sink。",
+        "detail": ""
+      },
+      "en": {
+        "title": "In the unlooped Baseline, the attention sink grows stronger with depth; SMELT’s second visit weakens it.",
+        "detail": ""
+      }
+    }
+  }
+}

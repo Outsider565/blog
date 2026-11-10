@@ -1,0 +1,141 @@
+/* Figure 5 (loss-compute). Scale colour on --lc-c; Baseline hollow + dashed,
+   SMELT filled + solid, per the shared convention. */
+.lc { --lc-c: var(--plot-ink); }
+.lc .lc-s0 { --lc-c: var(--smelt-s100); }
+.lc .lc-s1 { --lc-c: var(--smelt-s200); }
+.lc .lc-s2 { --lc-c: var(--smelt-s600); }
+.lc .lc-s3 { --lc-c: var(--smelt-s1p6); }
+
+.lc-stats { margin-top: 4px; margin-bottom: 18px; }
+/* Controls that only work with the script (the sparsity selector). */
+.lc:not([data-ready]) .lc-js { display: none; }
+.lc-stats .smelt-stat-label { max-width: 26ch; }
+
+/* Static variants: wide for desktop/tablet, narrow for phones; the script
+   replaces both with one SVG laid out at the real width. */
+.lc-svg, .lc-inset-svg { touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
+@container smelt-figure (width < 560px) { .lc-wide:not(.is-live) { display: none; } }
+@container smelt-figure (width >= 560px) { .lc-narrow { display: none; } }
+.lc-svg:focus, .lc-inset-svg:focus { outline: none; }
+.lc-svg:focus-visible, .lc-inset-svg:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; border-radius: 3px; }
+
+/* Legend: scale keys are buttons (hover to highlight, click to pin). */
+.lc-controls { margin-bottom: 10px; }
+.lc-legend { margin: 0; gap: 4px 14px; }
+.lc-legend .lc-key { color: var(--lc-c); }
+.lc-legend button.lc-key { cursor: pointer; }
+.lc-legend .lc-key span { color: var(--lc-c); }
+.lc-legend .lc-key[aria-pressed="false"] { opacity: 1; }
+.lc-legend .lc-key[aria-pressed="true"] { border-bottom-color: currentColor; }
+.lc-legend .lc-key:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+.lc-key-arch { color: var(--muted); }
+.lc-key-arch .smelt-swatch-ring, .lc-key-arch .smelt-swatch-dot, .lc-key-arch .lc-swatch-line { color: var(--plot-muted); }
+/* Line style carries the pairing where sparse panels overlap: dashed Baseline, solid SMELT. */
+.lc-swatch-line { display: inline-block; width: 15px; height: 0; margin-right: -3px; border-top: 2px solid currentColor; }
+.lc-key-arch.lc-arch-base .lc-swatch-line { border-top: 1.5px dashed currentColor; }
+.lc-legend .lc-legend-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+.lc-legend .lc-legend-group + .lc-legend-group { padding-left: 14px; border-left: 1px solid var(--line); }
+.lc-legend .lc-key { display: inline-flex; align-items: center; gap: 7px; border: 0; border-bottom: 1px solid transparent; padding: 2px 0; background: none; font: inherit; }
+.lc-legend .lc-key-arch { display: inline-flex; align-items: center; gap: 7px; }
+
+/* Axes */
+.lc .lc-tick { fill: var(--plot-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.lc .lc-panel-title { fill: var(--plot-ink); font-size: 14px; font-weight: 700; letter-spacing: .01em; }
+.lc .lc-vgrid { stroke-dasharray: 2 3; }
+.lc .lc-zero { stroke: var(--plot-axis); stroke-width: 1; }
+.lc .lc-zone { fill: color-mix(in srgb, var(--smelt-gain) 7%, transparent); }
+.lc .lc-zone-label { fill: var(--muted); font: 12px var(--sans); letter-spacing: .02em; }
+.lc .lc-axes { transition: opacity 420ms var(--smelt-ease); }
+.lc .lc-labels { transition: opacity 300ms var(--smelt-ease); }
+.lc .lc-end-label { fill: var(--lc-c); font: 600 12.5px var(--sans); paint-order: stroke; stroke: var(--paper); stroke-width: 3.5px; stroke-linejoin: round; }
+
+/* Marks */
+.lc .lc-cell { transition: opacity 420ms var(--smelt-ease); }
+.lc .lc-line-base { fill: none; stroke: var(--lc-c); stroke-width: 1.15; stroke-dasharray: 3.5 2.5; opacity: .8; }
+.lc .lc-line-loop { fill: none; stroke: var(--lc-c); stroke-width: 1.7; opacity: .9; }
+.lc .lc-dot-base { fill: var(--paper); stroke: var(--lc-c); stroke-width: 1.5; }
+.lc .lc-dot-loop { fill: var(--lc-c); stroke: var(--paper); stroke-width: .9; }
+.lc .lc-line-delta { fill: none; stroke: var(--lc-c); stroke-width: 1.4; opacity: .85; }
+.lc .lc-dot-delta { fill: var(--lc-c); stroke: var(--paper); stroke-width: .8; }
+/* Final horizon (the point the headline counts): larger, with a paper ring. */
+.lc .lc-dot-loop.is-final { stroke-width: 1.4; }
+.lc .lc-dot-delta.is-final { stroke-width: 1.5; }
+.lc .lc-cell.is-selected .lc-line-loop { stroke-width: 2.5; opacity: 1; }
+.lc .lc-cell.is-selected .lc-line-base { stroke-width: 1.6; opacity: 1; }
+.lc .lc-cell.is-selected .lc-line-delta { stroke-width: 2.1; opacity: 1; }
+.lc[data-hl="0"] .lc-cell:not(.lc-s0), .lc[data-hl="1"] .lc-cell:not(.lc-s1),
+.lc[data-hl="2"] .lc-cell:not(.lc-s2), .lc[data-hl="3"] .lc-cell:not(.lc-s3) { opacity: .13; }
+.lc[data-hl="0"] .lc-key:not(.lc-s0), .lc[data-hl="1"] .lc-key:not(.lc-s1),
+.lc[data-hl="2"] .lc-key:not(.lc-s2), .lc[data-hl="3"] .lc-key:not(.lc-s3) { opacity: .4; }
+.lc .lc-cell.is-hidden, .lc[data-hl] .lc-cell.is-hidden { opacity: 0; pointer-events: none; }
+.lc .lc-end-label { transition: opacity 300ms var(--smelt-ease); }
+.lc[data-hl="0"] .lc-end-label:not(.lc-s0), .lc[data-hl="1"] .lc-end-label:not(.lc-s1),
+.lc[data-hl="2"] .lc-end-label:not(.lc-s2), .lc[data-hl="3"] .lc-end-label:not(.lc-s3) { opacity: .2; }
+
+/* Selected cell (shown in the training-curve panel) */
+.lc .lc-selected-ring { fill: none; stroke: var(--lc-c); stroke-width: 1.3; stroke-dasharray: 2.2 2; pointer-events: none; transition: opacity 300ms var(--smelt-ease); }
+.lc[data-hl="0"] .lc-selected-ring:not(.lc-s0), .lc[data-hl="1"] .lc-selected-ring:not(.lc-s1),
+.lc[data-hl="2"] .lc-selected-ring:not(.lc-s2), .lc[data-hl="3"] .lc-selected-ring:not(.lc-s3) { opacity: .15; }
+
+/* Hover / keyboard focus on a matched pair */
+.lc .lc-focus { pointer-events: none; }
+.lc .lc-focus-ring { fill: none; stroke: var(--ink); stroke-width: 1.2; }
+.lc .lc-focus-link { stroke: var(--ink); stroke-width: 1.2; }
+.lc .lc-focus-drop { stroke: var(--lc-c); stroke-width: 1.4; }
+.lc .lc-focus-guide { stroke: var(--plot-axis); stroke-width: 1; stroke-dasharray: 2 3; }
+
+.lc-readout { margin-top: 4px; }
+
+/* Inset: the selected cell's training curves */
+.lc-inset { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.lc-inset-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 6px 24px; margin-bottom: 8px; }
+.lc-inset-head h4 { margin: 0; font: 600 13px/1.6 var(--sans); color: var(--ink); }
+.lc-inset-meta { margin: 0; font: 12px/1.7 var(--sans); color: var(--muted); }
+.lc-inset-legend { margin: 2px 0 0; }
+.lc-inset-legend .is-base .smelt-swatch { border-top-width: 1.5px; }
+.lc-key-delta { color: var(--plot-ink); }
+.lc-key-end { color: var(--muted); gap: 4px !important; }
+.lc-key-end .smelt-swatch-ring { color: var(--smelt-base); }
+.lc-key-end .smelt-swatch-dot { color: var(--smelt-loop); margin-right: 3px; }
+.lc .lc-tr-base { fill: none; stroke: var(--smelt-base); stroke-width: 1.25; opacity: .9; }
+.lc .lc-tr-loop { fill: none; stroke: var(--smelt-loop); stroke-width: 1.6; }
+.lc .lc-tr-decay-base { fill: none; stroke: var(--smelt-base); stroke-width: 1.9; }
+.lc .lc-tr-decay-loop { fill: none; stroke: var(--smelt-loop); stroke-width: 2.1; }
+.lc .lc-tr-end-base { fill: var(--paper); stroke: var(--smelt-base); stroke-width: 1.6; }
+.lc .lc-tr-end-loop { fill: var(--smelt-loop); stroke: var(--paper); stroke-width: 1; }
+/* Delta in neutral ink (blue and teal already mean Baseline / scales here); the below-zero fill keeps the gain tint. */
+.lc .lc-tr-delta { fill: none; stroke: var(--plot-ink); stroke-width: 1.1; opacity: .85; }
+.lc .lc-tr-decay-delta { fill: none; stroke: var(--plot-ink); stroke-width: 1.7; }
+.lc .lc-tr-end-delta { fill: var(--plot-ink); stroke: var(--paper); stroke-width: .8; }
+.lc .lc-caret { fill: var(--plot-ink); }
+.lc .lc-caret-label { fill: var(--plot-ink); font: 12px var(--sans); font-variant-numeric: tabular-nums; paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+.lc .lc-carets { transition: opacity 300ms var(--smelt-ease); }
+.lc .lc-carets.is-out { opacity: 0; }
+.lc .lc-tr-area.is-below { fill: color-mix(in srgb, var(--smelt-gain) 15%, transparent); }
+.lc .lc-tr-area.is-above { fill: color-mix(in srgb, var(--plot-neutral) 22%, transparent); }
+.lc .lc-branch { transition: opacity 240ms var(--smelt-ease); }
+.lc-inset[data-branch] .lc-branch:not(.is-active) { opacity: .28; }
+.lc .lc-branch.is-active .lc-tr-end-base, .lc .lc-branch.is-active .lc-tr-end-loop { stroke-width: 2; }
+.lc .lc-tr-hover { stroke: var(--paper); stroke-width: 1.2; }
+.lc .lc-tr-hover.is-base { fill: var(--smelt-base); }
+.lc .lc-tr-hover.is-loop { fill: var(--smelt-loop); }
+.lc .lc-tr-hover.is-delta { fill: var(--plot-ink); }
+/* Model pickers above the training curves. No scale colour here: blue and red mean Baseline and SMELT in this panel. */
+.lc-inset-controls { justify-content: flex-start; gap: 8px 22px; margin: 2px 0 10px; }
+.lc-pick button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.lc-inset-readout { margin-top: 2px; }
+
+@container smelt-figure (width < 560px) {
+  .lc-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lc-stats .smelt-stat-label { font-size: 12px; line-height: 1.5; }
+  .lc-controls { gap: 10px; }
+  .lc-legend .lc-legend-group + .lc-legend-group { padding-left: 0; border-left: 0; }
+}
+@container smelt-figure (width < 420px) {
+  .lc-inset-controls .smelt-control { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .lc-stats { grid-template-columns: minmax(0, 1fr); }
+  .lc-stats .smelt-stat { display: grid; grid-template-columns: 4.6em minmax(0, 1fr); align-items: baseline; gap: 10px; padding: 9px 0 7px; border-bottom: 1px solid var(--line); }
+  .lc-stats .smelt-stat + .smelt-stat { padding-left: 0; border-left: 0; }
+  .lc-stats .smelt-stat-value { font-size: 22px; white-space: nowrap; }
+  .lc-stats .smelt-stat-label { margin: 0; max-width: none; }
+}

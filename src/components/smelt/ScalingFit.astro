@@ -1,0 +1,184 @@
+---
+// Figure 6: the separately fitted coefficients, then a playground that evaluates
+// both laws at one (F, S, D) and splits the loss into E + capacity + data.
+import data from '../../data/smelt/scaling-fit.json';
+import { scalingFitCopy } from '../../lib/smelt/scaling-fit-copy';
+import { archs, barFraction, formatParam, gamma, playParams, playground, sci, signedFixed, sliderBounds, sliderFraction, supHtml, terms, toSlider, type Arch, type Law, type TermKey } from '../../lib/smelt/scaling-fit';
+import type { Language } from '../../lib/site';
+import '../../styles/smelt.css';
+import '../../styles/smelt/scaling-fit.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language } = Astro.props;
+const text = scalingFitCopy[language];
+const laws = data.coefficients as Record<Arch, Law & { gamma: number; rmse: number }>;
+const base = laws.baseline;
+const loop = laws.smelt;
+const uid = `sf-${Math.random().toString(36).slice(2, 8)}`;
+
+// ---- ledger ---------------------------------------------------------------
+type Row = { symbol: string; base: string; loop: string; change: string; relative?: number; key?: boolean; muted?: boolean; tip?: string };
+const relative = (from: number, to: number) => to / from - 1;
+const pct = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value * 100).toFixed(1)}%`;
+const ratio = (from: number, to: number) => `×${(to / from).toFixed(2)}`;
+const exponentRow = (symbol: 'a' | 'b' | 'c', key: boolean): Row => ({ symbol, base: base[symbol].toFixed(4), loop: loop[symbol].toFixed(4), change: pct(relative(base[symbol], loop[symbol])), relative: relative(base[symbol], loop[symbol]), key, muted: !key });
+const groups: Record<TermKey | 'fit' | 'frontier', { math: string; rows: Row[] }> = {
+  E: { math: '<var>E</var>', rows: [{ symbol: 'E', base: base.E.toFixed(4), loop: loop.E.toFixed(4), change: signedFixed(loop.E - base.E, 4) }] },
+  capacity: { math: '<var>A</var>(1−<var>S</var>)<sup><var>b</var></sup>/<var>F</var><sup><var>a</var></sup>', rows: [
+    { symbol: 'A', base: sci(base.A, 4), loop: sci(loop.A, 4), change: ratio(base.A, loop.A) },
+    exponentRow('a', true),
+    exponentRow('b', false),
+  ] },
+  data: { math: '<var>K</var>/<var>D</var><sup><var>c</var></sup>', rows: [
+    { symbol: 'K', base: sci(base.K, 4), loop: sci(loop.K, 4), change: ratio(base.K, loop.K) },
+    exponentRow('c', true),
+  ] },
+  frontier: { math: '<var>γ</var> = <var>ac</var>/(<var>a</var>+<var>c</var>)', rows: [
+    { symbol: 'γ', base: gamma(base).toFixed(4), loop: gamma(loop).toFixed(4), change: pct(relative(gamma(base), gamma(loop))), relative: relative(gamma(base), gamma(loop)), muted: true },
+  ] },
+  fit: { math: '', rows: [{ symbol: 'RMSE', base: base.rmse.toFixed(5), loop: loop.rmse.toFixed(5), change: text.points }] },
+};
+// Two columns that read like the formula: E and the capacity term, then the data term and what follows from it.
+const columns: (TermKey | 'fit' | 'frontier')[][] = [['E', 'capacity'], ['data', 'frontier', 'fit']];
+const relativeScale = 0.08; // ±8% fills the little change bar
+
+// ---- playground (default state rendered here, updated by the script) ------
+const state = { F: data.default.F, S: data.default.S, D: data.default.D };
+const split = Object.fromEntries(archs.map(arch => [arch, terms(laws[arch], state.F, state.S, state.D)])) as Record<Arch, ReturnType<typeof terms>>;
+const segments = (arch: Arch) => {
+  const t = split[arch];
+  return [
+    { term: 'E' as const, x: 0, w: barFraction(t.E), value: t.E },
+    { term: 'capacity' as const, x: barFraction(t.E), w: t.capacity / (playground.maxLoss - playground.breakAt), value: t.capacity },
+    { term: 'data' as const, x: barFraction(t.E + t.capacity), w: t.data / (playground.maxLoss - playground.breakAt), value: t.data },
+  ];
+};
+const archName = (arch: Arch) => arch === 'baseline' ? text.base : text.loop;
+const deltas = [
+  { term: 'E' as const, value: 1000 * (split.baseline.E - split.smelt.E), base: split.baseline.E, loop: split.smelt.E },
+  { term: 'capacity' as const, value: 1000 * (split.baseline.capacity - split.smelt.capacity), base: split.baseline.capacity, loop: split.smelt.capacity },
+  { term: 'data' as const, value: 1000 * (split.baseline.data - split.smelt.data), base: split.baseline.data, loop: split.smelt.data },
+  { term: 'total' as const, value: 1000 * (split.baseline.total - split.smelt.total), base: split.baseline.total, loop: split.smelt.total },
+];
+const deltaGeometry = (value: number) => {
+  const width = Math.min(1, Math.abs(value) / playground.deltaRange) * 0.5;
+  return `--l:${(value >= 0 ? 0.5 : 0.5 - width).toFixed(4)};--w:${width.toFixed(4)}`;
+};
+const axisTicks = [1.4, 1.6, 1.8, 2.0, 2.2, 2.4];
+const sliderTicks: Record<'F' | 'S' | 'D', { value: number; label: string }[]> = {
+  F: data.scales.map(scale => ({ value: scale.F, label: scale.label })),
+  S: [0.85, 0.95, 0.97].map(value => ({ value, label: `${Math.round(value * 100)}%` })),
+  D: data.horizons.map((value, index) => ({ value, label: index === 0 || index === 2 || index === 5 ? formatParam('D', value) : '' })),
+};
+const ariaLabel = language === 'zh'
+  ? `分别拟合的系数：SMELT 的容量指数 a = ${loop.a.toFixed(4)}（基线 ${base.a.toFixed(4)}），数据指数 c = ${loop.c.toFixed(4)}（基线 ${base.c.toFixed(4)}）。`
+  : `Separately fitted coefficients: SMELT's capacity exponent a = ${loop.a.toFixed(4)} (Baseline ${base.a.toFixed(4)}) and data exponent c = ${loop.c.toFixed(4)} (Baseline ${base.c.toFixed(4)}).`;
+const tipValue = (value: number) => value.toFixed(4);
+---
+<div class="scaling-fit" data-scaling-fit data-language={language}>
+  <div class="sf-ledger" role="group" aria-label={ariaLabel} data-reveal>
+    <p class="smelt-legend sf-ledger-legend">
+      <span class="is-base"><span class="smelt-swatch-ring"></span>{text.base}</span>
+      <span class="is-loop"><span class="smelt-swatch-dot"></span>{text.loop}</span>
+      <span class="sf-legend-note">{text.legendNote}</span>
+    </p>
+    <div class="sf-columns">
+      {columns.map((column, columnIndex) => <div class="sf-column">
+        {column.map((term, groupIndex) => { const group = groups[term]; return <table class:list={['sf-group', 'reveal-fade']} data-term={term} style={`--i:${columnIndex * 3 + groupIndex}`}>
+          <caption><span class="sf-group-name">{text.groups[term]}</span>{group.math && <span class="sf-group-math" set:html={group.math} />}</caption>
+          <colgroup><col class="sf-col-symbol" /><col /><col /><col class="sf-col-change" /></colgroup>
+          <thead class="sf-sr"><tr><th scope="col">{language === 'zh' ? '系数' : 'Coefficient'}</th><th scope="col">{text.base}</th><th scope="col">{text.loop}</th><th scope="col">{text.change}</th></tr></thead>
+          <tbody>
+            {group.rows.map(row => <tr class:list={[{ 'is-key': row.key }]} data-tip={row.tip}>
+              <th scope="row" class:list={['sf-symbol', { 'is-word': row.symbol.length > 1 }]}>{row.symbol.length > 1 ? row.symbol : <var>{row.symbol}</var>}</th>
+              <td class="sf-v is-base" set:html={supHtml(row.base)} />
+              <td class="sf-v is-loop" set:html={supHtml(row.loop)} />
+              <td class="sf-change">
+                {row.relative !== undefined && <span class:list={['sf-rel', { 'is-negative': row.relative < 0, 'is-muted': row.muted }]} style={`--rel:${Math.min(1, Math.abs(row.relative) / relativeScale).toFixed(3)}`} aria-hidden="true"><i></i></span>}
+                {row.change && <span class="sf-change-text">{row.change}</span>}
+              </td>
+            </tr>)}
+          </tbody>
+        </table>; })}
+      </div>)}
+    </div>
+  </div>
+
+  <section class="sf-play" aria-label={text.playTitle}>
+    <header class="sf-play-head">
+      <h4>{text.playTitle}</h4>
+    </header>
+    <div class="sf-play-grid">
+      <div class="sf-sliders">
+        {playParams.map(param => {
+          const [min, max] = sliderBounds(param);
+          const id = `${uid}-${param}`;
+          return <div class="sf-slider" data-param={param}>
+            <div class="sf-slider-top">
+              <label for={id}>{text.sliders[param]} <var>{param}</var></label>
+              <output for={id} data-output set:html={supHtml(formatParam(param, state[param]))} />
+            </div>
+            <input type="range" id={id} min={min} max={max} step={playground[param].step} value={toSlider(param, state[param])} style={`--fill:${(100 * sliderFraction(param, state[param])).toFixed(2)}%`} aria-valuetext={formatParam(param, state[param])} data-input />
+            <div class="sf-ticks" aria-hidden="true">
+              {sliderTicks[param].map(tick => {
+                const at = sliderFraction(param, tick.value);
+                return <span class:list={['sf-tick', { 'is-start': at < 0.03, 'is-end': at > 0.97, 'is-mark': !tick.label }]} style={`--at:${at.toFixed(4)}`}>{tick.label}</span>;
+              })}
+            </div>
+          </div>;
+        })}
+        <button type="button" class="smelt-button sf-reset" data-reset>{text.reset}</button>
+      </div>
+
+      <div class="sf-out">
+        <div class="sf-bars" role="group" aria-label={text.barsLabel} data-reveal>
+          {archs.map((arch, index) => <div class="sf-bar-row" data-arch={arch}>
+            <span class="sf-bar-name">{archName(arch)}</span>
+            <span class="sf-bar-track reveal-grow-x" style={`--i:${index}`}>
+              {segments(arch).map(segment => <span class:list={['sf-seg', `sf-seg-${segment.term}`]} data-term={segment.term} data-seg={segment.term} style={`--x:${segment.x.toFixed(5)};--w:${segment.w.toFixed(5)}`} data-tip={text.segmentTip(segment.term, archName(arch), tipValue(segment.value))}>{segment.term === 'E' && <var>E</var>}</span>)}
+            </span>
+            <span class="sf-bar-total" data-total style={`--end:${barFraction(split[arch].total).toFixed(5)}`}>{split[arch].total.toFixed(4)}</span>
+          </div>)}
+          <div class="sf-axis" aria-hidden="true">
+            <span class="sf-bar-name"></span>
+            <span class="sf-axis-track">
+              <span class="sf-axis-tick is-zero" style="--x:0">0</span>
+              {axisTicks.map(tick => <span class="sf-axis-tick" style={`--x:${barFraction(tick).toFixed(4)}`}>{tick.toFixed(1)}</span>)}
+            </span>
+            <span class="sf-bar-total"></span>
+          </div>
+          <p class="sf-keys" aria-hidden="true">
+            {(['E', 'capacity', 'data'] as const).map(term => <span data-term={term}><i class={`sf-key sf-key-${term}`}></i>{text.termNames[term]}</span>)}
+          </p>
+        </div>
+
+        <div class="sf-delta" role="group" aria-label={text.deltaTitle} data-reveal>
+          <p class="sf-delta-title">{text.deltaTitle}</p>
+          {deltas.map((delta, index) => <div class:list={['sf-delta-row', { 'is-total': delta.term === 'total' }]} data-term={delta.term} data-delta={delta.term} data-tip={text.deltaTip(delta.term, tipValue(delta.base), tipValue(delta.loop), signedFixed(delta.value, 1))}>
+            <span class="sf-delta-name">{delta.term === 'total' ? text.deltaTotal : text.termNames[delta.term]}</span>
+            <span class="sf-delta-track"><span class:list={['sf-delta-bar', 'reveal-grow-x', { 'is-negative': delta.value < 0 }]} style={`${deltaGeometry(delta.value)};--i:${index}`}></span></span>
+            <span class="sf-delta-value" data-value>{signedFixed(delta.value, 1)}</span>
+          </div>)}
+          <div class="sf-delta-axis" aria-hidden="true"><span class="sf-delta-name"></span><span class="sf-delta-ends"><span>← {text.deltaBase}</span><span>{text.deltaLoop} →</span></span><span class="sf-delta-value"></span></div>
+        </div>
+      </div>
+    </div>
+    <p class="smelt-readout" aria-live="polite" data-readout>{text.readout(split.baseline.total.toFixed(4), split.smelt.total.toFixed(4), deltas[3]!.value)}</p>
+  </section>
+
+  <details class="disclosure smelt-data">
+    <summary>{text.dataTitle}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="disclosure-body">
+      <p>{text.dataCaption}</p>
+      <div class="data-scroll" tabindex="0" role="region" aria-label={text.dataTitle}>
+        <table class="data-table">
+          <thead><tr><th scope="col">{text.arch}</th><th scope="col"><var>E</var></th><th scope="col"><var>A</var></th><th scope="col"><var>K</var></th><th scope="col"><var>a</var></th><th scope="col"><var>b</var></th><th scope="col"><var>c</var></th><th scope="col"><var>γ</var></th><th scope="col">RMSE</th></tr></thead>
+          <tbody>{archs.map(arch => <tr><th scope="row">{archName(arch)}</th><td>{laws[arch].E.toFixed(6)}</td><td>{laws[arch].A.toFixed(2)}</td><td>{laws[arch].K.toFixed(0)}</td><td>{laws[arch].a.toFixed(6)}</td><td>{laws[arch].b.toFixed(3)}</td><td>{laws[arch].c.toFixed(6)}</td><td>{laws[arch].gamma.toFixed(6)}</td><td>{laws[arch].rmse.toFixed(6)}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+  <div hidden><slot /></div>
+</div>
+{/* Without JavaScript the sliders cannot move: keep their values as a static readout. */}
+<noscript><style is:inline>.scaling-fit .sf-slider input, .scaling-fit .sf-ticks, .scaling-fit .sf-reset { display: none; } .scaling-fit .sf-slider { margin-bottom: 6px; }</style></noscript>
+<script src="../../scripts/smelt/scaling-fit.ts"></script>

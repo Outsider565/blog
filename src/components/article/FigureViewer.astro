@@ -1,0 +1,12 @@
+---
+import type { Language } from '../../lib/site';
+interface Props { language: Language }
+const { language } = Astro.props;
+---
+<dialog class="figure-viewer" id="figure-viewer" aria-labelledby="viewer-title">
+  <div class="viewer-header"><p id="viewer-title"></p><form method="dialog"><button autofocus aria-label={language === 'zh' ? '关闭' : 'Close'}>×</button></form></div>
+  <div class="viewer-controls"><button type="button" data-zoom="out" aria-label={language === 'zh' ? '缩小' : 'Zoom out'}>−</button><output aria-live="polite">100%</output><button type="button" data-zoom="in" aria-label={language === 'zh' ? '放大' : 'Zoom in'}>+</button><button type="button" data-zoom="reset">{language === 'zh' ? '适应窗口' : 'Fit'}</button><a id="viewer-original" target="_blank" rel="noopener noreferrer">{language === 'zh' ? '打开原图' : 'Open original'} ↗</a></div>
+  <div class="viewer-canvas" tabindex="0" role="region" aria-label={language === 'zh' ? '图像，可滚动查看' : 'Scrollable figure'}><img id="viewer-image" alt="" /></div>
+  <p class="viewer-hint">{language === 'zh' ? '放大后可拖动或滑动查看，按 Esc 关闭。' : 'Zoom, then drag or scroll to inspect. Press Esc to close.'}</p>
+</dialog>
+<script src="../../scripts/figure-viewer.ts"></script>

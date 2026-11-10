@@ -1,0 +1,6 @@
+---
+interface Props { text: string; emphasis?: string }
+const { text, emphasis } = Astro.props;
+const offset = emphasis ? text.indexOf(emphasis) : -1;
+---
+{offset >= 0 && emphasis ? <>{text.slice(0, offset)}<em>{emphasis}</em>{text.slice(offset + emphasis.length)}</> : text}

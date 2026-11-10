@@ -1,0 +1,190 @@
+---
+// Figure 1: the budget-matching recipe. Five states take the Baseline to SMELT;
+// three meters track per-token FLOPs, total parameters and KV cache against the
+// Baseline. The server renders the final (matched) state; the script steps
+// through the recipe once when the figure is revealed.
+import type { Language } from '../../lib/site';
+import {
+  attention, attentionSize, baseWidth, baseline, bracketX, copy, expertGrids, experts, finalStep, formatRatio, headHeight, headVisibility, headX,
+  layerIndices, layerWidth, layerY, layers, loopFrom, loopTo, meterKeys, meterPosition, meterTicks, panelFields, panelSize, paper,
+  ratioOf, routedAt, routedBase, routedMore, shapeOf, smelt, statusText, steps, tolerance, absoluteLabel, groupDigits, meterTip, type FieldKey, type MeterKey,
+} from '../../lib/smelt/budget-match';
+import '../../styles/smelt.css';
+import '../../styles/smelt/budget-match.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language } = Astro.props;
+const text = copy[language];
+const zh = language === 'zh';
+const step = finalStep;
+const shape = shapeOf(smelt);
+const fields = panelFields(smelt);
+const field = (key: FieldKey) => fields[key];
+const looped = (layer: number) => layer >= loopFrom && layer <= loopTo;
+const y4 = layerY(loopFrom) + layers.barH / 2;
+const y9 = layerY(loopTo) + layers.barH / 2;
+const edge = layers.cx - baseWidth / 2 - 3;
+const width = layerWidth(shape.hidden);
+const rulerPath = (w: number) => `M${layers.cx - w / 2} ${layers.ruler - 4}V${layers.ruler + 4}M${layers.cx - w / 2} ${layers.ruler}H${layers.cx + w / 2}M${layers.cx + w / 2} ${layers.ruler - 4}V${layers.ruler + 4}`;
+const height = headHeight(shape);
+const tip = (key: MeterKey, index: number) => meterTip(index, key, language);
+const cellScale = shape.cell.toFixed(4);
+const percent = (value: number) => `${value.toFixed(3)}%`;
+const routedNow = routedAt(step);
+const routeTag = (index: number) => `${routedBase.has(index) ? 'a' : ''}${routedMore.has(index) ? 'b' : ''}` || undefined;
+// Config table rows: label, Baseline, SMELT, and the SMELT change on its own line.
+const rows: [string, string, string, string?][] = [
+  [zh ? '物理层 / 执行层' : 'Unique / executed layers', `${baseline.physical} / ${baseline.executed}`, `${smelt.physical} / ${smelt.executed}`],
+  [zh ? '循环范围' : 'Looped span', '—', zh ? `第 ${loopFrom}–${loopTo} 层 ×2` : `layers ${loopFrom}–${loopTo}, ×2`],
+  [zh ? '隐藏维度' : 'Hidden size', String(baseline.hidden), String(smelt.hidden)],
+  [zh ? '专家 FFN 宽度' : 'Expert FFN width', String(baseline.ffn), String(smelt.ffn)],
+  [zh ? '每层专家 / 激活' : 'Experts per layer / active', `${baseline.experts} / ${baseline.topk}`, `${smelt.experts} / ${smelt.topk}`],
+  [zh ? 'Q 头 / KV 头 / head dim' : 'Query / KV heads / head dim', `${baseline.heads} / ${baseline.kvHeads} / ${baseline.headDim}`, `${smelt.heads} / ${smelt.kvHeads} / ${smelt.headDim}`],
+  [zh ? '激活参数（一次物理遍历）' : 'Active parameters (one traversal)', `${(paper.activeBase / 1e9).toFixed(3)}B`, `${(paper.activeSmelt / 1e9).toFixed(3)}B`],
+  [zh ? '总参数（不含 embedding）' : 'Total parameters (excl. embeddings)', `${(paper.paramsBase / 1e9).toFixed(2)}B`, `${(paper.paramsSmelt / 1e9).toFixed(2)}B`, '+0.4%'],
+  [zh ? '每 token 训练 FLOPs' : 'Per-token training FLOPs', absoluteLabel(0, 'flops'), absoluteLabel(finalStep, 'flops'), '+2.9%'],
+  [zh ? '每 token 缓存的 K/V 数' : 'K/V entries cached per token', groupDigits(steps[0]!.absolute.kvValues), groupDigits(steps[finalStep]!.absolute.kvValues), formatRatio(ratioOf(finalStep, 'kv'), finalStep, 'kv')],
+  [zh ? '稀疏度 S' : 'Sparsity S', `${(paper.sparsityBase * 100).toFixed(1)}%`, `${(paper.sparsitySmelt * 100).toFixed(1)}%`],
+];
+// Math in the notes is set with <i>/<sub> (no raw underscores); the strings are constants.
+const v = (name: string, sub?: string) => `<i>${name}</i>${sub ? `<sub>${sub}</sub>` : ''}`;
+const H = v('H'), dh = v('d', 'head'), nq = v('n', 'q'), nkv = v('n', 'kv'), E = v('E'), dffn = v('d', 'ffn'), Lx = v('L', 'exec'), F = v('F'), k = v('k');
+const formulas = zh ? [
+  `参数量：每层 = 注意力 ${H}${dh}(2${nq} + 2${nkv}) + 路由 ${H}${E} + ${E} 个专家 × 3${H}${dffn}（SwiGLU），乘以 12 个物理层。`,
+  `FLOPs：${F} ≈ 6 ×（每个执行层的激活参数）× ${Lx} + ${k} × ${nq}${dh} × ${Lx}。第二项是随文档长度增长的注意力打分开销，系数 ${k} 按基线的 1.33×10⁹ 标定。`,
+  `KV cache：每 token 缓存 2${nkv}${dh}${Lx} 个值（循环层的每次执行各自缓存）。`,
+] : [
+  `Parameters: per layer, attention ${H}${dh}(2${nq} + 2${nkv}) + router ${H}${E} + ${E} experts × 3${H}${dffn} (SwiGLU), times 12 physical layers.`,
+  `FLOPs: ${F} ≈ 6 × (active parameters per executed layer) × ${Lx} + ${k} × ${nq}${dh} × ${Lx}. The second term is the attention-score cost that grows with document length; ${k} is calibrated so the Baseline gives 1.33×10⁹.`,
+  `KV cache: 2${nkv}${dh}${Lx} values cached per token (each visit of a looped layer keeps its own cache).`,
+];
+---
+<div class="budget-match" data-budget-match data-language={language} data-step={step} data-looped data-narrowed data-more-experts data-attention>
+  <div hidden><slot /></div>
+  <div class="bm-frame">
+  <ol class="bm-steps" aria-label={text.stepper}>
+    {steps.map((_, index) => <li class:list={['bm-step-item', { 'is-done': index < step }]} data-bm-item={index}>
+      <button type="button" class="bm-step" data-bm-step={index} aria-current={index === step ? 'step' : undefined} aria-label={`${text.stepWord(index)}: ${text.titles[index]}`}>
+        <span class="bm-step-num" aria-hidden="true">{index + 1}</span>
+        <span class="bm-step-label">{text.labels[index]}</span>
+      </button>
+    </li>)}
+  </ol>
+  <p class="sr-only" data-bm-live aria-live="polite" aria-atomic="true"></p>
+  <!-- Step, title and body run as one paragraph; the arrows float at its top right, and hidden
+       copies of every step reserve the tallest height so the figure never jumps. -->
+  <div class="bm-nav">
+    <p class="bm-readout">
+      <span class="bm-readout-text">
+        <span class="bm-arrows" data-bm-arrows hidden>
+          <button type="button" class="smelt-button bm-arrow" data-bm-prev aria-label={text.prev}><span aria-hidden="true">‹</span></button>
+          <button type="button" class="smelt-button bm-arrow" data-bm-next aria-label={text.next} disabled><span aria-hidden="true">›</span></button>
+        </span>
+        <span class="bm-readout-step" data-bm-stepword>{text.stepWord(step)}</span><strong class="bm-readout-title" data-bm-title>{text.titles[step]}</strong><span data-bm-body>{text.bodies[step]}</span>
+      </span>
+      {text.bodies.map((line, index) => <span class="bm-readout-sizer" aria-hidden="true"><span class="bm-arrows-space"></span><span class="bm-readout-step">{text.stepWord(index)}</span><strong class="bm-readout-title">{text.titles[index]}</strong>{line}</span>)}
+    </p>
+  </div>
+
+  <div class="bm-panels">
+    <section class="bm-panel is-layers" aria-label={text.panels.layers.title}>
+      <h4>{text.panels.layers.title}</h4>
+      <svg class="smelt-chart bm-svg" viewBox={`0 0 ${panelSize.width} ${panelSize.height}`} aria-hidden="true">
+        <g class="bm-ghosts">{layerIndices.map(layer => <rect x={layers.cx - baseWidth / 2} y={layerY(layer)} width={baseWidth} height={layers.barH} rx="2" class="bm-ghost" />)}</g>
+        <g>{layerIndices.map(layer => <rect x={layers.cx - width / 2} y={layerY(layer)} width={width} height={layers.barH} rx="2" class:list={['bm-bar', { 'is-loop': looped(layer) }]} data-bm-bar />)}</g>
+        <g data-for="flops kv"><g class="bm-loop-mark">
+          <path d={`M${edge} ${y9}H${bracketX}V${y4}H${edge}`} class="bm-bracket" />
+          <path d={`M${edge - 5} ${y4 - 4}L${edge} ${y4}L${edge - 5} ${y4 + 4}`} class="bm-bracket" />
+          <text x={bracketX - 15} y={(y4 + y9) / 2 + 5.5} text-anchor="middle" class="bm-twice">×2</text>
+        </g></g>
+        <path d={rulerPath(width)} class="bm-ruler" data-bm-ruler />
+      </svg>
+      <p class="bm-values">
+        {zh ? <>执行 <b data-bm-field="executed" class:list={{ 'is-changed': field('executed').changed }}>{field('executed').value}</b> 层 · 物理 {baseline.physical} 层<br />隐藏维度 <b data-bm-field="hidden" class:list={{ 'is-changed': field('hidden').changed }}>{field('hidden').value}</b></>
+          : <><b data-bm-field="executed" class:list={{ 'is-changed': field('executed').changed }}>{field('executed').value}</b> executed · {baseline.physical} unique<br />hidden size <b data-bm-field="hidden" class:list={{ 'is-changed': field('hidden').changed }}>{field('hidden').value}</b></>}
+      </p>
+      <ul class="bm-key">{text.panels.layers.key.map(([swatch, label]) => <li><span class:list={['bm-sw', `is-${swatch}`]} aria-hidden="true"></span>{label}</li>)}</ul>
+    </section>
+
+    <section class="bm-panel is-attention" aria-label={text.panels.attention.title}>
+      <h4>{text.panels.attention.title}</h4>
+      <svg class="smelt-chart bm-svg" viewBox={`0 0 ${attentionSize.width} ${attentionSize.height}`} aria-hidden="true">
+        {attention.groups.map((center, group) => <g class="bm-group">
+          <g data-for="flops">{Array.from({ length: attention.maxHeads }, (_, slot) => {
+            const x = headX(shape, group, slot);
+            const opacity = headVisibility(shape, slot);
+            return <>
+              <line x1={x + attention.headW / 2} y1={attention.qBottom + 3} x2={center} y2={attention.kvTop - 4} class="bm-link" style={`opacity:${opacity}`} data-bm-link={`${group}-${slot}`} />
+              <rect x={x} y={attention.qBottom - height} width={attention.headW} height={height} rx="1.5" class:list={['bm-qhead', { 'is-added': slot >= baseline.heads / baseline.kvHeads }]} style={`opacity:${opacity}`} data-bm-head={`${group}-${slot}`} />
+            </>;
+          })}</g>
+          <g data-for="kv"><rect x={center - attention.kvW - attention.kvGap / 2} y={attention.kvTop} width={attention.kvW} height={height} rx="1.5" class="bm-kv" data-bm-kv />
+          <rect x={center + attention.kvGap / 2} y={attention.kvTop} width={attention.kvW} height={height} rx="1.5" class="bm-kv" data-bm-kv /></g>
+        </g>)}
+      </svg>
+      <p class="bm-values">
+        {zh ? <>Q 头 <b data-bm-field="heads" class:list={{ 'is-changed': field('heads').changed }}>{field('heads').value}</b> · KV 头 <b data-bm-field="kvHeads">{field('kvHeads').value}</b><br />head dim <b data-bm-field="headDim" class:list={{ 'is-changed': field('headDim').changed }}>{field('headDim').value}</b></>
+          : <><b data-bm-field="heads" class:list={{ 'is-changed': field('heads').changed }}>{field('heads').value}</b> query · <b data-bm-field="kvHeads">{field('kvHeads').value}</b> KV heads<br />head dim <b data-bm-field="headDim" class:list={{ 'is-changed': field('headDim').changed }}>{field('headDim').value}</b></>}
+      </p>
+      <ul class="bm-key">{text.panels.attention.key.map(([swatch, label]) => <li><span class:list={['bm-sw', `is-${swatch}`]} aria-hidden="true"></span>{label}</li>)}</ul>
+    </section>
+
+    <section class="bm-panel is-experts" aria-label={text.panels.experts.title}>
+      <h4>{text.panels.experts.title}</h4>
+      {expertGrids.map(grid => <svg class:list={['smelt-chart', 'bm-svg', 'bm-experts', `is-${grid.id}`]} viewBox={`0 0 ${grid.width} ${grid.id === 'wide' ? panelSize.height : grid.height}`} aria-hidden="true" style={`--bm-cell:${cellScale}`} data-bm-experts data-for="params flops">
+        <g class="bm-slots">{grid.slots.filter(slot => slot.added).map(slot => <rect x={slot.x} y={slot.y} width={experts.size} height={experts.size} rx="1.2" class="bm-slot" />)}</g>
+        {grid.slots.map(slot => <rect x={slot.x} y={slot.y} width={experts.size} height={experts.size} rx="1.2" class:list={['bm-expert', { 'is-added': slot.added, 'is-routed': routedNow.has(slot.index) }]} style={slot.added ? `--d:${(slot.index - baseline.experts) * 4}ms` : undefined} data-route={routeTag(slot.index)} />)}
+      </svg>)}
+      <p class="bm-values">
+        {zh ? <><b data-bm-field="experts" class:list={{ 'is-changed': field('experts').changed }}>{field('experts').value}</b> 个专家 · 激活 {smelt.topk} 个<br />专家 FFN <b data-bm-field="ffn" class:list={{ 'is-changed': field('ffn').changed }}>{field('ffn').value}</b></>
+          : <><b data-bm-field="experts" class:list={{ 'is-changed': field('experts').changed }}>{field('experts').value}</b> experts · {smelt.topk} active<br />expert FFN <b data-bm-field="ffn" class:list={{ 'is-changed': field('ffn').changed }}>{field('ffn').value}</b></>}
+      </p>
+      <ul class="bm-key">{text.panels.experts.key.map(([swatch, label]) => <li><span class:list={['bm-sw', `is-${swatch}`]} aria-hidden="true"></span>{label}</li>)}</ul>
+    </section>
+  </div>
+
+  <div class="bm-meters">
+    <h4 class="bm-meters-title">{text.budgets}</h4>
+    {meterKeys.map(key => {
+      const ratio = ratioOf(step, key);
+      const status = statusText(step, key, language);
+      const at = meterPosition(ratio);
+      const one = meterPosition(1);
+      return <div class:list={['bm-meter', `is-${status.state}`]} data-bm-meter={key} data-tip={tip(key, step)} tabindex="0" role="group" aria-label={`${text.meters[key]}: ${formatRatio(ratio, step, key)}, ${status.text}`}>
+        <span class="bm-meter-label">{text.meters[key]}</span>
+        <span class="bm-meter-value" data-bm-value>{formatRatio(ratio, step, key)}</span>
+        <span class="bm-track" aria-hidden="true">
+          <span class="bm-band" style={`left:${percent(meterPosition(1 - tolerance[key]))};width:${percent(meterPosition(1 + tolerance[key]) - meterPosition(1 - tolerance[key]))}`}></span>
+          <span class="bm-budget" style={`left:${percent(one)}`}></span>
+          <span class="bm-fill" data-bm-fill style={`left:${percent(Math.min(at, one))};width:${percent(Math.abs(at - one))}`}></span>
+          <span class="bm-dot" data-bm-dot style={`left:${percent(at)}`}></span>
+        </span>
+        <span class="bm-ticks" aria-hidden="true">{meterTicks.map(value => <span style={`left:${percent(meterPosition(value))}`}>{`${value}×`}</span>)}</span>
+        <span class="bm-status" data-bm-status>{status.text}</span>
+      </div>;
+    })}
+  </div>
+
+  <details class="disclosure smelt-data bm-data">
+    <summary>{text.table}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="disclosure-body">
+      <p>{text.pair}</p>
+      <div class="data-scroll" tabindex="0" role="region" aria-label={text.table}>
+        <table class="data-table bm-config-table">
+          <thead><tr><th scope="col">{text.item}</th><th scope="col">{text.baselineName}</th><th scope="col">{text.smeltName}</th></tr></thead>
+          <tbody>{rows.map(([label, base, ours, delta]) => <tr><th scope="row">{label}</th><td>{base}</td><td>{ours}{delta && <><br /><small class="bm-delta">{delta}</small></>}</td></tr>)}</tbody>
+        </table>
+      </div>
+      <div class="data-scroll" tabindex="0" role="region" aria-label={text.stepper}>
+        <table class="data-table bm-step-table">
+          <thead><tr><th scope="col">{zh ? '步骤' : 'Step'}</th>{meterKeys.map(key => <th scope="col">{text.meters[key]}</th>)}</tr></thead>
+          <tbody>{steps.map((_, index) => <tr data-highlight={index === finalStep ? '' : undefined}><th scope="row">{index + 1}. {index === finalStep ? 'SMELT' : text.labels[index]}</th>{meterKeys.map(key => <td>{formatRatio(ratioOf(index, key), index, key)}</td>)}</tr>)}</tbody>
+        </table>
+      </div>
+      {formulas.map(line => <p class="bm-formula" set:html={line} />)}
+    </div>
+  </details>
+  </div>
+</div>
+<script>
+  import '../../scripts/smelt/budget-match';
+</script>

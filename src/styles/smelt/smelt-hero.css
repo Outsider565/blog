@@ -1,0 +1,49 @@
+/* Opening animation: standard vs Looped Transformer. */
+.smelt-hero { container: smelt-hero / inline-size; margin: 30px 0 40px; }
+.smelt-hero-svg { overflow: visible; }
+.smelt-hero-svg.is-narrow { display: none; }
+@container smelt-hero (width < 700px) {
+  .smelt-hero-svg.is-wide { display: none; }
+  .smelt-hero-svg.is-narrow { display: block; max-width: 470px; margin: 0 auto; }
+}
+
+.smelt-hero .hero-title { fill: var(--ink); font: 600 14px var(--sans); letter-spacing: .01em; }
+.smelt-hero .hero-note { fill: var(--muted); font: 400 13px var(--sans); letter-spacing: 0; }
+.smelt-hero .hero-inline-count { font: 13px var(--sans); }
+.smelt-hero .hero-num { fill: var(--ink); font: 700 14px var(--sans); font-variant-numeric: tabular-nums; }
+.smelt-hero .hero-num.is-loop { fill: var(--smelt-loop-ink); }
+.smelt-hero .hero-counter-head text { fill: var(--muted); font: 13px var(--sans); }
+.smelt-hero .hero-hairline { stroke: var(--line); stroke-width: 1; }
+.smelt-hero .hero-counter { fill: var(--ink); font: 400 30px var(--serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.smelt-hero .hero-counter.is-loop { fill: var(--smelt-loop-ink); }
+
+.smelt-hero .hero-rail { stroke: var(--plot-axis); stroke-width: 1; }
+.smelt-hero .hero-arc { fill: none; stroke: var(--smelt-loop); stroke-width: 1.5; stroke-linejoin: round; }
+.smelt-hero .hero-arrowhead { fill: none; stroke: var(--smelt-loop); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.smelt-hero .hero-twice { fill: var(--smelt-loop-ink); font: 700 15px var(--sans); }
+.smelt-hero .hero-knockout { fill: var(--paper); }
+.smelt-hero .hero-io { fill: var(--paper); stroke: var(--plot-axis); stroke-width: 1.2; transition: fill 300ms var(--smelt-ease), stroke 300ms var(--smelt-ease); }
+.smelt-hero .hero-out.is-on { fill: var(--plot-ink); stroke: var(--plot-ink); }
+.smelt-hero .hero-io-label, .smelt-hero .hero-visit-label { fill: var(--muted); font: 12.5px var(--sans); }
+
+/* Layers: dim until the pulse reaches them, then tinted once per visit. */
+.smelt-hero .hero-layer { --hue: var(--smelt-base); --hue-ink: var(--smelt-base-ink); }
+.smelt-hero .hero-layer.is-loop { --hue: var(--smelt-loop); --hue-ink: var(--smelt-loop-ink); }
+.smelt-hero .hero-slab { fill: var(--paper); stroke: color-mix(in srgb, var(--hue) 42%, var(--paper)); stroke-width: 1.1; transition: fill 260ms var(--smelt-ease), stroke 260ms var(--smelt-ease); }
+.smelt-hero .hero-index { fill: var(--muted); font-family: var(--sans); font-variant-numeric: tabular-nums; transition: fill 260ms var(--smelt-ease); }
+.smelt-hero .hero-layer.is-v1 .hero-slab { fill: color-mix(in srgb, var(--hue) 14%, var(--paper)); stroke: var(--hue); }
+.smelt-hero .hero-layer.is-v2 .hero-slab { fill: color-mix(in srgb, var(--hue) 32%, var(--paper)); stroke: var(--hue); }
+.smelt-hero .hero-layer.is-v1 .hero-index, .smelt-hero .hero-layer.is-v2 .hero-index { fill: var(--hue-ink); }
+.smelt-hero .hero-dot { fill: var(--paper); stroke: var(--border-strong); stroke-width: 1; transition: fill 200ms var(--smelt-ease), stroke 200ms var(--smelt-ease); }
+.smelt-hero .hero-dot.is-on { fill: var(--hue); stroke: var(--hue); }
+
+.smelt-hero .hero-motion { fill: none; stroke: none; }
+.smelt-hero .hero-pulse { fill: var(--ink); stroke: var(--paper); stroke-width: 2; opacity: 0; transition: opacity 200ms var(--smelt-ease); }
+.smelt-hero.is-playing .hero-pulse:not([data-done]) { opacity: 1; }
+
+.smelt-hero-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 14px; margin-top: 14px; }
+.article-prose .smelt-hero-caption, .smelt-hero-caption { margin: 0; font: 12px/1.8 var(--sans); color: var(--muted); text-align: center; }
+.smelt-hero-replay { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; font-family: var(--sans); }
+.smelt-hero-replay[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .smelt-hero-replay { display: none; } }
+@media print { .smelt-hero-replay { display: none; } }

@@ -1,0 +1,125 @@
+---
+title: "SMELT：预算匹配下的 Looped Transformer Scaling Law"
+subtitle: "同时对齐算力、参数量和 KV cache 后，循环仍能为 MoE 模型带来净收益"
+description: "Looped Transformer 的收益来自循环架构本身，还是因为多花了算力？我们在同时对齐每 token FLOPs、非 embedding 总参数量和 KV cache 的设定下，发现 Loop 在 Loss 和 Benchmark 上全面优于基线。"
+language: "zh"
+urlSlug: "smelt"
+published: "2026-11-03"
+category: "模型架构"
+tags: ["SMELT", "Looped Transformer", "MoE", "Scaling Law", "预训练"]
+author: "王少文、张舸 等"
+paper: "https://arxiv.org/abs/2609.01343"
+sections: [{"id":"budget","title":"预算匹配框架"},{"id":"recipe","title":"最优循环配方"},{"id":"scaling","title":"Scaling Law 拟合额外收益"},{"id":"downstream","title":"下游任务收益"},{"id":"mechanism","title":"循环内部机制"},{"id":"conclusion","title":"小结"}]
+---
+
+import SmeltFigure from '../../../components/smelt/SmeltFigure.astro';
+import SmeltHero from '../../../components/smelt/SmeltHero.astro';
+import SmeltFormula from '../../../components/smelt/SmeltFormula.astro';
+
+Looped Transformer 的收益，究竟来自循环架构本身，还是因为多花了算力？
+
+普通 Transformer 的每一层只执行一次，而<strong>Looped Transformer 会把其中一部分层重复执行，让模型在不增加参数的情况下获得更深的计算。</strong>这个想法在推理和数学等任务上已经展现出不小的潜力。但多跑一遍就要多花一遍算力，而以往的比较大多只固定模型大小，把循环架构本身的优势和多花的算力混在了一起。
+
+<SmeltHero language="zh" />
+
+<p><strong>要判断循环本身是否有用，比较必须同时对齐算力、参数量和 KV cache。</strong></p>
+
+为此，我们在 MoE Transformer 上同时近似对齐每 token FLOPs、非 embedding 总参数量和 KV cache，通过一系列消融得到循环配方 SMELT，并在 4 个模型规模 × 4 档稀疏度（最大 54B 总参，不含 embedding）上与基线逐组比较。据我们所知，这是块级循环（block-level looping）中首个同时匹配三项预算、并为两种架构分别拟合 Scaling Law 的多尺度研究。结果显示，<strong>16 组匹配配置中 SMELT 的验证损失全部低于基线；在算力最优前沿上，达到相同损失所需的训练算力少 6.8%–18.0%。</strong>
+
+<h2 id="budget">预算匹配框架</h2>
+
+公平比较需要同时控制三个变量：决定训练和推理成本的每 token FLOPs、约束知识容量的总参数量、以及限制可服务上下文长度的 KV cache。
+
+我们利用 MoE 将参数量和计算量解耦，具体的匹配方式如下：1）缩窄或变浅模型来抵消 Loop 架构循环执行的计算，2）增加专家数来补全总参数量，3）再调整注意力配置（GQA Ratio / Head Dim）来匹配 KV cache。
+
+<SmeltFigure id="recipe" language="zh" />
+
+<h2 id="recipe">最优循环配方</h2>
+
+按上述控制预算的规则，我们在小规模上依次搜索循环范围、执行深宽比和循环次数，得到了以下结论：
+
+1）<strong>循环中间 50% 的层时验证损失最低。</strong>我们把循环层比例从 0%（不循环）一路调到 100%（全部循环）。结果显示，比例在 50% 左右时，验证损失最低。我们推测，模型首尾的层承担着特殊功能，因此这些层保留独立参数，可能比参与共享更有利。
+
+<SmeltFigure id="loop-span" language="zh" />
+
+2）<strong>Looped 模型的最优执行深宽比高于非 Looped 模型。</strong>固定 50% 的循环范围后，我们进一步比较了不同的执行深宽比（执行深度与模型宽度之比）。结果显示，Looped 模型的最优执行深宽比更大。我们推测，这可能与参数共享有关。额外的执行深度不会引入新的参数；同一组共享参数还会同时获得来自“浅层”和“深层”的梯度优化信号。这种多深度的梯度信号，可能让更深的配置比同等深度的独立参数堆叠更容易优化。
+
+<SmeltFigure id="depth-width" language="zh" />
+
+3）<strong>循环两次收益最大。</strong>我们在一到四次之间扫描循环次数，发现两次最优。由于 FLOPs 匹配的约束，每多循环一次模型就要再缩窄一些；我们将三次和四次相对两次的退步归因于模型变窄，但两者仍优于基线。
+
+<SmeltFigure id="loop-count" language="zh" />
+
+综合以上三条，我们将最终的配方命名为 SMELT：在稀疏 MoE 模型中，将中间一半的层循环执行两次，同时采用更大的执行深宽比。
+
+<h2 id="scaling">Scaling Law 拟合额外收益</h2>
+
+我们将 SMELT 配方扩展到四个模型规模（以基线每 token 激活的非 embedding 参数量命名：100M / 200M / 600M / 1.6B），并在每个规模下设置四个稀疏度级别（通过增加专家数来提高总参，同时保持每 token 激活的参数量不变），最大总参（不含 embedding）达到 54B。每个组合都训练一对匹配的基线与 SMELT。结果发现：在全部 16 个匹配配置上，SMELT 都取得了更低的验证损失。
+
+<SmeltFigure id="loss-compute" language="zh" />
+
+为了量化优势随规模的变化趋势，我们为两种架构分别拟合了 Chinchilla 式 Scaling Law：
+
+<SmeltFormula language="zh" />
+
+其中 <var>E</var> 是不可约损失；中间的容量项由每 token FLOPs <var>F</var> 和稀疏度 <var>S</var> 控制，<var>F</var> 越大或 <var>S</var> 越高，这一项越小；最后的数据项由训练 token 数 <var>D</var> 控制，数据越多越小。基线和 SMELT 各自拥有独立的六个系数（<var>E</var>, <var>A</var>, <var>K</var>, <var>a</var>, <var>b</var>, <var>c</var>）。
+
+<SmeltFigure id="coefficients" language="zh" />
+
+拟合结果显示，SMELT 的容量指数 <var>a</var>（0.3892 vs. 0.3703）和数据指数 <var>c</var>（0.7011 vs. 0.6594）都大于基线，意味着 SMELT 的 loss 随算力和数据的增长下降得更快。在 Compute-Optimal 前沿上，从 10²⁰ FLOPs 到拟合范围上限（约 2.2×10²¹ FLOPs），SMELT 达到相同 loss 所需的训练算力都更少：在 10²⁰ FLOPs 时节省 6.8%–10.0%，在 10²¹ FLOPs 时节省 14.7%–18.0%（随稀疏度 S ≈ 85%–97% 不同；S = 0 未纳入拟合）；按拟合的点估计，节省幅度随算力预算增大而扩大。
+
+<SmeltFigure id="frontier" language="zh" />
+
+<h2 id="downstream">下游任务收益</h2>
+
+我们评测了 DCLM 和 MMLU 等下游任务，SMELT 在绝大多数匹配对（16 个配置 × 6 个训练时长，共 96 组）上都取得了更好的成绩：DCLM Completion 全部 96 组、DCLM Core 83 组；在基线明显高于随机水平的 30 组中，SMELT 在 MMLU 上赢下 29 组。
+
+<SmeltFigure id="dclm-core" language="zh" />
+
+<SmeltFigure id="mmlu" language="zh" />
+
+更值得关注的是，这些下游收益不仅仅来自 loss 的降低。我们先用基线数据拟合了验证损失与下游分数的关系曲线，然后把 SMELT 的数据点放到同一张图上。结果发现，<strong>在相同的验证损失下，SMELT 在三项指标、每个规模上的平均成绩都优于基线曲线的预测，</strong>而且在 DCLM Core 和 DCLM Completion 上，相对这条合并四个规模拟合的曲线，这一差距随规模增大而增大（不过同规模基线自身相对曲线的残差也随规模上升）。
+
+<SmeltFigure id="beyond-loss" language="zh" />
+
+我们进一步分析了循环的收益在不同领域和任务上的分布。
+
+在验证损失上，结构化程度越高的领域，收益越大：Code 领先，Finance 和 Math/STEM 次之，Knowledge 与 Web 最低。同时长文本的收益也明显高于短文本：长于 256 token 的样本，收益约为 256 token 及以下样本的 1.5 倍。作为对照，增加专家数或参数量并不会产生这种长度上的差异，说明这是循环带来的特有性质。
+
+<SmeltFigure id="domain-gain" language="zh" />
+
+<SmeltFigure id="length-gain" language="zh" />
+
+在下游任务上，一旦给出 in-context 示例，SMELT 相对基线的优势就明显扩大（16 个任务平均从 0 个示例时的 0.9 个百分点升至 1 个示例时的 1.9 个百分点），并在 8 个示例以内大致保持；在高度依赖示例的 Dyck Languages 任务上，两者在 4 个示例以内基本持平，差距从 8 个示例起逐渐拉开，32 个示例时达到 29.8% 对 26.4%。
+
+<SmeltFigure id="icl-gain" language="zh" />
+
+<h2 id="mechanism">循环内部机制</h2>
+
+接下来，我们从专家路由、残差流和注意力模式三个角度分析了循环层第二次执行与第一次执行的差异。
+
+<strong>专家路由</strong>：第二次会复用第一次的部分专家，两次选中的专家集合重叠度远高于随机水平。
+
+<SmeltFigure id="expert-reuse" language="zh" />
+
+<strong>残差流更新</strong>：第二次执行的残差流更新幅度始终大于第一次。两次更新的方向有所重叠（1.6B、S ≈ 85% 的模型中，同一物理层两次更新的余弦相似度平均约 0.56，不同层之间平均仅约 0.16），但并不相同。我们据此认为，第二次执行并没有推翻第一次，而是放大了第一次建立的信号。
+
+<SmeltFigure id="residual-flow" language="zh" />
+
+<strong>注意力检索</strong>：两次执行中，Q 和 K 各自的余弦相似度高达 0.89–0.93，说明模型关注的位置大体相同。变化主要发生在 V 及其后续输出。换句话说，第二次执行仍然“看向同一处”，但“读到的内容”已经不同。
+
+<SmeltFigure id="attention-stages" language="zh" />
+
+<strong>Case Study on Dyck Language</strong>：Dyck language 是一个括号匹配任务，模型需要从给定示例中找到相关答案的位置，才能作出正确预测。我们发现，关键注意力头在第一次执行时集中关注 BOS，而相同的头第二次执行则关注答案位置。
+
+<SmeltFigure id="dyck-attention" language="zh" />
+
+在基线模型中，attention sink 会随深度增加而增强。Loop 架构却呈现相反趋势：第二次执行后，attention sink 反而减弱。我们认为，第二次执行减弱 sink 后释放出的注意力会转向与内容相关的位置，直接证据来自上面 Dyck 案例中的注意力头（注意力从 BOS 转到示例答案）；我们进一步推测，这可能与 SMELT 在 in-context learning 上的优势有关。
+
+<SmeltFigure id="attention-sink" language="zh" />
+
+<h2 id="conclusion">小结</h2>
+
+在预算匹配的条件下，我们的 Scaling Law 与下游评测给出了一致的结论：对 MoE Transformer 而言，循环架构仍能带来净收益；机制分析则为这一收益提供了描述性的线索。现有的局限包括消融实验规模有限以及未涉及实际运行时间层面的系统效率优化。
+
+未来，我们希望这套预算匹配方案和 SMELT 配方能为 Loop 社区提供一个可参考的实验设定和比较基准。以此为基础，后续工作可以在公平条件下继续探索更多架构变体。

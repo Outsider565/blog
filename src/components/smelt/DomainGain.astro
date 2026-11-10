@@ -1,0 +1,112 @@
+---
+// Figure 11: CE Gain by validation domain, with every validation source as a dot.
+import data from '../../data/smelt/domain-gain.json';
+import { domainCopy, familyMean, familyTip, geometry, layout, pct, sourceTip, sparsityLabels, stats, tickValues, xScale, type Variant } from '../../lib/smelt/domain-gain';
+import type { Language } from '../../lib/site';
+import '../../styles/smelt/domain-gain.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language } = Astro.props;
+const text = domainCopy(language);
+const sparsity = data.primary;
+const summary = stats(sparsity);
+const variants: Variant[] = ['wide', 'narrow'];
+const heightOf = (variant: Variant) => geometry[variant].top + data.families.length * geometry[variant].rowHeight + 50;
+const ref = data.aggregate[sparsity] ?? 0;
+const sLabel = sparsityLabels[sparsity] ?? '';
+---
+<div class="domain-gain" data-domain-gain data-language={language}>
+  <div class="smelt-stats dg-stats" aria-live="polite">
+    <div class="smelt-stat"><span class="smelt-stat-value is-gain" data-dg-stat="top">{pct(summary.topMean)}</span><span class="smelt-stat-label" data-dg-stat-label="top">{text.stat1(summary.top.label)}</span></div>
+    <div class="smelt-stat"><span class="smelt-stat-value" data-dg-stat="bottom">{pct(summary.bottomMean)}</span><span class="smelt-stat-label" data-dg-stat-label="bottom">{text.stat2(summary.bottom.label)}</span></div>
+    <div class="smelt-stat"><span class="smelt-stat-value" data-dg-stat="positive">{summary.positive} / {summary.total}</span><span class="smelt-stat-label">{text.stat3}</span></div>
+  </div>
+  <div class="smelt-controls dg-controls">
+    <div class="smelt-control" data-js-only hidden>
+      <span class="smelt-control-label" id={`dg-sparsity-${language}`}>{text.sparsity}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`dg-sparsity-${language}`} data-dg-sparsity>
+        {sparsityLabels.map((label, index) => <button type="button" data-value={index} aria-pressed={index === sparsity ? 'true' : 'false'}>{label}</button>)}
+      </div>
+    </div>
+    <div class="smelt-legend dg-legend" aria-hidden="true">
+      <span><i class="dg-swatch-bar"></i>{text.meanLegend}</span>
+      <span><i class="smelt-swatch-dot dg-swatch-dot"></i>{text.sourceLegend}</span>
+      <span><i class="dg-swatch-ref"></i>{text.referenceLegend}</span>
+    </div>
+  </div>
+  {variants.map(variant => {
+    const g = geometry[variant];
+    const x = xScale(variant);
+    const { rows, reference } = layout(variant, sparsity);
+    const height = heightOf(variant);
+    const bottom = g.top + data.families.length * g.rowHeight;
+    const wide = variant === 'wide';
+    const slots = data.families.map((_, index) => g.top + index * g.rowHeight + g.center);
+    return <svg class:list={['smelt-chart', 'dg-chart', `dg-${variant}`]} data-variant={variant} viewBox={`0 0 ${g.width} ${height}`} role="group" aria-label={text.aria} data-reveal>
+      {wide ? <>
+        {tickValues.map(value => <line class="grid" x1={x(value)} x2={x(value)} y1={g.top - 6} y2={bottom} />)}
+        <line class="axis" x1={g.x0} x2={g.x0} y1={g.top - 6} y2={bottom} />
+      </> : slots.map(slot => <>
+        {tickValues.map(value => <line class="grid" x1={x(value)} x2={x(value)} y1={slot - 24} y2={slot + 24} />)}
+        <line class="axis" x1={g.x0} x2={g.x0} y1={slot - 24} y2={slot + 24} />
+      </>)}
+      {tickValues.map((value, index) => <text x={x(value)} y={bottom + 20} text-anchor={!wide && index === 0 ? 'start' : 'middle'}>{value}%</text>)}
+      <text class="axis-title" x={wide ? (g.x0 + g.x1) / 2 : g.width / 2} y={bottom + 44} text-anchor="middle">{wide ? text.axis : text.axisShort}</text>
+      <g class="dg-reference reveal-fade" data-dg-reference data-tip={text.referenceTip(pct(ref), sLabel)} aria-label={text.referenceTip(pct(ref), sLabel)} tabindex="0" style="--i: 8">
+        {wide ? <line class="dg-ref-line" x1={reference} x2={reference} y1={g.top - 8} y2={bottom} /> : slots.map((slot, index) => <line class="dg-ref-line" x1={reference} x2={reference} y1={index ? slot - 24 : g.top - 8} y2={slot + 24} />)}
+        <text class="dg-ref-label" x={reference} y={g.top - 14} text-anchor="middle">{text.reference} {pct(ref)}</text>
+        <rect class="hit" x={reference - 34} y={g.top - 30} width="68" height="24" />
+      </g>
+      {data.families.map((family, index) => {
+        const row = rows[index]!;
+        const barY = g.center - g.barHeight / 2;
+        return <g class="dg-row" data-family={family.key} transform={`translate(0 ${row.top})`}>
+          <g class="dg-hit" data-tip={familyTip(family, sparsity, language)} aria-label={familyTip(family, sparsity, language)}>
+            <rect class="hit" x={-4} y={3} width={g.width + 8} height={g.rowHeight - 6} rx="4" />
+          </g>
+          {wide ? <>
+            <text class="label-strong" x="0" y={g.center - 2}>{family.label}</text>
+            <text class="dg-sub" x="0" y={g.center + 16}>{language === 'zh' ? `${family.zh} · ` : ''}{text.sources(family.sources.length)}</text>
+          </> : <text class="label-strong" x="0" y="18">{family.label}<tspan class="dg-sub" dx="8">{language === 'zh' ? `${family.zh} · ` : ''}{text.sources(family.sources.length)}</tspan></text>}
+          <rect class="dg-bar reveal-grow-x" x={g.x0} y={barY} width={row.barWidth} height={g.barHeight} style={`--i: ${row.rank}`} />
+          <line class="dg-cap reveal-fade" x1={g.x0 + row.barWidth} x2={g.x0 + row.barWidth} y1={barY - 3} y2={barY + g.barHeight + 3} style={`--i: ${row.rank + 4}`} />
+          <line class="dg-ci" x1="0" x2="0" y1="0" y2="0" visibility="hidden" />
+          <path class="dg-ci-arrow" d="M0 0" visibility="hidden" />
+          {family.sources.map((_, dot) => {
+            const position = row.dots[dot]!;
+            return <g class="dg-source" data-tip={sourceTip(family, dot, sparsity, language)} aria-label={sourceTip(family, dot, sparsity, language)} tabindex="-1" transform={`translate(${position.x.toFixed(2)} ${position.y.toFixed(2)})`}>
+              <circle class="dg-dot-hit" r="9" />
+              <circle class="dg-dot reveal-pop" r={g.radius} style={`--i: ${row.rank * 4 + dot}`} />
+            </g>;
+          })}
+          <text class="dg-value reveal-fade" x={g.width} y={wide ? g.center + 6 : 18} text-anchor="end" style={`--i: ${row.rank + 6}`}>{pct(row.mean)}</text>
+        </g>;
+      })}
+    </svg>;
+  })}
+  <p class="smelt-readout dg-definition">{language === 'zh'
+    ? <>CE Gain = 1 − C<sub>SMELT</sub> / C<sub>基线</sub>（C = 10²¹ FLOPs）；虚线为整体 CE Gain。</>
+    : <>CE Gain = 1 − C<sub>SMELT</sub> / C<sub>Baseline</sub> (C = 10²¹ FLOPs); the dashed line is the overall CE Gain.</>}</p>
+  <details class="disclosure smelt-data">
+    <summary>{language === 'zh' ? `查看全部 ${summary.total} 个验证数据源的数值` : `Values for all ${summary.total} validation sources`}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="disclosure-body">
+      <div class="data-scroll" tabindex="0" role="region" aria-label={text.aria}>
+        <table class="data-table">
+          <thead><tr><th scope="col">{language === 'zh' ? '领域 · 数据源' : 'Domain · source'}</th>{sparsityLabels.map(label => <th scope="col">S≈{label}</th>)}<th scope="col">{language === 'zh' ? '95% 置信区间（S≈95%）' : '95% CI (S ≈ 95%)'}</th></tr></thead>
+          <tbody>
+            {data.families.map(family => <>
+              <tr data-highlight><th scope="row"><strong>{family.label}</strong> · {language === 'zh' ? '平均' : 'mean'}</th>{sparsityLabels.map((_, s) => <td><strong>{pct(familyMean(family, s))}</strong></td>)}<td></td></tr>
+              {family.sources.map((source, index) => <tr><th scope="row">{family.label} · {index + 1}</th>{source.gain.map(value => <td>{pct(value)}</td>)}<td>{pct(source.ci[0] ?? 0)}–{pct(source.ci[1] ?? 0)}</td></tr>)}
+            </>)}
+          </tbody>
+        </table>
+      </div>
+      <p>{language === 'zh'
+        ? '数据源按领域内 CE Gain 排名编号。'
+        : 'Sources are numbered by their rank within the domain.'}</p>
+    </div>
+  </details>
+  <div hidden><slot /></div>
+</div>
+<script>
+  import '../../scripts/smelt/domain-gain';
+</script>

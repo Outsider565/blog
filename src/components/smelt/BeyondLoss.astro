@@ -1,0 +1,176 @@
+---
+// Figure 10: downstream score against validation loss. The curve is fitted to
+// the 96 Baseline endpoints only; each SMELT endpoint's distance from it (the
+// residual) is drawn as a stick, and panel b averages those residuals by scale.
+import type { Language } from '../../lib/site';
+import { linePath } from '../../lib/smelt/plot';
+import { pairs, sizes } from '../../lib/smelt/downstream-pairs';
+import {
+  benchKeys, benchText, columnCenter, endpointRow, note, columnWidth, columns, copy, digits, fitPath, fitValue, jitter, lossScale, lossTicks, pooled, readout,
+  residual, residualAxis, residualBox, scaleSummary, scatterBox, scoreAxis, signed, size as box, statValues, toDisplay, unit, type BenchKey,
+} from '../../lib/smelt/beyond-loss';
+import '../../styles/smelt/beyond-loss.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language } = Astro.props;
+const key: BenchKey = 'core';
+const text = copy[language];
+const info = benchText(key, language);
+const axis = scoreAxis(key);
+const raxis = residualAxis(key);
+const stats = statValues(key, language);
+const all = pooled(key);
+const d = digits(key);
+const sizeIndex = (size: string) => sizes.indexOf(size);
+const zero = raxis.scale(0);
+const barTop = (size: string) => raxis.scale(scaleSummary(key, size).mean);
+const baseTop = (size: string) => raxis.scale(scaleSummary(key, size).baseMean);
+const halfBar = Math.min(15, columnWidth * 0.28);
+const annotation = note(key, 'all', language);
+const ariaScatter = language === 'zh'
+  ? `分数与验证损失的散点图：基线拟合曲线，以及 96 个基线端点和 96 个 SMELT 端点；${text.scatterKeys}。`
+  : `Score against validation loss: the Baseline-fitted curve with 96 Baseline and 96 SMELT endpoints; ${text.scatterKeys}.`;
+const ariaResidual = language === 'zh' ? 'SMELT 拟合残差按模型规模汇总，并标出同规模基线的平均拟合残差。' : 'SMELT residual by model scale, with the same-scale Baseline mean residual.';
+const colTip = (column: string) => {
+  const u = unit(key, language);
+  if (column === 'all') return `${text.pooled} · ${info.name}\n${text.mean} ${signed(all.mean, d)} ${u}\n${text.ci} ${signed(all.ci[0] ?? 0, d)} – ${signed(all.ci[1] ?? 0, d)}\n${text.positive} ${all.positive} / ${all.total}\n${text.pooledBase}`;
+  const own = scaleSummary(key, column);
+  return `${column} · ${info.name}\n${text.mean} ${signed(own.mean, d)} ${u}\n${text.baseMean} ${signed(own.baseMean, d)} ${u}\n${text.sameScaleGap} ${signed(own.mean - own.baseMean, d)} ${u}\n${text.positive} ${own.positive} / ${own.total}`;
+};
+---
+<div class="beyond-loss" data-beyond-loss data-language={language} data-bench={key}>
+  <div class="smelt-controls">
+    <div class="smelt-control"><span class="smelt-control-label" id="bl-bench-label">{text.benchmark}</span>
+      <div class="smelt-seg" role="group" aria-labelledby="bl-bench-label" data-bl-bench>
+        {benchKeys.map(item => <button type="button" data-value={item} aria-pressed={item === key ? 'true' : 'false'}>{benchText(item, language).name}</button>)}
+      </div></div>
+    <div class="smelt-control"><span class="smelt-control-label" id="bl-scale-label">{text.scale}</span>
+      <div class="smelt-seg" role="group" aria-labelledby="bl-scale-label" data-bl-scale>
+        <button type="button" data-value="all" aria-pressed="true">{text.all}</button>
+        {sizes.map(size => <button type="button" data-value={size} aria-pressed="false">{size}</button>)}
+      </div></div>
+  </div>
+
+  <div class="smelt-stats bl-stats">
+    <div class="smelt-stat"><span class="smelt-stat-value is-loop" data-bl-stat="mean">{stats.mean}</span><span class="smelt-stat-label" data-bl-stat="meanLabel">{stats.meanLabel}</span></div>
+    <div class="smelt-stat"><span class="smelt-stat-value is-gain" data-bl-stat="scales">{stats.scales}</span><span class="smelt-stat-label">{text.statScales}</span></div>
+    <div class="smelt-stat"><span class="smelt-stat-value" data-bl-stat="points">{stats.points}</span><span class="smelt-stat-label" data-bl-stat="pointsLabel">{stats.pointsLabel}</span></div>
+  </div>
+
+  <div class="bl-panels">
+    <section class="bl-panel" aria-label={text.scatterTitle}>
+      <h4><span class="bl-letter">a</span>{text.scatterTitle}</h4>
+      <p class="bl-axis-note"><span data-bl-axis>{info.axis}</span><span class="bl-better" data-bl-better>{info.better}</span></p>
+      <svg class="smelt-chart bl-scatter" viewBox={`0 0 ${box.width} ${box.height}`} role="group" tabindex="0" aria-label={ariaScatter} data-bl-scatter data-reveal>
+        <g data-bl-yticks>
+          {axis.ticks.map(tick => <g class="bl-tick"><line class="grid" x1={scatterBox.x0} x2={scatterBox.x1} y1={axis.scale(tick.value)} y2={axis.scale(tick.value)} /><text x={scatterBox.x0 - 6} y={axis.scale(tick.value) + 4.5} text-anchor="end">{tick.label}</text></g>)}
+        </g>
+        {lossTicks.map(value => <g><line class="grid" x1={lossScale(value)} x2={lossScale(value)} y1={scatterBox.y0} y2={scatterBox.y1} /><text x={lossScale(value)} y={scatterBox.y1 + 19} text-anchor="middle">{value.toFixed(1)}</text></g>)}
+        <line class="axis" x1={scatterBox.x0} x2={scatterBox.x1} y1={scatterBox.y1} y2={scatterBox.y1} />
+        <text class="axis-title" x={(scatterBox.x0 + scatterBox.x1) / 2} y={box.height - 8} text-anchor="middle">{text.loss}</text>
+        <text class="bl-note reveal-fade" data-bl-note text-anchor={annotation.anchor} style="--i:14">
+          {annotation.lines.map((line, index) => <tspan class={index === 1 ? 'bl-note-strong' : undefined} x={annotation.x} y={annotation.y + index * 18}>{line}</tspan>)}
+        </text>
+        <line class="bl-chance is-out" data-bl-chance x1={scatterBox.x0} x2={scatterBox.x1} y1={axis.scale(25)} y2={axis.scale(25)} />
+        <g class="bl-points-base">
+          {pairs.map(pair => <circle class="bl-dot base-dot reveal-pop" data-bl-base={pair.index} data-size={pair.size} cx={lossScale(pair.loss[0])} cy={axis.scale(toDisplay(key, pair.core[0]))} r="2.7" style={`--i:${sizeIndex(pair.size)}`} />)}
+        </g>
+        <path class="bl-fit reveal-fade" data-bl-fit d={linePath(fitPath(key, axis))} />
+        <g class="bl-sticks">
+          {pairs.map(pair => {
+            const x = lossScale(pair.loss[1]);
+            const positive = residual(pair, key, 1) > 0;
+            return <line class:list={['bl-stick', 'reveal-draw', positive ? 'is-up' : 'is-down']} pathLength="1" data-bl-stick={pair.index} data-size={pair.size} x1={x} x2={x} y1={axis.scale(toDisplay(key, fitValue(key, pair.loss[1])))} y2={axis.scale(toDisplay(key, pair.core[1]))} style={`--i:${sizeIndex(pair.size)}`} />;
+          })}
+        </g>
+        <g class="bl-points-loop">
+          {pairs.map(pair => <circle class="bl-dot loop-dot reveal-pop" data-bl-loop={pair.index} data-size={pair.size} cx={lossScale(pair.loss[1])} cy={axis.scale(toDisplay(key, pair.core[1]))} r="3" style={`--i:${sizeIndex(pair.size)}`} />)}
+        </g>
+        <circle class="bl-ring" data-bl-ring r="7" cx="-20" cy="-20" />
+        <rect class="hit bl-hover" data-bl-hover x={scatterBox.x0} y={scatterBox.y0} width={scatterBox.x1 - scatterBox.x0} height={scatterBox.y1 - scatterBox.y0} />
+      </svg>
+    </section>
+
+    <section class="bl-panel" aria-label={text.residualTitle}>
+      <h4><span class="bl-letter">b</span>{text.residualTitle}</h4>
+      <p class="bl-axis-note"><span data-bl-raxis>{text.residualAxis(key)}</span></p>
+      <svg class="smelt-chart bl-residual" viewBox={`0 0 ${box.width} ${box.height}`} role="group" aria-label={ariaResidual} data-bl-residual data-reveal>
+        <g data-bl-rticks>
+          {raxis.ticks.map(tick => <g class="bl-tick"><line class="grid" x1={residualBox.x0} x2={residualBox.x1} y1={raxis.scale(tick.value)} y2={raxis.scale(tick.value)} /><text x={residualBox.x0 - 6} y={raxis.scale(tick.value) + 4.5} text-anchor="end">{tick.label}</text></g>)}
+        </g>
+        {sizes.map((size, index) => <rect class="bl-bar reveal-grow" data-bl-bar={size} x={columnCenter(index) - halfBar} width={halfBar * 2} y={Math.min(barTop(size), zero)} height={Math.abs(zero - barTop(size))} style={`--i:${index}`} />)}
+        <line class="bl-zero" data-bl-zero x1={residualBox.x0} x2={residualBox.x1} y1={zero} y2={zero} />
+        <g class="bl-rdots reveal-fade">
+          {pairs.map(pair => <circle class:list={['bl-rdot', residual(pair, key, 1) > 0 ? 'is-up' : 'is-down']} data-bl-rdot={pair.index} data-size={pair.size} cx={columnCenter(sizeIndex(pair.size)) + jitter(pair) * columnWidth * 0.62} cy={raxis.scale(residual(pair, key, 1))} r="2.4" />)}
+        </g>
+        {sizes.map((size, index) => <line class="bl-mean reveal-grow-x" data-bl-mean-line={size} x1={columnCenter(index) - halfBar - 3} x2={columnCenter(index) + halfBar + 3} y1={barTop(size)} y2={barTop(size)} style={`--i:${index + 2}`} />)}
+        {sizes.map((size, index) => <line class="bl-base-mean reveal-fade" data-bl-base-line={size} x1={columnCenter(index) - halfBar - 3} x2={columnCenter(index) + halfBar + 3} y1={baseTop(size)} y2={baseTop(size)} style={`--i:${index + 6}`} />)}
+        <g class="bl-pooled reveal-fade" data-bl-pooled>
+          <line class="bl-ci" data-bl-ci x1={columnCenter(4)} x2={columnCenter(4)} y1={raxis.scale(all.ci[0] ?? 0)} y2={raxis.scale(all.ci[1] ?? 0)} />
+          <line class="bl-ci" data-bl-ci-low x1={columnCenter(4) - 6} x2={columnCenter(4) + 6} y1={raxis.scale(all.ci[0] ?? 0)} y2={raxis.scale(all.ci[0] ?? 0)} />
+          <line class="bl-ci" data-bl-ci-high x1={columnCenter(4) - 6} x2={columnCenter(4) + 6} y1={raxis.scale(all.ci[1] ?? 0)} y2={raxis.scale(all.ci[1] ?? 0)} />
+          <path class="bl-diamond" data-bl-diamond d={`M${columnCenter(4)} ${raxis.scale(all.mean) - 6}l6 6l-6 6l-6 -6Z`} />
+        </g>
+        {columns.map((column, index) => <>
+          <text class="bl-col-label" x={columnCenter(index)} y={residualBox.y1 + 19} text-anchor="middle">{column === 'all' ? text.all : column}</text>
+          <text class="bl-col-mean" data-bl-mean={column} x={columnCenter(index)} y={residualBox.y1 + 38} text-anchor="middle">{signed(column === 'all' ? all.mean : scaleSummary(key, column).mean, d)}</text>
+          {column !== 'all' && <text class="bl-col-base" data-bl-base-mean={column} x={columnCenter(index)} y={residualBox.y1 + 57} text-anchor="middle">{signed(scaleSummary(key, column).baseMean, d)}</text>}
+        </>)}
+        {columns.map((column, index) => {
+          const tip = colTip(column);
+          return <rect class="hit bl-col" data-bl-col={column} data-tip={tip} tabindex="0" role="button" aria-pressed="false" aria-label={tip.replaceAll('\n', '; ')} x={columnCenter(index) - columnWidth / 2} y={residualBox.y0} width={columnWidth} height={box.height - residualBox.y0 - 2} />;
+        })}
+      </svg>
+    </section>
+  </div>
+
+  <div class="smelt-legend bl-legend">
+    <span class="is-base"><i class="smelt-swatch-ring"></i>{text.base}</span>
+    <span class="is-loop"><i class="smelt-swatch-dot"></i>{text.loop}</span>
+    <span class="bl-legend-fit"><i></i>{text.fit} <span data-bl-r2>R² = {all.r2.toFixed(3)}</span></span>
+    <span class="bl-legend-stick is-up"><i></i>{text.stickUp}</span>
+    <span class="bl-legend-stick is-down"><i></i>{text.stickDown}</span>
+    <span class="bl-legend-base"><i></i>{text.baseTick}</span>
+    <span class="bl-legend-chance" data-bl-chance-legend hidden><i></i>{text.chance}</span>
+  </div>
+  <p class="smelt-readout" data-bl-readout aria-live="polite">{readout(key, 'all', language)}</p>
+  <p class="sr-only" aria-live="polite" aria-atomic="true" data-bl-live></p>
+
+  <details class="disclosure smelt-data">
+    <summary>{text.table}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="data-scroll" tabindex="0" role="region" aria-label={text.table}>
+      <table class="data-table">
+        <thead><tr><th scope="col">{text.scale}</th>{benchKeys.map(item => <><th scope="col">{benchText(item, language).name} · SMELT</th><th scope="col">{text.baseMean}</th><th scope="col">{text.positive}</th></>)}</tr></thead>
+        <tbody>
+          {sizes.map(size => <tr><td>{size}</td>{benchKeys.map(item => { const own = scaleSummary(item, size); return <><td>{signed(own.mean, digits(item))} {unit(item, language)}</td><td>{signed(own.baseMean, digits(item))} {unit(item, language)}</td><td>{own.positive} / {own.total}</td></>; })}</tr>)}
+          <tr><td>{text.pooled}</td>{benchKeys.map(item => { const own = pooled(item); return <><td>{signed(own.mean, digits(item))} {unit(item, language)} <span class="bl-table-ci">[{signed(own.ci[0] ?? 0, digits(item))}, {signed(own.ci[1] ?? 0, digits(item))}]</span></td><td>0</td><td>{own.positive} / {own.total}</td></>; })}</tr>
+          <tr><td>R²</td>{benchKeys.map(item => <><td>{pooled(item).r2.toFixed(3)}</td><td></td><td></td></>)}</tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+  <details class="disclosure smelt-data">
+    <summary>{text.endpoints}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    {benchKeys.map(item => <div class="data-scroll bl-endpoints" tabindex="0" role="region" aria-label={`${text.endpoints} · ${benchText(item, language).name}`} data-bl-endpoints={item}>
+      <table class="data-table">
+        <caption>{language === 'zh'
+          ? `${benchText(item, language).name}（${item === 'comp' ? '分数为 nats，拟合残差为 mnat' : '分数为 %，拟合残差为 pp'}）`
+          : `${benchText(item, language).name} (${item === 'comp' ? 'scores in nats, residuals in mnat' : 'scores in %, residuals in pp'})`}</caption>
+        <thead><tr>
+          <th scope="col">{text.scale}</th><th scope="col">S</th><th scope="col">{text.branch}</th><th scope="col">{text.lossCol}</th>
+          <th scope="col">{text.scoreCol}</th><th scope="col">{text.fitCol}</th><th scope="col">{text.loopResidual}</th><th scope="col">{text.baseResidual}</th>
+        </tr></thead>
+        <tbody>
+          {pairs.map(pair => { const row = endpointRow(pair, item, language); return <tr>
+            <td>{row.size}</td><td>{row.sparsity}</td><td>{row.step}</td><td>{row.loss}</td><td>{row.score}</td><td>{row.fit}</td>
+            <td class={row.loopUp ? 'is-best' : undefined}>{row.loop}</td><td>{row.base}</td>
+          </tr>; })}
+        </tbody>
+      </table>
+    </div>)}
+  </details>
+  <div hidden><slot /></div>
+  <noscript><style is:inline>.beyond-loss .smelt-controls { display: none; }</style></noscript>
+</div>
+<script>
+  import '../../scripts/smelt/beyond-loss';
+</script>

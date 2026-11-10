@@ -1,0 +1,129 @@
+---
+// Figure 5 (loss-compute): validation loss vs cumulative training FLOPs for the
+// 16 matched Baseline / SMELT cells, with a delta strip under each panel, a
+// sparsity zoom, and the selected cell's training curves below.
+import type { Language } from '../../lib/site';
+import {
+  cellAt, cells, copy, DEFAULT_CELL, deltas, finalLower, insetAxesMarkup, insetLayout, insetMarksMarkup, largestParams,
+  mainAxesMarkup, mainLayout, mainMarksMarkup, pairsLower, SCALES, scaleOf, signedFixed, sparsityLabel, sparsityOf, SPARSITY, HORIZONS,
+} from '../../lib/smelt/loss-compute';
+import '../../styles/smelt/loss-compute.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language } = Astro.props;
+const text = copy[language];
+const cell = cellAt(DEFAULT_CELL);
+const wide = mainLayout(760, 'all');
+const narrow = mainLayout(340, 'all');
+const insetWide = insetLayout(760, cell);
+const insetNarrow = insetLayout(340, cell);
+const uid = `lc-${language}`;
+const segLabel = `${uid}-seg`;
+const tableRows = cells.map((item, index) => {
+  const b = item.base.loss.at(-1)!; const l = item.loop.loss.at(-1)!;
+  return { item, index, b, l, lower: deltas(item).filter(value => value < 0).length };
+});
+---
+<div class="lc" data-loss-compute data-language={language}>
+  <div class="smelt-stats lc-stats" data-stats data-reveal>
+    <div class="smelt-stat"><span class="smelt-stat-value is-loop"><span data-count={finalLower} data-suffix=" / 16">{finalLower} / 16</span></span><span class="smelt-stat-label">{text.statFinal}</span></div>
+    <div class="smelt-stat"><span class="smelt-stat-value"><span data-count={pairsLower} data-suffix={` / ${cells.length * HORIZONS}`}>{pairsLower} / {cells.length * HORIZONS}</span></span><span class="smelt-stat-label">{text.statPairs}</span></div>
+    <div class="smelt-stat"><span class="smelt-stat-value"><span data-count={Math.round(largestParams)} data-suffix="B">{Math.round(largestParams)}B</span></span><span class="smelt-stat-label">{text.statParams}</span></div>
+  </div>
+
+  <div class="smelt-controls lc-controls">
+    <div class="smelt-control lc-js">
+      <span class="smelt-control-label" id={segLabel}>{text.sparsity} S</span>
+      <div class="smelt-seg" role="group" aria-labelledby={segLabel} data-mode>
+        <button type="button" data-value="all" aria-pressed="true">{text.all}</button>
+        {SPARSITY.map((level, index) => <button type="button" data-value={String(index)} aria-pressed="false" aria-label={sparsityLabel(index)}>{level.approx ? '≈' : ''}{level.label}</button>)}
+      </div>
+    </div>
+    <div class="smelt-legend lc-legend">
+      {/* Scale keys are plain text without JS; the script turns them into highlight / pin buttons. */}
+      <span class="lc-legend-group" role="group" aria-label={text.scale}>{SCALES.map((scale, index) => <span class={`lc-key lc-s${index}`} data-scale={index}><span class="smelt-swatch-dot" aria-hidden="true"></span>{scale}</span>)}</span>
+      <span class="lc-legend-group">
+        <span class="lc-key-arch lc-arch-base"><span class="lc-swatch-line" aria-hidden="true"></span><span class="smelt-swatch-ring" aria-hidden="true"></span>{text.legendBase}</span>
+        <span class="lc-key-arch lc-arch-loop"><span class="lc-swatch-line" aria-hidden="true"></span><span class="smelt-swatch-dot" aria-hidden="true"></span>{text.legendLoop}</span>
+      </span>
+    </div>
+  </div>
+
+  <div class="lc-main" data-main data-reveal>
+    <svg class="smelt-chart lc-svg lc-wide" viewBox={`0 0 ${wide.width} ${wide.height}`} role="img" aria-label={text.chart} data-describedby={`${uid}-keys`}>
+      <g class="lc-axes" set:html={mainAxesMarkup(wide, language)} />
+      <g class="lc-marks" set:html={mainMarksMarkup(wide, DEFAULT_CELL)} />
+    </svg>
+    <svg class="smelt-chart lc-svg lc-narrow" viewBox={`0 0 ${narrow.width} ${narrow.height}`} role="img" aria-label={text.chart}>
+      <g class="lc-axes" set:html={mainAxesMarkup(narrow, language)} />
+      <g class="lc-marks" set:html={mainMarksMarkup(narrow, DEFAULT_CELL)} />
+    </svg>
+  </div>
+  <p class="smelt-readout lc-readout" data-readout aria-live="polite">{text.staticNote}</p>
+  <p class="sr-only" id={`${uid}-keys`}>{text.keys}</p>
+
+  <section class="lc-inset" data-inset aria-label={text.insetLabel}>
+    <header class="lc-inset-head">
+      <div>
+        <h4 data-inset-title>{text.insetTitle(cell.scale, sparsityLabel(sparsityOf(DEFAULT_CELL)))}</h4>
+        <p class="lc-inset-meta" data-inset-meta>{text.insetMeta(cell)}</p>
+      </div>
+      <div class="smelt-legend lc-inset-legend">
+        <span class="is-base"><span class="smelt-swatch" aria-hidden="true"></span>{text.base}</span>
+        <span class="is-loop"><span class="smelt-swatch" aria-hidden="true"></span>{text.loop}</span>
+        <span class="lc-key-delta"><span class="smelt-swatch" aria-hidden="true"></span>Δ</span>
+        <span class="lc-key-end"><span class="smelt-swatch-ring" aria-hidden="true"></span><span class="smelt-swatch-dot" aria-hidden="true"></span>{text.decay}</span>
+      </div>
+    </header>
+    {/* Pickers need the script to redraw the panel, so they stay hidden without it. */}
+    <div class="smelt-controls lc-inset-controls lc-js" role="group" aria-label={text.pick}>
+      <div class="smelt-control">
+        <span class="smelt-control-label" aria-hidden="true">{text.scale}</span>
+        <div class="smelt-seg lc-pick" role="group" aria-label={text.pickScale} data-pick-scale>
+          {SCALES.map((scale, index) => <button type="button" data-value={String(index)} aria-pressed={index === scaleOf(DEFAULT_CELL) ? 'true' : 'false'}>{scale}</button>)}
+        </div>
+      </div>
+      <div class="smelt-control">
+        <span class="smelt-control-label" aria-hidden="true">{text.sparsity} S</span>
+        <div class="smelt-seg lc-pick" role="group" aria-label={text.pickSparsity} data-pick-sparsity>
+          {SPARSITY.map((level, index) => <button type="button" data-value={String(index)} aria-pressed={index === sparsityOf(DEFAULT_CELL) ? 'true' : 'false'} aria-label={sparsityLabel(index)}>{level.approx ? '≈' : ''}{level.label}</button>)}
+        </div>
+      </div>
+    </div>
+    <svg class="smelt-chart lc-inset-svg lc-wide" viewBox={`0 0 ${insetWide.width} ${insetWide.height}`} role="img" aria-label={text.insetLabel}>
+      <g class="lc-axes" set:html={insetAxesMarkup(insetWide, language)} />
+      <g class="lc-inset-marks" set:html={insetMarksMarkup(insetWide, cell, `${uid}-w`)} />
+    </svg>
+    <svg class="smelt-chart lc-inset-svg lc-narrow" viewBox={`0 0 ${insetNarrow.width} ${insetNarrow.height}`} role="img" aria-label={text.insetLabel}>
+      <g class="lc-axes" set:html={insetAxesMarkup(insetNarrow, language)} />
+      <g class="lc-inset-marks" set:html={insetMarksMarkup(insetNarrow, cell, `${uid}-n`)} />
+    </svg>
+    <p class="smelt-readout lc-inset-readout" data-inset-readout aria-live="polite" set:html={text.readout(cell)} />
+  </section>
+
+  <details class="disclosure smelt-data">
+    <summary>{text.tableSummary}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="disclosure-body">
+      <div class="data-scroll">
+        <table class="data-table">
+          <thead><tr>{text.table.map(label => <th scope="col">{label}</th>)}</tr></thead>
+          <tbody>
+            {tableRows.map(row => <tr>
+              <th scope="row">{row.item.scale} · {sparsityLabel(sparsityOf(row.index))}</th>
+              <td>{row.item.base.S.toFixed(1)}% / {row.item.loop.S.toFixed(1)}%</td>
+              <td>{row.item.base.params.toFixed(2)}B / {row.item.loop.params.toFixed(2)}B</td>
+              <td>{row.b.toFixed(4)}</td>
+              <td>{row.l.toFixed(4)}</td>
+              <td class:list={[{ 'is-best': row.l < row.b }]}>{signedFixed(row.l - row.b)}</td>
+              <td>{row.lower} / {HORIZONS}</td>
+            </tr>)}
+          </tbody>
+        </table>
+      </div>
+      <p>{text.tableNote}</p>
+    </div>
+  </details>
+  <div hidden><slot /></div>
+</div>
+<script>
+  import '../../scripts/smelt/loss-compute';
+</script>

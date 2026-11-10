@@ -1,0 +1,164 @@
+---
+// Figure 14: do the two visits of a looped MoE layer pick the same experts?
+// Overview of all 16 configurations against the random-routing expectation,
+// then one configuration in detail: an illustrative expert pool and the measured
+// distribution of the overlap. Data: src/data/smelt/expert-reuse.json.
+import { cells, copy, defaultSelection, distLayout, dist, meanLabels, meanLabelText, expertsOf, fmt, fmtRatio, k, maxExperts, poolStates, poolStyle, randomMean, ratioRange, sizeColor, sizes, sparsity, sparsityLabel, trackPercent } from '../../lib/smelt/expert-reuse';
+import type { Language } from '../../lib/site';
+import '../../styles/smelt/expert-reuse.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language } = Astro.props;
+const text = copy[language];
+const { es, size } = defaultSelection;
+const experts = expertsOf(es);
+const layout = distLayout(es, size);
+const pool = poolStates(es, size);
+const cell = cells[es][size];
+const uid = `er-${language}`;
+const lanes = sizes.length;
+const meanText = meanLabelText(text, es, layout.mean);
+const randomText = text.randomLabel(layout.randomMean);
+const label = meanLabels(layout, meanText, randomText);
+const tickValues = Array.from({ length: k + 1 }, (_, index) => index);
+const breakPath = (x: number, width: number, gap: boolean) => {
+  const [x0, x1, y] = [x - 2.5, x + width + 2.5, dist.top + 9];
+  return gap ? `M${x0.toFixed(2)} ${y + 1}L${x1.toFixed(2)} ${y - 3}L${x1.toFixed(2)} ${y + 1}L${x0.toFixed(2)} ${y + 5}Z` : `M${x0.toFixed(2)} ${y + 1}L${x1.toFixed(2)} ${y - 3}M${x0.toFixed(2)} ${y + 5}L${x1.toFixed(2)} ${y + 1}`;
+};
+---
+<div class="er" data-expert-reuse data-language={language} data-es={es} data-size={size} style={`--c:${sizeColor[size]}`}>
+  <div class="smelt-controls er-controls">
+    <div class="smelt-control">
+      <span class="smelt-control-label" id={`${uid}-es`}>{text.sparsity}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`${uid}-es`} data-er-es>
+        {sparsity.map(entry => <button type="button" data-value={entry.key} aria-pressed={(entry.key === es) ? 'true' : 'false'}>{entry.exact ? '' : '≈ '}{entry.label}</button>)}
+      </div>
+    </div>
+    <div class="smelt-control">
+      <span class="smelt-control-label" id={`${uid}-size`}>{text.scale}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`${uid}-size`} data-er-size>
+        {sizes.map(entry => <button type="button" data-value={entry} aria-pressed={(entry === size) ? 'true' : 'false'}>{entry}</button>)}
+      </div>
+    </div>
+  </div>
+
+  <section class="er-overview" aria-label={text.overviewTitle} data-reveal>
+    <header class="er-head">
+      <div><h4>{text.overviewTitle}</h4><p>{text.overviewNote}</p></div>
+      <div class="smelt-legend er-legend">
+        {sizes.map(entry => <span style={`color:${sizeColor[entry]}`}><i class="smelt-swatch-dot"></i>{entry}</span>)}
+        <span class="er-legend-random"><i aria-hidden="true"></i>{text.randomLegend}</span>
+      </div>
+    </header>
+    <div class="er-rows" style={`--lanes:${lanes}`}>
+      <div class="er-row er-row-head" aria-hidden="true"><div class="er-row-label"></div><div></div><div class="er-row-ratio">{text.ratioHead}</div></div>
+      {sparsity.map((entry, row) => {
+        const random = randomMean(entry.experts);
+        const [low, high] = ratioRange(entry.key);
+        return <div class="er-row" data-es={entry.key} data-active={entry.key === es ? '' : undefined}>
+          <div class="er-row-label"><strong>{sparsityLabel(entry.key)}</strong><span>{text.experts(entry.experts)}</span></div>
+          <div class="er-track">
+            <span class="er-random reveal-fade" style={`left:${trackPercent(random)}; --i:${row}`} data-tip={text.randomTip(entry.experts, random)} role="img" aria-label={text.randomTip(entry.experts, random).replace('\n', ': ')}></span>
+            {sizes.map((entry2, lane) => {
+              const value = cells[entry.key][entry2].mean;
+              return <span class="er-stem reveal-grow-x" style={`left:${trackPercent(random)}; width:${trackPercent(value - random)}; --lane:${lane}; --c:${sizeColor[entry2]}; --i:${row * lanes + lane}`} aria-hidden="true"></span>;
+            })}
+            {sizes.map((entry2, lane) => {
+              const value = cells[entry.key][entry2].mean;
+              const tip = text.dotTip(entry2, entry.key, value, random);
+              return <button type="button" class="er-dot reveal-pop" data-es={entry.key} data-size={entry2} aria-pressed={entry.key === es && entry2 === size ? 'true' : 'false'} style={`left:${trackPercent(value)}; --lane:${lane}; --c:${sizeColor[entry2]}; --i:${row * lanes + lane}`} data-tip={tip} aria-label={tip.replaceAll('\n', '; ')}></button>;
+            })}
+          </div>
+          <div class="er-row-ratio">{text.ratio(low, high)}</div>
+        </div>;
+      })}
+      <div class="er-row er-axis" aria-hidden="true">
+        <div class="er-row-label"></div>
+        <div class="er-axis-track">
+          {tickValues.map(value => <span style={`left:${trackPercent(value)}`}>{value}</span>)}
+        </div>
+        <div class="er-row-ratio"></div>
+      </div>
+      <div class="er-row er-axis-title" aria-hidden="true"><div class="er-row-label"></div><div>{text.axisShared}</div><div class="er-row-ratio"></div></div>
+    </div>
+  </section>
+
+  <div class="er-detail" data-reveal>
+    <section class="er-panel er-pool-panel" aria-label={text.poolTitle}>
+      <header class="er-panel-head">
+        <div><h4>{text.poolTitle}</h4><p data-er-pool-sub>{text.poolSub(experts)}</p></div>
+        <button type="button" class="smelt-button er-replay" data-er-replay hidden><span aria-hidden="true">↻</span> {text.replay}</button>
+      </header>
+      <div class="er-steps" aria-hidden="true"><span data-step="1"><b>1</b>{text.visit1}</span><span data-step="2"><b>2</b>{text.visit2}</span></div>
+      <div class="er-pool-box">
+        <div class="er-pool" data-er-pool data-experts={experts} style={poolStyle(experts)} role="img" aria-label={text.poolSub(experts)}>
+          {Array.from({ length: maxExperts }, (_, index) => <i data-v={pool.states[index] || undefined} hidden={index >= experts}></i>)}
+        </div>
+      </div>
+      <div class="smelt-legend er-pool-legend">
+        <span><i class="er-swatch" data-v="1"></i>{text.first}</span>
+        <span><i class="er-swatch" data-v="2"></i>{text.second}</span>
+        <span><i class="er-swatch" data-v="b"></i>{text.both}</span>
+        <span><i class="er-swatch"></i>{text.idle}</span>
+      </div>
+    </section>
+
+    <section class="er-panel er-dist-panel" aria-label={text.distTitle}>
+      <header class="er-panel-head"><div><h4>{text.distTitle}</h4><p>{text.distSub}</p></div></header>
+      <svg class="smelt-chart er-dist" viewBox={`0 0 ${dist.width} ${dist.height}`} role="group" aria-label={text.distTitle} data-er-dist>
+        <g data-er-ticks>
+          {layout.ticks.map(tick => <g><line class="grid" x1={dist.left} x2={dist.width - dist.right} y1={tick.y} y2={tick.y} /><text x={dist.left - 7} y={tick.y + 4.5} text-anchor="end">{tick.label}</text></g>)}
+        </g>
+        <text class="er-dist-unit" x={dist.left - 7} y={dist.top - 32} text-anchor="end">{text.share}</text>
+        <g class="er-mean is-random" data-er-random-mean transform={`translate(${layout.randomX.toFixed(2)} 0)`}>
+          <line x1="0" x2="0" y1={dist.top - 22} y2={layout.baseline} />
+          <text x={label.random.x} y={dist.top - 26} text-anchor={label.random.anchor} data-er-random-label>{randomText}</text>
+        </g>
+        <g class="er-mean is-measured" data-er-mean transform={`translate(${layout.meanX.toFixed(2)} 0)`}>
+          <line x1="0" x2="0" y1={dist.top - 4} y2={layout.baseline} />
+          <text x={label.measured.x} y={dist.top - 8} text-anchor={label.measured.anchor} data-er-mean-label>{meanText}</text>
+        </g>
+        <g data-er-bars>
+          {layout.bars.map(bar => <g class="er-bar" role="img" data-shared={bar.shared} data-tip={text.barTip(bar.shared, bar.measured.share, bar.random.share)} aria-label={text.barTip(bar.shared, bar.measured.share, bar.random.share).replaceAll('\n', '; ')}>
+            <rect class="hit" x={bar.x - layout.band / 2} y={dist.top - 8} width={layout.band} height={layout.baseline - dist.top + 8} />
+            <rect class="er-bar-random" x={bar.x - layout.barWidth - 1} y={bar.random.y} width={layout.barWidth} height={Math.max(0, bar.random.h)} />
+            <rect class="er-bar-measured" x={bar.x + 1} y={bar.measured.y} width={layout.barWidth} height={Math.max(0, bar.measured.h)} />
+            <g class="er-break" data-er-break data-on={bar.random.clipped ? '' : undefined} aria-hidden="true">
+              <path class="er-break-gap" d={breakPath(bar.x - layout.barWidth - 1, layout.barWidth, true)} />
+              <path class="er-break-line" d={breakPath(bar.x - layout.barWidth - 1, layout.barWidth, false)} />
+            </g>
+          </g>)}
+        </g>
+        <line class="axis" x1={dist.left} x2={dist.width - dist.right} y1={layout.baseline} y2={layout.baseline} />
+        {layout.bars.map(bar => <text x={bar.x} y={layout.baseline + 18} text-anchor="middle">{bar.shared}</text>)}
+        <text class="axis-title" x={(dist.left + dist.width - dist.right) / 2} y={dist.height - 6} text-anchor="middle">{text.axisShared}</text>
+      </svg>
+      <div class="smelt-legend er-dist-legend">
+        <span><i class="er-swatch-bar is-random"></i>{text.random}</span>
+        <span><i class="er-swatch-bar is-measured"></i>{text.measured}</span>
+      </div>
+    </section>
+  </div>
+
+  <p class="smelt-readout er-readout" data-er-readout aria-live="polite"><span set:html={text.readout(size, es, cell.mean, randomMean(experts))}></span></p>
+
+  <details class="disclosure smelt-data">
+    <summary>{text.dataSummary}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="data-scroll" tabindex="0" role="region" aria-label={text.dataSummary}>
+      <table class="data-table">
+        <thead><tr>{text.columns.map(column => <th scope="col">{column}</th>)}</tr></thead>
+        <tbody>
+          {sparsity.flatMap(entry => sizes.map(entry2 => {
+            const value = cells[entry.key][entry2];
+            const random = randomMean(entry.experts);
+            return <tr data-highlight={entry.key === es && entry2 === size ? '' : undefined} data-es={entry.key} data-size={entry2}>
+              <th scope="row">{sparsityLabel(entry.key)}</th><td>{entry2}</td><td>{entry.experts}</td><td>{fmt(value.mean)}</td>
+              <td>{fmt(value.ci95[0] ?? 0)}–{fmt(value.ci95[1] ?? 0)}</td><td>{fmt(random)}</td><td>{fmtRatio(value.mean / random)}×</td>
+            </tr>;
+          }))}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  <div hidden><slot /></div>
+</div>
+<script src="../../scripts/smelt/expert-reuse.ts"></script>

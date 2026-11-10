@@ -1,0 +1,106 @@
+---
+// Figure 18: BOS (segment-start) attention mass against depth. The Baseline
+// rises with depth; SMELT's second visit of the same physical layers sits below
+// its first visit. A playhead sweeps the execution trace on reveal.
+import type { Language } from '../../lib/site';
+import { copy, defaultSize, heads, scaleData, sinkMarkup, sizes, summary, viewBox } from '../../lib/smelt/attention-sink';
+import '../../styles/smelt/attention-sink.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language } = Astro.props;
+const text = copy[language];
+const uid = `sink-${language}-${Math.random().toString(36).slice(2, 8)}`;
+const stats = summary(defaultSize);
+const signedPercent = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value * 100).toFixed(0)}%`;
+const cellColor = (value: number) => `--v:${(Math.max(0, Math.min(1, value)) * 100).toFixed(1)}%`;
+const headTicks = Array.from({ length: heads.nHeads }, (_, head) => head).filter(head => head % 5 === 0);
+const mean = (rows: number[][]) => rows.flat().reduce((sum, value) => sum + value, 0) / rows.flat().length;
+const deltaText = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(2)}`;
+const headIndices = Array.from({ length: heads.nHeads }, (_, head) => head);
+---
+<div class="attention-sink" data-attention-sink data-language={language} data-size={defaultSize} data-uid={uid} data-view="depth">
+  <div class="smelt-controls">
+    <div class="smelt-control">
+      <span class="smelt-control-label" id={`${uid}-view`}>{text.view}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`${uid}-view`} data-sink-view>
+        <button type="button" data-value="depth" aria-pressed="true">{text.views.depth}</button>
+        <button type="button" data-value="heads" aria-pressed="false">{text.views.heads}</button>
+      </div>
+    </div>
+    <div class="smelt-control sink-scale-control">
+      <span class="smelt-control-label" id={`${uid}-scale`}>{text.scale}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`${uid}-scale`} data-sink-size>
+        {sizes.map(size => <button type="button" data-value={size} aria-pressed={size === defaultSize ? 'true' : 'false'}>{size}</button>)}
+      </div>
+    </div>
+  </div>
+  <div class="sink-depth-view" data-sink-pane="depth">
+    <div class="smelt-legend sink-legend">
+      <span class="is-base"><i class="sink-key is-base" aria-hidden="true"></i>{text.legendBase}</span>
+      <span class="is-loop"><i class="sink-key is-v1" aria-hidden="true"></i>{text.legendV1}</span>
+      <span class="is-loop"><i class="sink-key is-v2" aria-hidden="true"></i>{text.legendV2}</span>
+    </div>
+    <div class="sink-plot">
+      <svg class="smelt-chart sink-svg sink-wide" data-variant="wide" viewBox={viewBox('wide')} role="group" aria-label={text.aria(defaultSize)} set:html={sinkMarkup(language, defaultSize, 'wide', `${uid}-w`)}></svg>
+      <svg class="smelt-chart sink-svg sink-narrow" data-variant="narrow" viewBox={viewBox('narrow')} role="group" aria-label={text.aria(defaultSize)} set:html={sinkMarkup(language, defaultSize, 'narrow', `${uid}-n`)}></svg>
+    </div>
+    <div class="smelt-stats sink-stats" aria-live="polite">
+      <div class="smelt-stat"><span class="smelt-stat-value is-loop" data-stat="block">{stats.visit1.toFixed(2)} → {stats.visit2.toFixed(2)}</span><span class="smelt-stat-label">{text.stats.block}</span></div>
+      <div class="smelt-stat"><span class="smelt-stat-value is-loop" data-stat="change">{signedPercent(stats.change)}</span><span class="smelt-stat-label">{text.stats.change}</span></div>
+      <div class="smelt-stat"><span class="smelt-stat-value" data-stat="count">{stats.lower} / {stats.total}</span><span class="smelt-stat-label">{text.stats.count}</span></div>
+    </div>
+  </div>
+  <div class="sink-heads-view" data-sink-pane="heads" hidden>
+    <p class="smelt-readout sink-heads-meta">{text.headsMeta}</p>
+    <div class="sink-heads" data-sink-heads>
+      {([1, 2] as const).map(visit => {
+        const rows = visit === 1 ? heads.visit1 : heads.visit2;
+        return <div class="sink-heads-panel" data-visit={visit}>
+          <h4>{text.segments[visit === 1 ? 'visit1' : 'visit2']} <span>{text.headsMean(mean(rows).toFixed(2))}</span></h4>
+          <div class="sink-heads-frame">
+            <div class="sink-heads-y" aria-hidden="true">{heads.layers.map((layer, index) => <span style={`grid-row:${index + 1}`}>{index % 2 === 0 ? layer : ''}</span>)}</div>
+            <div class="sink-heads-grid" style={`--cols:${heads.nHeads}`} tabindex="0" role="group" data-heads-grid={visit} aria-label={text.headsGrid(text.segments[visit === 1 ? 'visit1' : 'visit2'], mean(rows).toFixed(2))}>
+              {rows.map((row, layerIndex) => row.map((value, head) => <i style={cellColor(value)} data-cell={`${layerIndex}-${head}`}></i>))}
+            </div>
+            <div class="sink-heads-x" aria-hidden="true">{headTicks.map(head => <span style={`left:${((head + 0.5) / heads.nHeads * 100).toFixed(2)}%`}>{head}</span>)}</div>
+          </div>
+        </div>;
+      })}
+    </div>
+    <div class="sink-heads-foot">
+      <span class="sink-heads-axes">{text.headsAxis.x} → · {text.headsAxis.y} ↓</span>
+      <span class="sink-heads-ramp" aria-hidden="true"><span>0</span><i></i><span>1</span></span>
+    </div>
+    <p class="smelt-readout" set:html={text.headsLower(heads.lower, heads.layers.length * heads.nHeads)}></p>
+  </div>
+  <details class="disclosure smelt-data">
+    <summary>{text.table}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="disclosure-body">
+      {sizes.map(size => {
+        const scale = scaleData(size);
+        const visits = new Map(scale.visit1.map((point, index) => [point[0], [point[2], scale.visit2[index]?.[2]] as const]));
+        return <div class="data-scroll" tabindex="0" role="region" aria-label={`${text.table} · ${size}`} data-sink-table={size} hidden={size !== defaultSize}>
+          <table class="data-table">
+            <caption class="sink-table-caption">{size}</caption>
+            <thead><tr><th scope="col">{text.tableHead.layer}</th><th scope="col">{text.tableHead.base}</th><th scope="col">{text.tableHead.v1}</th><th scope="col">{text.tableHead.v2}</th></tr></thead>
+            <tbody>{scale.baseline.map(point => {
+              const pair = visits.get(point[0]);
+              return <tr><th scope="row">{point[0]}</th><td>{point[1].toFixed(3)}</td><td>{pair ? pair[0].toFixed(3) : '—'}</td><td>{pair && pair[1] !== undefined ? pair[1].toFixed(3) : '—'}</td></tr>;
+            })}</tbody>
+          </table>
+        </div>;
+      })}
+      <div class="data-scroll" tabindex="0" role="region" aria-label={text.headsTable} data-sink-heads-table hidden>
+        <table class="data-table sink-heads-table">
+          <caption class="sink-table-caption">{text.headsTable}</caption>
+          <thead><tr><th scope="col">{text.headsTableCorner}</th>{headIndices.map(head => <th scope="col">{head}</th>)}</tr></thead>
+          <tbody>{heads.layers.map((layer, layerIndex) => <tr><th scope="row">{layer}</th>{headIndices.map(head => {
+            const delta = (heads.visit2[layerIndex]?.[head] ?? 0) - (heads.visit1[layerIndex]?.[head] ?? 0);
+            return <td class:list={{ 'is-up': delta >= 0 }}>{deltaText(delta)}</td>;
+          })}</tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+  <div hidden><slot /></div>
+</div>
+<script src="../../scripts/smelt/attention-sink.ts"></script>

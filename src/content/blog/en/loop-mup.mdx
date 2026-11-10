@@ -1,0 +1,265 @@
+---
+title: "Loop-μP: Residual Scaling and Hyperparameter Transfer in Looped Transformers"
+subtitle: "Looping is not extra depth: scale each residual branch by 1/N, and the learning rate transfers across loop counts"
+description: "Why must the learning rate be retuned when a looped Transformer runs more loops? Shared weights make the residual increments of every loop add along one direction. With each residual branch scaled by 1/N, the learning rate tuned on the smallest model stays best at 8 loops and 384 executed layers."
+language: "en"
+urlSlug: "loop-mup"
+published: "2026-11-09"
+category: "Training Theory"
+tags: ["Loop-μP", "Looped Transformer", "μP", "Hyperparameter Transfer", "Residual Scaling"]
+author: "Shaowen Wang et al."
+translationNotice: "Translated from Chinese with AI assistance."
+paper: "https://arxiv.org/abs/2606.18524"
+sections: [{"id":"loops-vs-depth","title":"Looping is not extra depth"},{"id":"derivation","title":"Why exactly 1/N"},{"id":"recipe","title":"The Loop-μP recipe"},{"id":"experiments","title":"One learning rate for every loop count"},{"id":"after-training","title":"After training"},{"id":"conclusion","title":"Conclusion"}]
+---
+
+import LoopDetails from '../../../components/loop-mup/LoopDetails.astro';
+import LoopFigure from '../../../components/loop-mup/LoopFigure.astro';
+import LoopMath from '../../../components/loop-mup/LoopMath.astro';
+import LoopRecipe from '../../../components/loop-mup/LoopRecipe.astro';
+
+A looped Transformer runs the same stack of <var>L</var> layers <var>N</var> times. It stores the parameters of only <var>L</var> layers but executes <var>N</var>×<var>L</var> of them. Prior work finds that looping helps models carry out multi-step reasoning, and in language modeling downstream accuracy rises with the loop count <var>N</var>, most strongly on reasoning tasks. Increasing <var>N</var> is therefore a natural way to scale a looped model.
+
+As <var>N</var> grows, however, training becomes unstable and the best learning rate moves, so it has to be searched again for every <var>N</var>. Ouro, for example, reduced the loop count after observing loss spikes, and adopted a conservative learning rate because its compute budget did not allow a learning-rate sweep.
+
+For width and depth, this problem already has an answer. μP and Depth-μP choose a parameterization under which the best hyperparameters stay put as the model gets wider or deeper, so they can be tuned on a small model and reused on a large one. We ask: <strong>can the loop count <var>N</var> do the same?</strong>
+
+Our answer is <strong>Loop-μP</strong>: on top of the existing depth scaling, multiply each residual branch by 1/<var>N</var> and keep the learning rate independent of <var>N</var>. In our language-modeling experiments, the base learning rate tuned on the smallest model stays best for loop counts up to 8 and executed depths up to 384 layers. The key point is that <strong>loops cannot simply be treated as extra depth</strong>: all loops share the same weights, so the increments they write into the residual stream add along the same direction.
+
+<h2 id="loops-vs-depth">Looping is not extra depth</h2>
+
+Each branch of a residual network updates the residual stream as <var>x</var> ← <var>x</var> + <var>c</var>·<var>f</var>(<var>x</var>), where <var>c</var> is the branch multiplier. A deeper network adds more increments, so depthwise parameterizations shrink <var>c</var> as the depth <var>L</var> grows. Depth-μP uses <var>c</var> ∝ <var>L</var><sup>−1/2</sup> and CompleteP uses <var>c</var> ∝ <var>L</var><sup>−1</sup>, and both transfer the learning rate across depths.
+
+A model of <var>L</var> layers looped <var>N</var> times executes <var>N</var>×<var>L</var> layers. Treating the loops as extra depth seems natural, which would multiply the branch by another <var>N</var><sup>−1/2</sup>. The catch is weight sharing. At initialization, <var>L</var> independent layers write increments in nearly unrelated directions, so like a random walk their sum grows only as √<var>L</var>. When one block is looped <var>N</var> times, every loop uses the same weights, the increments are positively correlated, and their sum grows linearly in <var>N</var>.
+
+<LoopFigure id="vector-sum" language="en" />
+
+Real Transformers behave the same way. We loop a 12-layer pre-norm Transformer stack <var>N</var> times and compare it with untied models that chain <var>m</var><sub><var>L</var></sub> independent 12-layer stacks (depth multiplier <var>m</var><sub><var>L</var></sub> = <var>L</var>/12), measuring the residual-stream norm at initialization. Without scaling, the looped norm grows linearly in <var>N</var>, while the untied norm grows only as √<var>m</var><sub><var>L</var></sub>. For the untied model, <var>m</var><sub><var>L</var></sub><sup>−1/2</sup> already keeps the norm of order one. For the looped model, <var>N</var><sup>−1/2</sup> is not enough and only <var>N</var><sup>−1</sup> works. <var>N</var><sup>−3/2</sup> also bounds the norm, but it drives the looped model toward the identity map.
+
+<LoopFigure id="init-norm" language="en" />
+
+The cosine similarity between increments explains the difference: the increments of 64 independent stacks are nearly orthogonal, whereas the 64 increments of a looped stack are all positively correlated, with a mean cosine of about 0.85.
+
+<LoopFigure id="init-cosine" language="en" />
+
+<h2 id="derivation">Why exactly 1/N</h2>
+
+The measurements in the previous section raise two natural questions. First, if the goal were merely to keep the initialized residual stream bounded, why not decay even faster, say as <var>N</var><sup>−3/2</sup>? Second—and more importantly for training—since the same weights are reused across all <var>N</var> loops and receive <var>N</var> gradient contributions on the backward pass, does the learning rate also need to be scaled with <var>N</var>?
+
+This section works out both answers. Write the residual branch multiplier as <var>c</var><sub><var>N</var></sub> = <var>a</var><var>N</var><sup>−<var>α</var><sub><var>N</var></sub></sup> (where <var>a</var> is a constant independent of <var>N</var>), and write <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup> for how the step size of a single weight update scales with <var>N</var> (for Adam, which normalizes gradient magnitudes automatically, this is directly how the learning rate scales with <var>N</var>). We want to find the pair of exponents (<var>α</var><sub><var>N</var></sub>, <var>γ</var><sub><var>N</var></sub>).
+
+Before diving into matrix algebra, we can summarize the entire argument in three lines. For a single learning rate to work across all loop counts <var>N</var>, the network must neither blow up nor stall as <var>N</var> grows:
+
+- <strong>Step 1 (Stable forward pass at initialization)</strong>: Each loop writes an increment of size <var>c</var><sub><var>N</var></sub> into the residual stream. Because all loops share weights, the <var>N</var> increments add along the same direction, giving a total increment of size <var>N</var>·<var>c</var><sub><var>N</var></sub> ∝ <var>N</var><sup>1−<var>α</var><sub><var>N</var></sub></sup>. Keeping initialization from blowing up requires <strong><var>α</var><sub><var>N</var></sub> ≥ 1</strong>.
+- <strong>Step 2 (Bounded feature update in a single loop)</strong>: One optimization step changes the weights by scale <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>, so the branch output in a single loop changes by <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>. Keeping feature updates from blowing up with <var>N</var> requires <strong><var>γ</var><sub><var>N</var></sub> ≥ 0</strong>.
+- <strong>Step 3 (Order-one change in the final output)</strong>: The updated weights are reused in all <var>N</var> loops. In each loop, the residual branch (multiplied by <var>c</var><sub><var>N</var></sub>) nudges the final output in the loss-reducing direction by <var>c</var><sub><var>N</var></sub>·<var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>; summed over <var>N</var> aligned loops, the total output change is <var>N</var>·<var>c</var><sub><var>N</var></sub>·<var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup> ∝ <var>N</var><sup>1−<var>α</var><sub><var>N</var></sub>−<var>γ</var><sub><var>N</var></sub></sup>. If this change grew with <var>N</var>, the optimal learning rate would have to shrink with <var>N</var>; if it vanished with <var>N</var>, training would stall unless the learning rate grew with <var>N</var>. Only when it stays of order one—requiring <strong><var>α</var><sub><var>N</var></sub> + <var>γ</var><sub><var>N</var></sub> = 1</strong>—does one learning rate suit every <var>N</var>.
+
+Putting the three conditions together, Steps 2 and 3 give <var>α</var><sub><var>N</var></sub> = 1 − <var>γ</var><sub><var>N</var></sub> ≤ 1 (an upper bound from training), while Step 1 gives <var>α</var><sub><var>N</var></sub> ≥ 1 (a lower bound from the forward pass). The two bounds meet head-on, leaving the unique solution (<var>α</var><sub><var>N</var></sub>, <var>γ</var><sub><var>N</var></sub>) = (1, 0).
+
+The figure below draws this ledger. Each line is a bar made of pieces, and the dashed line marks its length at <var>N</var> = 1. Set <var>c</var><sub><var>N</var></sub> = 1/<var>N</var>, keep the learning rate fixed, and change <var>N</var>: there are more pieces, each proportionally narrower, and all three bars stay on the dashed line. With any other branch multiplier or learning-rate scaling, at least one bar grows or shrinks with <var>N</var>.
+
+<LoopFigure id="ledger" language="en" />
+
+The ledger takes three facts for granted: why the increments of a shared block add along one direction, why the features change by as much as the weights do, and why the <var>N</var> loops push the output with the same sign. We now explain each in the simplest possible model, with one figure per step; the full algebra sits in fold-out blocks that can be skipped without losing the thread.
+
+<strong>A minimal model and μP initialization.</strong> Following Depth-μP, we consider a looped residual network of width <var>n</var> with a single trainable hidden matrix <var>W</var> ∈ ℝ<sup><var>n</var>×<var>n</var></sup> applied <var>N</var> times, while the input vector <var>U</var> ∈ ℝ<sup><var>n</var></sup> and readout vector <var>V</var> ∈ ℝ<sup><var>n</var></sup> stay fixed. To compute every term in closed form, we set the scalar input to 1 and use the identity activation (the paper also subtracts the coordinate mean of each residual branch, which we omit here):
+
+<LoopMath name="model" language="en" />
+
+Here <var>h</var><sup><var>r</var></sup> is the output of the branch matrix <var>W</var> in loop <var>r</var>, <var>x</var><sup><var>r</var></sup> is the residual stream after loop <var>r</var>, and the scalar output <var>f</var> is the standard inner product ⟨<var>V</var>, <var>x</var><sup><var>N</var></sup>⟩ = ∑<sub><var>i</var></sub><var>V</var><sub><var>i</var></sub><var>x</var><sub><var>i</var></sub><sup><var>N</var></sup>.
+
+The initialization follows μP, which keeps each coordinate of a hidden vector of order one (written Θ(1)): each coordinate of <var>U</var> is about 1, each entry of <var>W</var> about 1/√<var>n</var>, and each coordinate of <var>V</var> about 1/<var>n</var>. We measure vector length by the root-mean-square (RMS) norm ‖<var>z</var>‖<sub>rms</sub> = √(⟨<var>z</var>, <var>z</var>⟩/<var>n</var>), the typical magnitude of a single coordinate.
+
+Throughout, we take the large-width limit <var>n</var> → ∞ first, and then ask how each quantity scales as the loop count <var>N</var> grows.
+
+<LoopDetails title="Full derivation: what each 1/n in the μP initialization does">
+
+In a width-<var>n</var> network, we want <strong>each coordinate</strong> of an activation vector to stay of order one. Under μP initialization, each factor of 1/<var>n</var> has a specific job:
+
+- <strong>Input vector <var>U</var></strong>: coordinates are independent 𝒩(0, 1), so each coordinate is about 1 and ‖<var>U</var>‖<sub>rms</sub> ≈ 1 (with inner product ⟨<var>U</var>, <var>U</var>⟩ ≈ <var>n</var>).
+- <strong>Hidden matrix <var>W</var></strong>: entries are independent 𝒩(0, 1/<var>n</var>). Why variance 1/<var>n</var>? Because each coordinate (<var>W</var><var>U</var>)<sub><var>i</var></sub> = ∑<sub><var>j</var></sub><var>W</var><sub><var>ij</var></sub><var>U</var><sub><var>j</var></sub> sums <var>n</var> independent terms of variance 1/<var>n</var>, giving variance 1. Thus <strong>multiplying by <var>W</var> preserves the RMS length of a vector</strong>: ‖<var>W</var><var>U</var>‖<sub>rms</sub> ≈ 1.
+- <strong>Readout vector <var>V</var></strong>: coordinates are independent 𝒩(0, 1/<var>n</var><sup>2</sup>), so each coordinate has size about 1/<var>n</var> (and ⟨<var>V</var>, <var>V</var>⟩ ≈ 1/<var>n</var>). The readout is this small because <var>f</var> = ∑<sub><var>i</var></sub><var>V</var><sub><var>i</var></sub><var>x</var><sub><var>i</var></sub><sup><var>N</var></sup> sums <var>n</var> coordinates: at initialization <var>V</var> is unrelated to <var>x</var><sup><var>N</var></sup> and the terms cancel to <var>f</var> ≈ 0; once training aligns the change of <var>x</var><sup><var>N</var></sup> with <var>V</var>, adding <var>n</var> aligned terms of size 1/<var>n</var> produces an order-one change in the output <var>f</var>.
+
+</LoopDetails>
+
+<strong>A key tool: at large width, each multiplication by <var>W</var> turns a vector to a new orthogonal direction.</strong> In the plane, multiplying a vector by a random matrix can send it in any direction and stretch or shrink it at will. At large width the picture is completely different: <var>W</var><var>U</var> almost always has the same length as <var>U</var> and is almost always orthogonal to it. The figure below draws 200 samples at each width: at <var>n</var> = 2 the samples scatter over the whole half-disc, and as <var>n</var> grows they collapse onto 90° and a length ratio of 1, with a spread that shrinks roughly as 1/√<var>n</var>. Multiplying by <var>W</var> once more gives <var>W</var><sup>2</sup><var>U</var>, again nearly orthogonal to both earlier vectors.
+
+<LoopFigure id="orthogonal" language="en" />
+
+Our derivation only needs three direct consequences of this fact:
+
+- <strong>Distinct powers are pairwise orthogonal</strong>: <var>U</var>, <var>W</var><var>U</var>, <var>W</var><sup>2</sup><var>U</var>, … are pairwise orthogonal with RMS length tending to 1.
+- <strong>Backward multiplications by <var>W</var><sup>⊤</sup> behave the same way</strong>: <var>V</var>, <var>W</var><sup>⊤</sup><var>V</var>, (<var>W</var><sup>⊤</sup>)<sup>2</sup><var>V</var>, … are also pairwise orthogonal, each with self-inner-product ⟨<var>V</var>, <var>V</var>⟩ ≈ 1/<var>n</var>.
+- <strong>Products of distinct independent matrices are pairwise orthogonal</strong>: if layers have independent weights <var>W</var><sub>1</sub>, <var>W</var><sub>2</sub>, …, then <var>W</var><sub>1</sub><var>U</var> and <var>W</var><sub>2</sub><var>U</var> are orthogonal as well, each with RMS length tending to 1.
+
+<LoopDetails title="Full derivation: why one multiplication by W gives an orthogonal direction">
+
+The previous fold-out explains why the length is preserved: each coordinate (<var>W</var><var>U</var>)<sub><var>i</var></sub> sums <var>n</var> independent terms of variance 1/<var>n</var>. What about the direction? Look at the inner product ⟨<var>U</var>, <var>W</var><var>U</var>⟩ = ∑<sub><var>i</var>,<var>j</var></sub><var>U</var><sub><var>i</var></sub><var>W</var><sub><var>ij</var></sub><var>U</var><sub><var>j</var></sub>: it sums <var>n</var><sup>2</sup> uncorrelated terms of mean 0 and standard deviation 1/√<var>n</var>, which cancel down to order √<var>n</var>—negligible compared with the squared length ⟨<var>U</var>, <var>U</var>⟩ ≈ <var>n</var> (their cosine is about 1/√<var>n</var> → 0). In high dimensions, each multiplication by the random matrix <var>W</var> rotates the vector into a fresh direction orthogonal to the previous ones.
+
+The rigorous random-matrix proof appears in Tensor Programs and the paper's appendix.
+
+</LoopDetails>
+
+<strong>Step 1 (Stable forward pass): shared weights make same-order terms add in length, requiring <var>α</var><sub><var>N</var></sub> ≥ 1.</strong> Each loop multiplies the residual stream by (<var>I</var> + <var>c</var><sub><var>N</var></sub><var>W</var>), so after <var>N</var> loops <var>x</var><sup><var>N</var></sup> = (<var>I</var> + <var>c</var><sub><var>N</var></sub><var>W</var>)<sup><var>N</var></sup><var>U</var>. When we expand the product, each loop either follows the identity trunk <var>I</var> or takes the residual branch <var>c</var><sub><var>N</var></sub><var>W</var>. There are 2<sup><var>N</var></sup> paths in total, and each path is one term of the expansion. The figure below lists all of them; click a path to see which term it gives.
+
+Compare two layers (<var>N</var> = 2) with independent versus shared weights. There are two ways to take the residual branch once (the first-order terms, <var>m</var> = 1): take the branch in loop 1 and the trunk in loop 2, or vice versa. With independent weights (<var>W</var><sub>1</sub> and <var>W</var><sub>2</sub>), the two paths produce two <strong>orthogonal vectors</strong> <var>c</var><var>W</var><sub>1</sub><var>U</var> and <var>c</var><var>W</var><sub>2</sub><var>U</var>, whose combined length by Pythagoras is √2·<var>c</var>. With a shared weight <var>W</var>, both paths produce the <strong>exact same vector</strong> <var>c</var><var>W</var><var>U</var>, which adds in length to 2<var>c</var>. Across <var>N</var> loops, there are C(<var>N</var>, <var>m</var>) ways to choose <var>m</var> loops to take the branch. Under shared weights every one of them yields the same vector <var>c</var><sub><var>N</var></sub><sup><var>m</var></sup><var>W</var><sup><var>m</var></sup><var>U</var>, with combined length C(<var>N</var>, <var>m</var>)·<var>c</var><sub><var>N</var></sub><sup><var>m</var></sup>; under independent weights they yield C(<var>N</var>, <var>m</var>) mutually orthogonal vectors, with combined length only √C(<var>N</var>, <var>m</var>)·<var>c</var><sub><var>N</var></sub><sup><var>m</var></sup>.
+
+<LoopFigure id="paths" language="en" />
+
+This also explains Figure 3 algebraically: the increment <var>c</var><sub><var>N</var></sub><var>W</var><var>x</var><sup><var>r</var>−1</sup> written in loop <var>r</var> always starts with the same vector <var>c</var><sub><var>N</var></sub><var>W</var><var>U</var> and has positive coefficients on all higher powers, so increments from different loops are positively correlated.
+
+The stability condition for the forward pass can be read off from the first-order term (<var>m</var> = 1). Being a single term of the expansion, it must stay bounded: that is a necessary condition. It is also sufficient, because the higher orders are controlled by the first one (C(<var>N</var>, <var>m</var>) is at most <var>N</var><sup><var>m</var></sup>/<var>m</var>!), so the total length is squeezed between two functions of the first-order term:
+
+- <strong>Independent weights (depth)</strong>: the first-order term has length √<var>N</var>·<var>c</var><sub><var>N</var></sub>, and the squares of all orders sum to (1 + <var>c</var><sub><var>N</var></sub><sup>2</sup>)<sup><var>N</var></sup>, which lies between 1 + <var>N</var><var>c</var><sub><var>N</var></sub><sup>2</sup> and e<sup><var>N</var><var>c</var><sub><var>N</var></sub><sup>2</sup></sup>. The residual stream is therefore bounded if and only if √<var>N</var>·<var>c</var><sub><var>N</var></sub> is, that is, if the branch multiplier shrinks at least as fast as <var>N</var><sup>−1/2</sup>—which is why Depth-μP can use <var>L</var><sup>−1/2</sup>.
+- <strong>Shared weights (loops)</strong>: the first-order term has length <var>N</var>·<var>c</var><sub><var>N</var></sub> = <var>a</var><var>N</var><sup>1−<var>α</var><sub><var>N</var></sub></sup>, and the total length lies between <var>N</var>·<var>c</var><sub><var>N</var></sub> and e<sup><var>N</var>·<var>c</var><sub><var>N</var></sub></sup>. If we still used <var>c</var><sub><var>N</var></sub> = <var>N</var><sup>−1/2</sup> (say <var>c</var><sub><var>N</var></sub> = 1/4 at <var>N</var> = 16), the first-order term would have length 1 for independent layers but 4 for shared loops, and including higher orders pushes the total length to about 15 (Figure 7). The residual stream is therefore bounded if and only if <var>N</var>·<var>c</var><sub><var>N</var></sub> is, that is, <strong><var>α</var><sub><var>N</var></sub> ≥ 1</strong>; the total length is then at most e<sup><var>a</var></sup> for any <var>N</var>.
+
+If <var>α</var><sub><var>N</var></sub> > 1 (such as <var>N</var><sup>−3/2</sup>), then <var>N</var>·<var>c</var><sub><var>N</var></sub> → 0, every residual term vanishes as <var>N</var> grows, and <var>x</var><sup><var>N</var></sup> → <var>U</var>, collapsing the looped network to the identity map. The forward pass alone does not blow up, but the training analysis below rules it out.
+
+<LoopFigure id="binomial" language="en" />
+
+<LoopDetails title="Full derivation: the expansion and the total length">
+
+Written as equations, the paths above read:
+
+<LoopMath name="expansion" language="en" />
+
+Now compute the total length of <var>x</var><sup><var>N</var></sup>. Because distinct powers <var>W</var><sup><var>m</var></sup><var>U</var> are orthogonal, the squared length of <var>x</var><sup><var>N</var></sup> is the sum of the squared lengths of each order <var>m</var>. Shared and independent weights differ only in how the C(<var>N</var>, <var>m</var>) terms <strong>within the same order <var>m</var></strong> combine: with shared weights, C(<var>N</var>, <var>m</var>) identical vectors add in length (squaring to C(<var>N</var>, <var>m</var>)<sup>2</sup>); with independent weights, C(<var>N</var>, <var>m</var>) orthogonal vectors add in quadrature (squaring to C(<var>N</var>, <var>m</var>)):
+
+<LoopMath name="norms" language="en" />
+
+- <strong>Independent weights</strong>: the first-order term has squared length <var>N</var><var>c</var><sub><var>N</var></sub><sup>2</sup>, and all orders sum to (1 + <var>c</var><sub><var>N</var></sub><sup>2</sup>)<sup><var>N</var></sup>. This is at least the first two terms of the expansion, 1 + <var>N</var><var>c</var><sub><var>N</var></sub><sup>2</sup>, and at most e<sup><var>N</var><var>c</var><sub><var>N</var></sub><sup>2</sup></sup>, so it is bounded if and only if <var>N</var><var>c</var><sub><var>N</var></sub><sup>2</sup> is.
+- <strong>Shared weights</strong>: for the lower bound, the squared total is at least the squared first-order term (<var>N</var><var>c</var><sub><var>N</var></sub>)<sup>2</sup>. For the upper bound, C(<var>N</var>, <var>m</var>) ≤ <var>N</var><sup><var>m</var></sup>/<var>m</var>! bounds the length of order <var>m</var> by (<var>N</var><var>c</var><sub><var>N</var></sub>)<sup><var>m</var></sup>/<var>m</var>!, so the lengths of all orders sum to at most e<sup><var>N</var><var>c</var><sub><var>N</var></sub></sup>, and so does the total length (the root of the sum of their squares). When <var>α</var><sub><var>N</var></sub> ≥ 1, <var>N</var><var>c</var><sub><var>N</var></sub> ≤ <var>a</var> and the total length is at most e<sup><var>a</var></sup>.
+
+</LoopDetails>
+
+<strong>Step 2 (One update step and feature change): why training stability requires <var>γ</var><sub><var>N</var></sub> ≥ 0.</strong> Now consider one gradient step. Let <var>ℓ</var>′ = ∂<var>ℓ</var>/∂<var>f</var> be the derivative of the loss with respect to the scalar output <var>f</var>, and let <var>b</var><sub><var>r</var></sub> = ∂<var>f</var>/∂<var>x</var><sup><var>r</var></sup> be the gradient of <var>f</var> with respect to the residual stream after loop <var>r</var>. Because <var>N</var> − <var>r</var> loops remain between <var>x</var><sup><var>r</var></sup> and <var>x</var><sup><var>N</var></sup>, backpropagation multiplies the readout vector <var>V</var> by (<var>I</var> + <var>c</var><sub><var>N</var></sub><var>W</var><sup>⊤</sup>)<sup><var>N</var>−<var>r</var></sup>; its zeroth-order term is <var>V</var>, so each coordinate of <var>b</var><sub><var>r</var></sub> has size about 1/<var>n</var>.
+
+Because the same <var>W</var> is used in all <var>N</var> loops, the chain rule sums the outer-product gradients from all <var>N</var> loops: loop <var>r</var> takes input <var>x</var><sup><var>r</var>−1</sup> (entries ∼ 1) and receives backward signal <var>c</var><sub><var>N</var></sub><var>ℓ</var>′<var>b</var><sub><var>r</var></sub> (entries ∼ <var>c</var><sub><var>N</var></sub>/<var>n</var>), contributing <var>c</var><sub><var>N</var></sub><var>ℓ</var>′<var>b</var><sub><var>r</var></sub>(<var>x</var><sup><var>r</var>−1</sup>)<sup>⊤</sup> to <var>G</var>. This is the same as backpropagation through time (BPTT) in a recurrent network, where the gradients of the tied weights are summed over time steps:
+
+<LoopMath name="gradient" language="en" />
+
+Could these <var>N</var> terms cancel one another? They cannot. Every loop input <var>x</var><sup><var>r</var>−1</sup> starts with the same <var>U</var>, and every backward signal <var>b</var><sub><var>r</var></sub> starts with the same <var>V</var>, so the gradient contributions of any two loops are positively correlated. The figure below computes their pairwise cosine similarity in the model above: all of them are positive, and the sum of the <var>N</var> terms is close to <var>N</var> times as long as a single term, rather than the √<var>N</var> times of mutually orthogonal terms. This is the same mechanism as the <var>N</var> aligned increments of Step 1: each term carries one factor of the branch multiplier <var>c</var><sub><var>N</var></sub>, <var>N</var> aligned terms add up, and the gradient has scale <var>N</var>·<var>c</var><sub><var>N</var></sub>.
+
+<LoopFigure id="gradient-cosine" language="en" />
+
+One update moves the weights along the negative gradient by an amount of scale <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>, the step size defined at the start of this section. Every term of the gradient is the outer product of a backward signal and an input that starts with <var>U</var>; in other words, the gradient is aligned with the input <var>U</var>, so the first-loop feature <var>h</var><sup>1</sup> = <var>W</var><var>U</var> changes by Δ<var>h</var><sup>1</sup> = Δ<var>W</var><var>U</var>, of scale <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>. Keeping the feature change bounded as <var>N</var> grows therefore requires <strong><var>γ</var><sub><var>N</var></sub> ≥ 0</strong>. When the forward pass is stable (<var>α</var><sub><var>N</var></sub> ≥ 1), the changes in all subsequent loops have the same scale.
+
+<LoopDetails title="Full derivation: one update step and the first-loop feature change">
+
+To cover both Adam and SGD with a single exponent <var>γ</var><sub><var>N</var></sub>, we parameterize <strong>how the weight update Δ<var>W</var> scales with <var>N</var></strong> by averaging the <var>N</var> outer products (dividing by <var>N</var>) and multiplying by the step-size factor <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup> (in the paper's Tensor Programs notation, the gradient is first rescaled by <var>n</var><var>N</var><sup><var>α</var><sub><var>N</var></sub>−1</sup> so its entries are Θ(1), and then multiplied by learning rate <var>η</var><var>n</var><sup>−1</sup><var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>, which yields the exact same Δ<var>W</var>):
+
+<LoopMath name="update" language="en" />
+
+Notice how <var>γ</var><sub><var>N</var></sub> connects to the actual optimizer learning rate: since each outer product <var>b</var><sub><var>s</var></sub>(<var>x</var><sup><var>s</var>−1</sup>)<sup>⊤</sup> has entries of size 1/<var>n</var>, their average over <var>s</var> also has entries of size 1/<var>n</var>, so each entry of Δ<var>W</var> has size <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>/<var>n</var>. Because Adam normalizes the gradient entrywise by its root-mean-square magnitude, the overall scale of <var>G</var> cancels out and the step size is set directly by the learning rate—so <strong>for Adam, <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup> is simply how the learning rate scales with <var>N</var></strong>.
+
+Now look at the second line of the equation above—how much the first-loop feature <var>h</var><sup>1</sup> = <var>W</var><var>U</var> changes after one step:
+
+- The input <var>x</var><sup>0</sup> = <var>U</var> to the first loop is fixed, so the feature change is <var>Δh</var><sup>1</sup> = <var>ΔW</var><var>U</var> exactly.
+- Multiplying each outer product <var>b</var><sub><var>s</var></sub>(<var>x</var><sup><var>s</var>−1</sup>)<sup>⊤</sup> on the right by <var>U</var> turns the matrix-vector product into the scalar inner product ⟨<var>x</var><sup><var>s</var>−1</sup>, <var>U</var>⟩ times the vector <var>b</var><sub><var>s</var></sub>.
+- Why is ⟨<var>x</var><sup><var>s</var>−1</sup>, <var>U</var>⟩ ≈ <var>n</var>? Because every loop input <var>x</var><sup><var>s</var>−1</sup> = <var>U</var> + (<var>s</var> − 1)<var>c</var><sub><var>N</var></sub><var>W</var><var>U</var> + ⋯ starts with <var>U</var>, while all higher-order terms are orthogonal to <var>U</var>, reducing the inner product to ⟨<var>U</var>, <var>U</var>⟩ ≈ <var>n</var>. This factor of <var>n</var> cancels the 1/<var>n</var> entry size of <var>b</var><sub><var>s</var></sub>, bringing each coordinate back to Θ(1)—the core mechanism of μP: because Δ<var>W</var> is built from outer products of the training inputs, it aligns with <var>U</var> and amplifies 1/<var>n</var>-sized weight updates by a factor of <var>n</var>.
+- At the same time, all <var>b</var><sub><var>s</var></sub> share the zeroth-order term <var>V</var> and are positively correlated, so averaging over <var>s</var> does not cancel them out. Thus ‖Δ<var>h</var><sup>1</sup>‖<sub>rms</sub> has scale <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>.
+
+</LoopDetails>
+
+<strong>Step 3 (Change in the final output): one update pushes the output along the same direction in all <var>N</var> loops, requiring <var>α</var><sub><var>N</var></sub> + <var>γ</var><sub><var>N</var></sub> = 1.</strong> Finally, we compute how much one step changes the scalar output <var>f</var>. Once <var>W</var> is updated by Δ<var>W</var>, that same Δ<var>W</var> acts in all <var>N</var> loops. In loop <var>r</var>, the residual branch writes an extra <var>c</var><sub><var>N</var></sub>Δ<var>W</var><var>x</var><sup><var>r</var>−1</sup> into <var>x</var><sup><var>r</var></sup>; by the definition of <var>b</var><sub><var>r</var></sub> = ∂<var>f</var>/∂<var>x</var><sup><var>r</var></sup>, that extra increment changes the final output <var>f</var> (to first order in Δ<var>W</var>) by its inner product with <var>b</var><sub><var>r</var></sub>, namely Δ<var>f</var><sub><var>r</var></sub> = <var>c</var><sub><var>N</var></sub><var>b</var><sub><var>r</var></sub><sup>⊤</sup>Δ<var>W</var><var>x</var><sup><var>r</var>−1</sup>.
+
+Δ<var>f</var><sub><var>r</var></sub> is exactly the inner product between the update Δ<var>W</var> and the contribution of loop <var>r</var> to the gradient of <var>f</var> with respect to <var>W</var>. The update points along the negative gradient of the loss, and the figure above shows that every term of the gradient is aligned with the <var>r</var>-th one, so every Δ<var>f</var><sub><var>r</var></sub> has the sign of −<var>ℓ</var>′: all <var>N</var> loops push the output in the direction that lowers the loss, and nothing cancels. Each loop contributes an amount proportional to the branch multiplier <var>c</var><sub><var>N</var></sub> times the update step size <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>, and summing <var>N</var> aligned contributions multiplies by <var>N</var>:
+
+<LoopMath name="total" language="en" />
+
+For one optimization step to change the output by an order-one amount that neither blows up nor vanishes with <var>N</var>, the exponent must vanish: 1 − <var>α</var><sub><var>N</var></sub> − <var>γ</var><sub><var>N</var></sub> = 0, or <strong><var>α</var><sub><var>N</var></sub> + <var>γ</var><sub><var>N</var></sub> = 1</strong>.
+
+<LoopDetails title="Full derivation: the two inner products in the output change">
+
+Substitute Δ<var>W</var> into Δ<var>f</var><sub><var>r</var></sub>. When <var>b</var><sub><var>r</var></sub><sup>⊤</sup> on the left and <var>x</var><sup><var>r</var>−1</sup> on the right sandwich the outer product <var>b</var><sub><var>s</var></sub>(<var>x</var><sup><var>s</var>−1</sup>)<sup>⊤</sup>, the matrix product factors neatly into the product of two scalar inner products: <var>b</var><sub><var>r</var></sub><sup>⊤</sup><var>b</var><sub><var>s</var></sub>(<var>x</var><sup><var>s</var>−1</sup>)<sup>⊤</sup><var>x</var><sup><var>r</var>−1</sup> = ⟨<var>b</var><sub><var>r</var></sub>, <var>b</var><sub><var>s</var></sub>⟩⟨<var>x</var><sup><var>r</var>−1</sup>, <var>x</var><sup><var>s</var>−1</sup>⟩:
+
+<LoopMath name="response" language="en" />
+
+All that remains is to check the sign and magnitude of the forward inner product ⟨<var>x</var><sup><var>r</var>−1</sup>, <var>x</var><sup><var>s</var>−1</sup>⟩ and the backward inner product ⟨<var>b</var><sub><var>r</var></sub>, <var>b</var><sub><var>s</var></sub>⟩ between any two loops <var>r</var> and <var>s</var>.
+
+The reason both are positive is immediate: every loop input <var>x</var><sup><var>r</var>−1</sup> starts with <var>U</var>, and every backward signal <var>b</var><sub><var>r</var></sub> starts with <var>V</var>. Because different powers of <var>W</var> are orthogonal, only terms of the same order <var>m</var> contribute to each inner product, and every order enters with a nonnegative coefficient:
+
+<LoopMath name="gram" language="en" />
+
+In the two rows above, the <var>m</var> = 0 leading term is 1 (coming from ⟨<var>U</var>, <var>U</var>⟩/<var>n</var> → 1 and <var>n</var>⟨<var>V</var>, <var>V</var>⟩ → 1), and all higher-order terms are nonnegative; when the forward pass is stable (<var>N</var><var>c</var><sub><var>N</var></sub> ≤ <var>a</var>), each sum lies in [1, e<sup><var>a</var><sup>2</sup></sup>]. Multiplying the two inner products cancels the factors of 1/<var>n</var> and <var>n</var>, so ⟨<var>b</var><sub><var>r</var></sub>, <var>b</var><sub><var>s</var></sub>⟩⟨<var>x</var><sup><var>r</var>−1</sup>, <var>x</var><sup><var>s</var>−1</sup>⟩ is a positive number in [1, e<sup>2<var>a</var><sup>2</sup></sup>] for every pair (<var>r</var>, <var>s</var>); divided by the lengths of the two terms, it is the cosine similarity shown in Figure 8. Every Δ<var>f</var><sub><var>r</var></sub> therefore has the sign of −<var>ℓ</var>′, the <var>N</var> loop contributions add instead of cancelling, and their sum is proportional to <var>N</var>·<var>c</var><sub><var>N</var></sub>·<var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>.
+
+</LoopDetails>
+
+<strong>Squeezed from both sides, only (1, 0) remains.</strong> Putting the three steps side by side:
+
+<LoopMath name="conditions" language="en" />
+
+Steps 2 and 3 together give <var>α</var><sub><var>N</var></sub> = 1 − <var>γ</var><sub><var>N</var></sub> ≤ 1 (the upper bound from training), while Step 1 gives <var>α</var><sub><var>N</var></sub> ≥ 1 (the lower bound from the forward pass). The bounds coincide at the unique solution <strong>(<var>α</var><sub><var>N</var></sub>, <var>γ</var><sub><var>N</var></sub>) = (1, 0)</strong>. This directly answers our two opening questions:
+
+- <strong>Why does decaying faster (<var>α</var><sub><var>N</var></sub> > 1, such as <var>N</var><sup>−3/2</sup>) fail?</strong> If <var>α</var><sub><var>N</var></sub> > 1 with an <var>N</var>-independent learning rate (<var>γ</var><sub><var>N</var></sub> = 0), the output change <var>N</var><sup>1−<var>α</var><sub><var>N</var></sub></sup> vanishes as <var>N</var> grows and training stalls; if we try to compensate by growing the learning rate with <var>N</var> (<var>γ</var><sub><var>N</var></sub> = 1 − <var>α</var><sub><var>N</var></sub> &lt; 0), the first-loop feature change <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup> blows up.
+- <strong>Why doesn't the learning rate need to be divided by <var>N</var> when the shared weights receive <var>N</var> gradients?</strong> Once each residual branch is scaled by <var>c</var><sub><var>N</var></sub> = <var>a</var>/<var>N</var> (<var>α</var><sub><var>N</var></sub> = 1), each loop's gradient already carries a factor of 1/<var>N</var>, so the sum of <var>N</var> loop gradients is automatically an average whose magnitude does not grow with <var>N</var>; on the forward pass, the <var>N</var> aligned uses of the updated weight cancel the 1/<var>N</var> branch factor so the total output change stays Θ(1). Whether we use Adam (which normalizes gradients) or raw SGD, the learning rate stays independent of <var>N</var> (<var>γ</var><sub><var>N</var></sub> = 0).
+
+<LoopFigure id="phase" language="en" />
+
+<strong>Depth versus loops: why depth allows an interval while loops leave a single point.</strong> For <var>L</var> layers with independent weights, write the branch multiplier as <var>c</var><sub><var>L</var></sub> = <var>a</var><var>L</var><sup>−<var>α</var><sub><var>L</var></sub></sup> and the learning-rate scaling as <var>L</var><sup>−<var>γ</var><sub><var>L</var></sub></sup>, and repeat the analysis (as in Depth-μP). Notably, <strong>the training side gives the exact same constraints</strong>: although each layer's update Δ<var>W</var><sub><var>l</var></sub> is used only once (in layer <var>l</var>), it still aligns with its input <var>x</var><sup><var>l</var>−1</sup> and nudges the final output in the loss-reducing direction (−<var>ℓ</var>′) by <var>c</var><sub><var>L</var></sub><var>L</var><sup>−<var>γ</var><sub><var>L</var></sub></sup>; the <var>L</var> layers still add constructively in the output change, giving <var>L</var>·<var>c</var><sub><var>L</var></sub>·<var>L</var><sup>−<var>γ</var><sub><var>L</var></sub></sup> ∝ <var>L</var><sup>1−<var>α</var><sub><var>L</var></sub>−<var>γ</var><sub><var>L</var></sub></sup>. Thus independent layers also require <var>γ</var><sub><var>L</var></sub> ≥ 0 and <var>α</var><sub><var>L</var></sub> + <var>γ</var><sub><var>L</var></sub> = 1, setting the upper bound <var>α</var><sub><var>L</var></sub> ≤ 1. The only difference lies in the initialized forward pass.
+
+Independent layers add like a random walk as √<var>L</var> on the forward pass, requiring only <var>α</var><sub><var>L</var></sub> ≥ 1/2. That leaves the interval <var>α</var><sub><var>L</var></sub> ∈ [1/2, 1] (with learning-rate exponent <var>γ</var><sub><var>L</var></sub> = 1 − <var>α</var><sub><var>L</var></sub>), whose two endpoints are Depth-μP at (1/2, 1/2) and CompleteP at (1, 0). A shared block adds linearly as <var>N</var> on the forward pass, pushing the lower bound up to <var>α</var><sub><var>N</var></sub> ≥ 1—right onto the training upper bound <var>α</var><sub><var>N</var></sub> ≤ 1—and collapsing the interval to the single point (<var>α</var><sub><var>N</var></sub>, <var>γ</var><sub><var>N</var></sub>) = (1, 0). Switching the weights in Figure 9 from shared to independent shows this change: the boundary of “unstable at init” retreats from <var>α</var> = 1 to 1/2, and the feasible choices grow from a single point into a segment of the diagonal.
+
+<LoopDetails title="Side-by-side table: constraints for depth and for loops">
+
+<LoopMath name="compare" language="en" />
+
+</LoopDetails>
+
+The paper's appendix extends this result to a full classification of all (<var>α</var><sub><var>N</var></sub>, <var>γ</var><sub><var>N</var></sub>) over any finite training horizon, and to residual branches with several matrices, such as a multi-layer MLP block; the recipe for the attention blocks of a Transformer follows by analogy. The proofs cover linear networks trained with SGD; for nonlinear activations and Adam, we justify the result under additional assumptions.
+
+One optimizer step in a real Transformer follows the same prediction. At initialization, we take one AdamW step with the same learning rate for every <var>N</var> (<var>γ</var><sub><var>N</var></sub> = 0) and measure the change of the final residual stream. Our derivation predicts a change proportional to <var>N</var><sup>1−<var>α</var><sub><var>N</var></sub></sup>: independent of <var>N</var> only under <var>α</var><sub><var>N</var></sub> = 1, growing with <var>N</var> for smaller <var>α</var><sub><var>N</var></sub>, and shrinking for larger. The measurements agree: the change grows with <var>N</var> under <var>α</var><sub><var>N</var></sub> = 0 and 1/2 and shrinks under <var>α</var><sub><var>N</var></sub> = 3/2, whereas under <var>α</var><sub><var>N</var></sub> = 1 the first-step change stays between 0.08 and 0.19 as <var>N</var> grows from 1 to 64. The first ten steps show the same pattern.
+
+<LoopFigure id="one-step" language="en" />
+
+<h2 id="recipe">The Loop-μP recipe</h2>
+
+A real looped Transformer combines depth <var>L</var> and loop count <var>N</var>: each loop runs a stack of <var>L</var> distinct layers with independent weights, and that entire <var>L</var>-layer stack is repeated <var>N</var> times with shared weights. Applying the conclusions of the previous section to each dimension:
+
+- <strong>Loop dimension <var>N</var></strong>: repeating the stack <var>N</var> times adds constructively across loops, fixing the unique exponents <var>α</var><sub><var>N</var></sub> = 1 and <var>γ</var><sub><var>N</var></sub> = 0—multiply each residual branch by <var>N</var><sup>−1</sup> and keep the learning rate free of <var>N</var> (multiply by <var>N</var><sup>0</sup>).
+- <strong>Depth dimension <var>L</var></strong>: within a single loop, the <var>L</var> independent layers add like a random walk as √<var>L</var>, allowing <var>α</var><sub><var>L</var></sub> ∈ [1/2, 1] with <var>γ</var><sub><var>L</var></sub> = 1 − <var>α</var><sub><var>L</var></sub>. As in Depth-μP, we ask the features of every layer within a loop to evolve as much as possible, which selects the left endpoint <var>α</var><sub><var>L</var></sub> = 1/2, <var>γ</var><sub><var>L</var></sub> = 1/2—multiply both the residual branch and the hidden-layer learning rate by <var>L</var><sup>−1/2</sup>.
+- <strong>Width dimension <var>n</var></strong>: following standard μP, scale the hidden-layer Adam learning rate by <var>n</var><sup>−1</sup>.
+
+Combining all three dimensions gives the residual branch multiplier and hidden-layer Adam learning rate of <strong>Loop-μP</strong>:
+
+<LoopMath name="multiplier" language="en" />
+
+Written as a full recipe for pre-LN Transformers (with width multiplier <var>m</var><sub><var>n</var></sub> = <var>n</var>/<var>n</var><sub>base</sub> and depth multiplier <var>m</var><sub><var>L</var></sub> = <var>L</var>/<var>L</var><sub>base</sub> relative to a base model), Loop-μP differs from the untied recipe in <strong>only one place</strong>: the attention and MLP residual branches are each multiplied by an extra 1/<var>N</var>. The initialization variances, learning rates, weight decay, and AdamW <var>ε</var> rules are identical to the untied recipe, so a model tuned at <var>N</var> = 1 can be looped more times simply by dividing its residual branches by <var>N</var>.
+
+<LoopRecipe language="en" />
+
+<h2 id="experiments">One learning rate for every loop count</h2>
+
+We train Llama-style pre-norm looped Transformers on FineWeb-Edu for 10B tokens each. The token embedding and the output head stay outside the loop, and a stack of <var>L</var> layers (<var>L</var> = 12, 24, 48) is looped <var>N</var> times (<var>N</var> = 1, 2, 4, 8). For every (<var>L</var>, <var>N</var>), we sweep the learning rate around the base value tuned at <var>L</var> = 12, <var>N</var> = 1. At <var>L</var> = 12, we compare four loop factors: unscaled (1), <var>N</var><sup>−1/2</sup>, which treats the loops as depth, <var>N</var><sup>−1</sup> (Loop-μP), and <var>N</var><sup>−3/2</sup>, which decays faster than the theory prescribes. At <var>L</var> = 24 and 48 we use only Loop-μP and, as the theory predicts, multiply the learning rate by (<var>L</var>/12)<sup>−1/2</sup>.
+
+<LoopFigure id="lr-transfer" language="en" />
+
+<strong>Only <var>N</var><sup>−1</sup> keeps the best learning rate fixed across <var>N</var>.</strong> Under Loop-μP, the best base learning rate is 1.25×10<sup>−3</sup> for every <var>N</var> at <var>L</var> = 12, and the same holds at <var>L</var> = 24 and 48. Under the other three loop factors, the optimum moves:
+
+- Without a loop factor, the best learning rate falls from 1.25×10<sup>−3</sup> at <var>N</var> ≤ 2 to 7.5×10<sup>−4</sup> at <var>N</var> = 8, and learning rates of 3×10<sup>−3</sup> and above diverge at <var>N</var> ≥ 4. This matches a one-step change that grows with <var>N</var>.
+- Under <var>N</var><sup>−3/2</sup>, the best learning rate rises from 1.25×10<sup>−3</sup> at <var>N</var> = 1 to 3×10<sup>−3</sup> at <var>N</var> = 8. The theory predicts this rise: the one-step response now shrinks as <var>N</var><sup>−1/2</sup>, so making up for it takes a learning rate that grows as <var>N</var><sup>1/2</sup>, about 3.5×10<sup>−3</sup> at <var>N</var> = 8.
+- Under <var>N</var><sup>−1/2</sup>, the best learning rate also moves at <var>N</var> ≥ 4.
+
+<strong>Loop-μP also reaches the lowest loss.</strong> For every <var>N</var> > 1, its best loss is lower than under all three other loop factors, and it falls the most as <var>N</var> grows. This matches the forward pass, where the unscaled branch and <var>N</var><sup>−1/2</sup> let the residual stream grow with <var>N</var>, and <var>N</var><sup>−3/2</sup> drives the looped model toward the identity map.
+
+With the depth factor applied, the same base learning rate is also best at <var>L</var> = 12, 24, and 48. In other words, one base learning rate is best for every (<var>L</var>, <var>N</var>) we train.
+
+<h2 id="after-training">After training: loop increments stay aligned</h2>
+
+The two predictions above were checked at initialization. Do they still hold after full training (20,000 steps)? For looped models with <var>N</var> = 8, we compute the cosine similarity between the increments of every pair of passes, and compare it with the per-layer increments of a trained untied model with <var>L</var> = 48.
+
+The similarities between pass increments are lower than at initialization, but every pair of passes that excludes the final pass remains positively correlated, at all three depths; only the final pass is weakly or negatively correlated with the others. The layer increments of the untied model have low similarity overall and align mainly with nearby layers.
+
+<LoopFigure id="trained-cosine" language="en" />
+
+We also trace the residual-stream norm after every pass. The trajectories differ across <var>N</var>, but within each depth the norm after the last pass varies by at most a factor of 1.32, consistent with a norm that does not change with <var>N</var> at initialization.
+
+<LoopFigure id="pass-norm" language="en" />
+
+<h2 id="conclusion">Conclusion</h2>
+
+What separates looping from adding depth is weight sharing. Shared weights make the increments that every loop writes into the residual stream, and the changes caused by one update, add along the same direction instead of spreading over unrelated directions as independent layers do. The resulting Loop-μP multiplies each residual branch by 1/<var>N</var> on top of an existing depth parameterization and keeps the learning rate independent of <var>N</var>. In our language-modeling experiments, Loop-μP transfers the learning rate across loop counts (up to 8) and executed depths (up to 384 layers), and reaches a lower loss than loop factors that decay more slowly or faster than 1/<var>N</var>.
+
+This work has limitations. Following Depth-μP, our theory analyzes a mean-centered MLP residual block and proves its results for linear networks; the extension to nonlinear activations and Adam relies on additional assumptions, and attention and normalization layers are not yet part of the analysis. Limited by compute, our largest model has 438M parameters and is trained on 10B tokens, and we leave larger scales to future work.
+
+We hope Loop-μP offers the looped-model community a simple recipe for training better looped models at a lower tuning cost.

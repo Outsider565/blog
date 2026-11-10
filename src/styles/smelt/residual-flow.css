@@ -1,0 +1,75 @@
+/* Figure 15 (residual-flow). Builds on src/styles/smelt.css.
+   Both visits are SMELT, so both are coral (as in AttentionSink): visit 1 hollow /
+   lighter and thinner, visit 2 filled. Blue stays reserved for Baseline. */
+.rf { --rf-v1: color-mix(in srgb, var(--smelt-loop) 62%, var(--paper)); font-family: var(--sans); }
+.rf h4 { margin: 0; font: 600 13px/1.6 var(--sans); color: var(--ink); }
+.rf-main { display: grid; grid-template-columns: minmax(0, 1fr) 264px; gap: 24px 30px; align-items: start; }
+.rf-panel { min-width: 0; }
+.rf-panel-head { min-height: 44px; margin-bottom: 4px; }
+.rf-panel-head p { margin: 1px 0 0; font-size: 12px; line-height: 1.6; color: var(--muted); }
+
+.rf-bars.is-narrow { display: none; }
+.rf-bars .rf-bar { transition: opacity 220ms var(--smelt-ease); }
+.rf-bar.is-v1 { fill: var(--smelt-loop-soft); stroke: var(--smelt-loop); stroke-width: 1.2; }
+.rf-bar.is-v2 { fill: var(--smelt-loop); }
+.rf-col { fill: var(--highlight); opacity: 0; transition: opacity 200ms var(--smelt-ease); }
+.rf-layer { cursor: pointer; }
+.rf-layer[data-active] .rf-col { opacity: 1; }
+.rf-bars[data-focus] .rf-layer:not([data-active]) .rf-bar { opacity: .42; }
+.rf-layer[data-pinned] .rf-tick { fill: var(--ink); font-weight: 700; }
+.rf-layer:focus-visible .hit { stroke: var(--accent); stroke-width: 1.5; }
+.rf-bars-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 4px 18px; }
+.rf-legend { margin: 0 0 2px; }
+.rf-math { font: italic 14px/1 var(--serif); color: var(--ink); letter-spacing: .01em; }
+.rf-math i { font-style: italic; }
+.rf-bars .rf-strip-title { font: 600 12.5px var(--sans); fill: var(--plot-ink); }
+.rf-bars .rf-strip-note { font: 12.5px var(--sans); fill: var(--plot-muted); }
+.rf-cos-line { fill: none; stroke: var(--plot-ink); stroke-width: 1.3; opacity: .55; }
+.rf-cos-dot { fill: var(--plot-ink); stroke: var(--paper); stroke-width: 1.2; transition: r 200ms var(--smelt-ease); }
+.rf-layer[data-active] .rf-cos-dot { r: 4.6; }
+.rf-bars[data-focus] .rf-layer:not([data-active]) .rf-cos-dot { opacity: .42; }
+.rf-cos-mean { stroke: var(--plot-ink); stroke-width: 1.2; stroke-dasharray: 4 3; opacity: .6; }
+.rf-swatch { display: inline-block; width: 11px; height: 11px; border-radius: 1px; }
+.rf-swatch.is-v1 { background: var(--smelt-loop-soft); border: 1.2px solid var(--smelt-loop); }
+.rf-swatch.is-v2 { background: var(--smelt-loop); }
+
+/* Angle glyph */
+.rf-glyph { max-width: 300px; margin: 0 auto; }
+.rf-protractor { fill: none; stroke: var(--plot-grid); stroke-width: 1.2; }
+.rf-protractor-tick { stroke: var(--plot-axis); stroke-width: 1; }
+.rf-glyph .rf-protractor-label { font: 13px var(--serif); fill: var(--plot-muted); }
+.rf-glyph .rf-protractor-label.is-quiet, .rf-glyph .rf-protractor-label .is-quiet { font: 12px var(--sans); fill: var(--plot-muted); opacity: .85; }
+.rf-ray { stroke: var(--plot-grid); stroke-width: 1; }
+.rf-fan line { stroke: var(--smelt-loop); stroke-width: 1; opacity: .2; stroke-linecap: round; transition: opacity 200ms var(--smelt-ease); }
+.rf-fan line[data-active] { opacity: 0; }
+.rf-vector { stroke-linecap: round; }
+.rf-vector.is-v1 { stroke: var(--rf-v1); stroke-width: 2; }
+.rf-vector.is-v2 { stroke: var(--smelt-loop); stroke-width: 2.6; }
+.rf-head.is-v1 { fill: var(--rf-v1); }
+.rf-head.is-v2 { fill: var(--smelt-loop); }
+.rf-origin { fill: var(--plot-ink); }
+.rf-drop { stroke: var(--plot-muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.rf-square { fill: none; stroke: var(--plot-muted); stroke-width: 1; }
+.rf-angle { fill: none; stroke: var(--plot-ink); stroke-width: 1.2; }
+/* A paper-coloured halo keeps labels legible where the faint per-layer rays pass behind them. */
+.rf-glyph .rf-angle-label, .rf-glyph .rf-vector-label { paint-order: stroke; stroke: var(--paper); stroke-width: 3.5px; stroke-linejoin: round; }
+.rf-glyph .rf-angle-label { font: 600 13px var(--sans); fill: var(--plot-ink); font-variant-numeric: tabular-nums; }
+.rf-glyph .rf-vector-label { font: 13px var(--sans); fill: var(--smelt-loop-ink); }
+.rf-glyph .rf-vector-label.is-v2 { font-weight: 600; }
+.rf-glyph-readout { margin: 6px 0 0; min-height: 3.6em; font-size: 12px; line-height: 1.75; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+.rf-glyph-readout strong { color: var(--ink); font-weight: 700; }
+
+.rf-stats { margin-top: 22px; }
+.rf-data-note { margin: 10px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+
+@container smelt-figure (width < 640px) {
+  .rf-main { grid-template-columns: minmax(0, 1fr); }
+  .rf-bars.is-wide { max-width: 560px; margin-inline: auto; }
+  .rf-glyph-panel .rf-panel-head { text-align: center; }
+}
+@container smelt-figure (width < 520px) {
+  .rf-bars.is-wide { display: none; }
+  .rf-bars.is-narrow { display: block; max-width: 440px; margin-inline: auto; }
+  .rf-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rf-stats .smelt-stat-value { font-size: 22px; }
+}

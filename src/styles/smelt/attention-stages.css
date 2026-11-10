@@ -1,0 +1,72 @@
+/* Figure 16: attention stages. Wide (vertical bars) vs narrow (horizontal bars). */
+.attention-stages { --stages-neutral: var(--plot-neutral); }
+.stages-plot { position: relative; }
+.stages-svg { margin: 0 auto; }
+.stages-svg.stages-narrow { display: none; max-width: 420px; }
+@container smelt-figure (width < 680px) {
+  .stages-svg.stages-wide { display: none; }
+  .stages-svg.stages-narrow { display: block; }
+}
+
+.stages-svg .stages-group-label { fill: var(--muted); font: 600 13px/1 var(--sans); letter-spacing: .06em; }
+.stages-svg .stages-bracket { fill: none; stroke: var(--border-strong); stroke-width: 1; }
+.stages-svg .stages-symbol { fill: var(--plot-ink); font: italic 19px var(--serif); }
+.stages-narrow .stages-symbol { font-size: 17px; }
+.stages-svg .stages-sub { fill: var(--plot-muted); font: 13px var(--sans); }
+.stages-narrow .stages-sub { font-size: 13px; }
+
+.stages-bar { fill: var(--smelt-loop); transition: fill 200ms var(--smelt-ease); }
+.stages-stage.is-x .stages-bar { fill: var(--stages-neutral); }
+.stages-stage:hover .stages-bar, .stages-stage:focus-visible .stages-bar { fill: var(--smelt-loop-ink); }
+.stages-stage.is-x:hover .stages-bar, .stages-stage.is-x:focus-visible .stages-bar { fill: var(--plot-ink); }
+.stages-svg .stages-value { fill: var(--plot-ink); font: 600 14px var(--sans); font-variant-numeric: tabular-nums; }
+.stages-svg .stages-value.is-pattern { fill: var(--smelt-loop-ink); }
+
+.stages-rail-line { fill: none; stroke: var(--plot-axis); stroke-width: 1.2; }
+
+.stages-ref { stroke: var(--plot-ink); stroke-width: 1.1; stroke-dasharray: 5 4; opacity: .55; fill: none; }
+.stages-svg .stages-ref-label { fill: var(--plot-muted); font: 13px var(--sans); }
+
+.stages-pattern-bg { fill: var(--surface); stroke: var(--line); stroke-width: 1; }
+.stages-dot { fill: color-mix(in srgb, var(--smelt-loop) 62%, var(--paper)); stroke: var(--paper); stroke-width: .8; cursor: pointer; transition: fill 160ms var(--smelt-ease); }
+.stages-dot:hover, .stages-dot:focus-visible { fill: var(--smelt-loop-ink); outline: none; }
+.stages-mean { stroke: var(--smelt-loop-ink); stroke-width: 3; stroke-linecap: round; }
+.stages-control { fill: var(--paper); stroke: var(--stages-neutral); stroke-width: 1.8; }
+.stages-svg .stages-control-label { fill: var(--plot-muted); font: 13px var(--sans); }
+.stages-svg .stages-pattern-axis { fill: var(--plot-muted); font: 13px var(--sans); }
+/* The attention-pattern panel has its own percent axis, so it never reads on the cosine scale. */
+.stages-pattern-grid { stroke: var(--plot-grid); stroke-width: 1; stroke-dasharray: 2 3; }
+.stages-svg .stages-pattern-tick { fill: var(--plot-muted); font: 13px var(--sans); font-variant-numeric: tabular-nums; }
+.stages-chance { stroke: var(--plot-muted); stroke-width: 1.4; stroke-dasharray: 3 2; }
+.stages-svg .stages-chance-label { fill: var(--plot-muted); font: 13px var(--sans); }
+.stages-svg .stages-ratio { fill: var(--smelt-loop-ink); font: 13px var(--sans); font-variant-numeric: tabular-nums; }
+.stages-svg .stages-off { fill: var(--muted); font: 13px var(--sans); opacity: 0; transition: opacity 300ms var(--smelt-ease); }
+.stages-pattern-marks, .stages-dots, .stages-pattern-ticks { transition: opacity 300ms var(--smelt-ease); }
+[data-pattern="off"] .stages-pattern-marks, [data-pattern="off"] .stages-dots, [data-pattern="off"] .stages-pattern-ticks { opacity: 0; pointer-events: none; }
+[data-pattern="off"] .stages-off { opacity: 1; }
+.stages-pattern:focus-visible .hit, .stages-stage:focus-visible .hit { stroke: var(--accent); stroke-width: 2; }
+
+/* Legend keys. */
+.stages-legend i { display: inline-block; flex: none; }
+.stages-key-bar { width: 10px; height: 12px; background: var(--smelt-loop); border-radius: 1px; }
+.stages-key-rail { position: relative; width: 7px; height: 13px; border-block: 1.2px solid var(--plot-axis); }
+.stages-key-rail::before { content: ''; position: absolute; left: 2.9px; top: 0; bottom: 0; border-left: 1.2px solid var(--plot-axis); }
+.stages-key-ref { width: 20px; border-top: 1.4px dashed color-mix(in srgb, var(--plot-ink) 60%, transparent); }
+.stages-key-dots { display: inline-flex !important; gap: 2px; }
+.stages-key-dots b { width: 6px; height: 6px; border-radius: 50%; background: color-mix(in srgb, var(--smelt-loop) 62%, var(--paper)); }
+.stages-key-control { color: var(--plot-neutral); }
+.stages-dot.is-entering { transform-box: fill-box; transform-origin: center; animation: stages-dot-in 420ms var(--smelt-ease) both; animation-delay: calc(120ms + var(--i, 0) * 28ms); }
+@keyframes stages-dot-in { from { opacity: 0; transform: scale(.3); } }
+
+/* Phone: the shared stat row wraps to two columns; keep the hairlines on a grid. */
+/* On phones the range whiskers run horizontally; turn the legend key to match. */
+@container smelt-figure (width < 680px) {
+  .stages-key-rail { transform: rotate(90deg); margin-inline: 3px; }
+}
+
+@container smelt-figure (width < 560px) {
+  .attention-stages .smelt-stats { grid-template-columns: 1fr 1fr; }
+  .attention-stages .smelt-stat:nth-child(odd) { border-left: 0; padding-left: 0; }
+  .attention-stages .smelt-stat:nth-child(n+3) { border-top: 1px solid var(--line); }
+}
+.stages-narrow .stages-group-label { letter-spacing: 0; }

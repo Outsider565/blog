@@ -1,0 +1,264 @@
+---
+title: "Loop-μP：Looped Transformer 的残差缩放与超参数迁移"
+subtitle: "循环不等于加深：残差分支乘以 1/N，学习率就能跨循环次数迁移"
+description: "Looped Transformer 增加循环次数后，为什么要重调学习率？共享权重让各次循环的残差增量同向累加；残差分支乘以 1/N 后，最小模型上调好的学习率在循环 8 次、执行 384 层时依然最优。"
+language: "zh"
+urlSlug: "loop-mup"
+published: "2026-11-09"
+category: "训练理论"
+tags: ["Loop-μP", "Looped Transformer", "μP", "超参数迁移", "残差缩放"]
+author: "王少文 等"
+paper: "https://arxiv.org/abs/2606.18524"
+sections: [{"id":"loops-vs-depth","title":"循环不等于加深"},{"id":"derivation","title":"为什么恰好是 1/N"},{"id":"recipe","title":"Loop-μP 配方"},{"id":"experiments","title":"一个学习率，适用于所有循环次数"},{"id":"after-training","title":"训练之后"},{"id":"conclusion","title":"小结"}]
+---
+
+import LoopDetails from '../../../components/loop-mup/LoopDetails.astro';
+import LoopFigure from '../../../components/loop-mup/LoopFigure.astro';
+import LoopMath from '../../../components/loop-mup/LoopMath.astro';
+import LoopRecipe from '../../../components/loop-mup/LoopRecipe.astro';
+
+Looped Transformer 把同一组 <var>L</var> 层重复执行 <var>N</var> 次：参数只有 <var>L</var> 层，执行深度却有 <var>N</var>×<var>L</var> 层。已有研究发现，循环能帮助模型完成多步推理；在语言建模中，下游准确率也随循环次数 <var>N</var> 上升，在推理类任务上尤为明显。因此，增加 <var>N</var> 是扩展循环模型的一个自然方向。
+
+但 <var>N</var> 一变大，训练就容易不稳定，最优学习率也会跟着移动，每换一个 <var>N</var> 都要重新搜索。例如，Ouro 在训练中观察到 loss spike 后减少了循环次数，又因为算力不允许做学习率扫描，只能采用保守的学习率。
+
+在宽度和深度上，这个问题已经有了答案。μP 和 Depth-μP 选择合适的参数化，让最优超参数在模型变宽或变深时保持不变，于是可以在小模型上调好超参数，直接用到大模型上。我们想知道，<strong>循环次数 <var>N</var> 能否同样做到？</strong>
+
+我们的答案是 <strong>Loop-μP</strong>：在原有深度缩放的基础上，把每个残差分支再乘以 1/<var>N</var>，学习率不随 <var>N</var> 改变。在语言模型实验中，最小模型上调好的基础学习率，在循环次数到 8、执行深度到 384 层时始终最优。关键在于，<strong>循环不能简单地当作加深</strong>：各次循环共享同一组权重，写进残差流的增量会同向累加。
+
+<h2 id="loops-vs-depth">循环不等于加深</h2>
+
+残差网络的每个分支按 <var>x</var> ← <var>x</var> + <var>c</var>·<var>f</var>(<var>x</var>) 更新残差流，<var>c</var> 是分支系数。网络越深，累加的增量越多，所以深度参数化会随层数 <var>L</var> 缩小 <var>c</var>：Depth-μP 取 <var>c</var> ∝ <var>L</var><sup>−1/2</sup>，CompleteP 取 <var>c</var> ∝ <var>L</var><sup>−1</sup>，两者都能让学习率跨深度迁移。
+
+循环 <var>N</var> 次的 <var>L</var> 层模型共执行 <var>N</var>×<var>L</var> 层。把循环当作额外的深度似乎很自然，这样分支系数就该再乘 <var>N</var><sup>−1/2</sup>。问题出在权重共享上。初始化时，<var>L</var> 个独立层写入的增量方向几乎互不相关，像随机游走一样，总和只按 √<var>L</var> 增长；同一个块循环 <var>N</var> 次时，每次用的都是同一组权重，增量彼此正相关，总和按 <var>N</var> 线性增长。
+
+<LoopFigure id="vector-sum" language="zh" />
+
+真实的 Transformer 也是如此。我们把一个 12 层的 pre-norm Transformer 块循环 <var>N</var> 次，与串联 <var>m</var><sub><var>L</var></sub> 个独立 12 层块的非循环模型（深度倍数为 <var>m</var><sub><var>L</var></sub> = <var>L</var>/12）对比，在初始化时测量残差流的范数。不加缩放时，循环模型的范数随 <var>N</var> 线性增长，非循环模型只按 √<var>m</var><sub><var>L</var></sub> 增长。对非循环模型，<var>m</var><sub><var>L</var></sub><sup>−1/2</sup> 已经能让范数保持在常数量级；对循环模型，<var>N</var><sup>−1/2</sup> 仍压不住，只有 <var>N</var><sup>−1</sup> 才行。<var>N</var><sup>−3/2</sup> 虽然也能让范数有界，却会把循环模型推向恒等映射。
+
+<LoopFigure id="init-norm" language="zh" />
+
+增量之间的余弦相似度解释了这一差别：64 个独立块的增量两两近似正交；循环 64 次时，所有增量两两正相关，平均余弦约为 0.85。
+
+<LoopFigure id="init-cosine" language="zh" />
+
+<h2 id="derivation">为什么恰好是 1/N</h2>
+
+看到上一节的测量，读者可能会问两个问题：第一，如果只是为了压住初始化的残差流，为什么不能选衰减更快的 <var>N</var><sup>−3/2</sup>？第二，更关键的是训练——同一组权重在 <var>N</var> 次循环里被重复使用了 <var>N</var> 次，反向传播会收到 <var>N</var> 份梯度，学习率需不需要也跟着随 <var>N</var> 缩放？
+
+这一节把这两件事一并算清楚。把残差分支系数记为 <var>c</var><sub><var>N</var></sub> = <var>a</var><var>N</var><sup>−<var>α</var><sub><var>N</var></sub></sup>（<var>a</var> 是与 <var>N</var> 无关的常数），把一步更新改变权重的步长记为 <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>（对自动归一化梯度的 Adam 来说，这就是学习率随 <var>N</var> 的缩放）。我们要找的就是这一对指数 (<var>α</var><sub><var>N</var></sub>, <var>γ</var><sub><var>N</var></sub>)。
+
+在进入矩阵计算之前，可以先看整套推导的“三行账本”——要让同一个学习率在任意循环次数 <var>N</var> 下都好用，当 <var>N</var> 变大时，模型既不能爆炸，也不能停止学习：
+
+- <strong>第一步（初始化前向稳定）</strong>：每次循环向残差流写入量级为 <var>c</var><sub><var>N</var></sub> 的增量；因为共享权重，<var>N</var> 次增量同向叠加，总增量为 <var>N</var>·<var>c</var><sub><var>N</var></sub> ∝ <var>N</var><sup>1−<var>α</var><sub><var>N</var></sub></sup>。要让初始化不爆炸，必须有 <strong><var>α</var><sub><var>N</var></sub> ≥ 1</strong>。
+- <strong>第二步（单次循环的特征更新有界）</strong>：一步更新把权重改变了 <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup> 量级，单次循环里分支输出的变化也是 <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>。要让特征变化不随 <var>N</var> 爆炸，必须有 <strong><var>γ</var><sub><var>N</var></sub> ≥ 0</strong>。
+- <strong>第三步（最终输出的变化保持常数量级）</strong>：更新后的权重在全部 <var>N</var> 次循环里都会被再次用到，每次循环通过残差分支（乘 <var>c</var><sub><var>N</var></sub>）把最终输出往降低损失的同一方向推一份 <var>c</var><sub><var>N</var></sub>·<var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>；<var>N</var> 次循环同号累加，总输出变化为 <var>N</var>·<var>c</var><sub><var>N</var></sub>·<var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup> ∝ <var>N</var><sup>1−<var>α</var><sub><var>N</var></sub>−<var>γ</var><sub><var>N</var></sub></sup>。如果这个变化随 <var>N</var> 增长，学习率就得随 <var>N</var> 调小；如果它随 <var>N</var> 趋于 0，网络就学不动，学习率就得随 <var>N</var> 调大。只有它保持常数量级，即 <strong><var>α</var><sub><var>N</var></sub> + <var>γ</var><sub><var>N</var></sub> = 1</strong>，同一个学习率才对所有 <var>N</var> 都合适。
+
+把这三条放在一起：第二、三条给出 <var>α</var><sub><var>N</var></sub> = 1 − <var>γ</var><sub><var>N</var></sub> ≤ 1（训练要求的上界），第一条给出 <var>α</var><sub><var>N</var></sub> ≥ 1（前向要求的下界）。上下界迎头碰上，只留下唯一解 (<var>α</var><sub><var>N</var></sub>, <var>γ</var><sub><var>N</var></sub>) = (1, 0)。
+
+下图把这本账画了出来。每一行是一条由若干份拼成的横条，虚线标出 <var>N</var> = 1 时的长度。取 <var>c</var><sub><var>N</var></sub> = 1/<var>N</var>、学习率不变，再改变 <var>N</var>：份数变多，每一份等比例变窄，三条横条始终停在虚线上。换成别的分支系数或学习率，总有一条会随 <var>N</var> 伸长或缩短。
+
+<LoopFigure id="ledger" language="zh" />
+
+账本里有三处直接用了结论：共享权重的增量为什么同向叠加，权重改变多少、特征为什么就改变多少，<var>N</var> 次循环对输出的推动为什么同号。下面用一个最简单的模型逐一说明，每一步配一张图；完整的代数推导收在可以展开的折叠块里，跳过它们不影响阅读。
+
+<strong>极简模型与 μP 初始化。</strong>沿用 Depth-μP 的分析方式，我们考虑一个宽度为 <var>n</var> 的循环残差网络：它只有一个可训练的隐藏矩阵 <var>W</var> ∈ ℝ<sup><var>n</var>×<var>n</var></sup>，重复执行 <var>N</var> 次；输入向量 <var>U</var> ∈ ℝ<sup><var>n</var></sup> 和读出向量 <var>V</var> ∈ ℝ<sup><var>n</var></sup> 固定不变。为了能把每一项显式写出来，我们取标量输入为 1、激活函数取恒等映射（论文中残差分支还做了坐标去均值，这里一并省去）：
+
+<LoopMath name="model" language="zh" />
+
+这里 <var>h</var><sup><var>r</var></sup> 是第 <var>r</var> 次循环中分支矩阵 <var>W</var> 的输出，<var>x</var><sup><var>r</var></sup> 是第 <var>r</var> 次循环后的残差流，标量输出 <var>f</var> 是读出向量 <var>V</var> 与最终残差流 <var>x</var><sup><var>N</var></sup> 的普通内积 ⟨<var>V</var>, <var>x</var><sup><var>N</var></sup>⟩ = ∑<sub><var>i</var></sub><var>V</var><sub><var>i</var></sub><var>x</var><sub><var>i</var></sub><sup><var>N</var></sup>。
+
+初始化沿用 μP，让隐藏层向量的每个坐标都保持常数量级（记为 Θ(1)）：<var>U</var> 的每个坐标约为 1，<var>W</var> 的每个元素约为 1/√<var>n</var>，<var>V</var> 的每个坐标约为 1/<var>n</var>。我们用均方根（RMS）范数 ‖<var>z</var>‖<sub>rms</sub> = √(⟨<var>z</var>, <var>z</var>⟩/<var>n</var>) 衡量向量的长度，它代表单个坐标的典型大小。
+
+下面的分析始终先让宽度 <var>n</var> → ∞，再看循环次数 <var>N</var> 增大时各个量的量级。
+
+<LoopDetails title="完整推导：μP 初始化里的每个 1/n">
+
+在宽度为 <var>n</var> 的网络中，我们希望隐藏层向量的<strong>每个坐标</strong>都保持常数量级。按 μP 初始化三个参数时，每一处的 1/<var>n</var> 都有明确分工：
+
+- <strong>输入向量 <var>U</var></strong>：各坐标独立服从 𝒩(0, 1)，单个坐标约为 1，因此 ‖<var>U</var>‖<sub>rms</sub> ≈ 1（自身内积 ⟨<var>U</var>, <var>U</var>⟩ ≈ <var>n</var>）。
+- <strong>隐藏权重 <var>W</var></strong>：各元素独立服从 𝒩(0, 1/<var>n</var>)。方差取 1/<var>n</var>，是因为矩阵乘法的每个坐标 (<var>W</var><var>U</var>)<sub><var>i</var></sub> = ∑<sub><var>j</var></sub><var>W</var><sub><var>ij</var></sub><var>U</var><sub><var>j</var></sub> 是 <var>n</var> 个独立随机项之和，每项方差为 1/<var>n</var>，加起来方差正好为 1。也就是说，<strong>乘一次 <var>W</var> 不会改变向量的 RMS 长度</strong>，仍有 ‖<var>W</var><var>U</var>‖<sub>rms</sub> ≈ 1。
+- <strong>读出向量 <var>V</var></strong>：各坐标独立服从 𝒩(0, 1/<var>n</var><sup>2</sup>)，单个坐标约为 1/<var>n</var>（自身内积 ⟨<var>V</var>, <var>V</var>⟩ ≈ 1/<var>n</var>）。读出取得这么小，是因为 <var>f</var> = ∑<sub><var>i</var></sub><var>V</var><sub><var>i</var></sub><var>x</var><sub><var>i</var></sub><sup><var>N</var></sup> 把 <var>n</var> 个坐标加在一起：初始化时 <var>V</var> 与 <var>x</var><sup><var>N</var></sup> 方向无关，正负抵消后 <var>f</var> ≈ 0；一旦训练让 <var>x</var><sup><var>N</var></sup> 的更新方向与 <var>V</var> 对齐，<var>n</var> 个量级为 1/<var>n</var> 的项同号相加，恰好产生常数量级的输出变化。
+
+</LoopDetails>
+
+<strong>一个关键工具：大宽度下，每乘一次 <var>W</var> 就换一个正交方向。</strong>在二维平面上，把一个向量乘上随机矩阵，结果可能指向任何方向，长度也忽长忽短。宽度变大以后情况完全不同：<var>W</var><var>U</var> 的长度几乎总与 <var>U</var> 相同，方向几乎总与 <var>U</var> 正交（垂直）。下图对每个宽度做 200 次采样：<var>n</var> = 2 时采样点散落在整个半圆里，<var>n</var> 增大后收拢到 90°、长度比为 1 的位置，偏离大约按 1/√<var>n</var> 缩小。再乘一次 <var>W</var> 得到的 <var>W</var><sup>2</sup><var>U</var>，又与前两个向量都近似正交。
+
+<LoopFigure id="orthogonal" language="zh" />
+
+整套推导只用到这一事实的三条直接推论：
+
+- <strong>不同次幂两两正交</strong>：<var>U</var>、<var>W</var><var>U</var>、<var>W</var><sup>2</sup><var>U</var>……两两正交，RMS 长度都趋于 1。
+- <strong>反向乘 <var>W</var><sup>⊤</sup> 同理</strong>：<var>V</var>、<var>W</var><sup>⊤</sup><var>V</var>、(<var>W</var><sup>⊤</sup>)<sup>2</sup><var>V</var>……也两两正交，自身内积都与 ⟨<var>V</var>, <var>V</var>⟩ ≈ 1/<var>n</var> 相同。
+- <strong>不同独立矩阵的乘积也两两正交</strong>：如果各层有独立的权重 <var>W</var><sub>1</sub>、<var>W</var><sub>2</sub>……，那么 <var>W</var><sub>1</sub><var>U</var> 与 <var>W</var><sub>2</sub><var>U</var> 也彼此正交，RMS 长度都趋于 1。
+
+<LoopDetails title="完整推导：为什么乘一次 W 就换一个正交方向">
+
+长度为什么不变，上一个折叠块已经说明：(<var>W</var><var>U</var>)<sub><var>i</var></sub> 是 <var>n</var> 个方差为 1/<var>n</var> 的独立项之和。方向呢？看 <var>U</var> 与 <var>W</var><var>U</var> 的内积 ⟨<var>U</var>, <var>W</var><var>U</var>⟩ = ∑<sub><var>i</var>,<var>j</var></sub><var>U</var><sub><var>i</var></sub><var>W</var><sub><var>ij</var></sub><var>U</var><sub><var>j</var></sub>：这是 <var>n</var><sup>2</sup> 个均值为 0、标准差为 1/√<var>n</var> 的不相关项之和，正负抵消后只有 √<var>n</var> 量级，与向量自身的平方长度 ⟨<var>U</var>, <var>U</var>⟩ ≈ <var>n</var> 相比可以忽略（夹角余弦约为 1/√<var>n</var> → 0）。也就是说，在高维空间里，每乘一次随机矩阵 <var>W</var>，向量就会转到一个与之前正交的新方向。
+
+严格的随机矩阵证明见 Tensor Programs 与论文附录。
+
+</LoopDetails>
+
+<strong>第一步（前向稳定）：共享权重让同阶项按长度相加，要求 <var>α</var><sub><var>N</var></sub> ≥ 1。</strong>每次循环都是左乘 (<var>I</var> + <var>c</var><sub><var>N</var></sub><var>W</var>)，循环 <var>N</var> 次后 <var>x</var><sup><var>N</var></sup> = (<var>I</var> + <var>c</var><sub><var>N</var></sub><var>W</var>)<sup><var>N</var></sup><var>U</var>。把括号展开时，每次循环要么走主干 <var>I</var>，要么走残差分支 <var>c</var><sub><var>N</var></sub><var>W</var>。一共有 2<sup><var>N</var></sup> 种选法，每种选法对应展开式里的一项。下图列出了全部选法，点击其中一种可以看到它对应哪一项。
+
+先拿 <var>N</var> = 2 看独立权重与共享权重的区别。只走一次残差分支（一阶项，<var>m</var> = 1）有两种选法：第 1 次走分支、第 2 次走主干，或者反过来。如果两层权重独立（<var>W</var><sub>1</sub> 和 <var>W</var><sub>2</sub>），这两种选法给出两个<strong>正交向量</strong> <var>c</var><var>W</var><sub>1</sub><var>U</var> 和 <var>c</var><var>W</var><sub>2</sub><var>U</var>，按勾股定理合成长度为 √2·<var>c</var>；如果两次循环共享同一个 <var>W</var>，两种选法给出的是<strong>同一个向量</strong> <var>c</var><var>W</var><var>U</var>，同向直接相加，长度变成 2<var>c</var>。推广到 <var>N</var> 次循环，从 <var>N</var> 次里任选 <var>m</var> 次走残差分支共有 C(<var>N</var>, <var>m</var>) 种选法：共享权重下它们全都给出同一个向量 <var>c</var><sub><var>N</var></sub><sup><var>m</var></sup><var>W</var><sup><var>m</var></sup><var>U</var>，合成长度是 C(<var>N</var>, <var>m</var>)·<var>c</var><sub><var>N</var></sub><sup><var>m</var></sup>；独立权重下它们给出 C(<var>N</var>, <var>m</var>) 个互相正交的向量，合成长度只有 √C(<var>N</var>, <var>m</var>)·<var>c</var><sub><var>N</var></sub><sup><var>m</var></sup>。
+
+<LoopFigure id="paths" language="zh" />
+
+这也从代数上解释了图 3 的现象：第 <var>r</var> 次循环写入残差流的增量 <var>c</var><sub><var>N</var></sub><var>W</var><var>x</var><sup><var>r</var>−1</sup> 展开后，首项都是同一个向量 <var>c</var><sub><var>N</var></sub><var>W</var><var>U</var>，更高阶项的系数也全为正，因此各次循环的增量两两正相关。
+
+前向稳定的条件可以从 <var>m</var> = 1 的一阶项读出来。一阶项只是展开式里的一项，它有界是必要条件；它同时也是充分条件，因为高阶项都被一阶项控制住（C(<var>N</var>, <var>m</var>) 不超过 <var>N</var><sup><var>m</var></sup>/<var>m</var>!），总长度被一阶项从上下两侧夹住：
+
+- <strong>独立权重（加深）</strong>：一阶项的长度是 √<var>N</var>·<var>c</var><sub><var>N</var></sub>，所有阶的平方加起来是 (1 + <var>c</var><sub><var>N</var></sub><sup>2</sup>)<sup><var>N</var></sup>，它介于 1 + <var>N</var><var>c</var><sub><var>N</var></sub><sup>2</sup> 与 e<sup><var>N</var><var>c</var><sub><var>N</var></sub><sup>2</sup></sup> 之间。所以残差流有界，当且仅当 √<var>N</var>·<var>c</var><sub><var>N</var></sub> 有界，也就是分支系数至少按 <var>N</var><sup>−1/2</sup> 缩小。这就是 Depth-μP 可以取 <var>L</var><sup>−1/2</sup> 的原因。
+- <strong>共享权重（循环）</strong>：一阶项的长度是 <var>N</var>·<var>c</var><sub><var>N</var></sub> = <var>a</var><var>N</var><sup>1−<var>α</var><sub><var>N</var></sub></sup>，总长度介于 <var>N</var>·<var>c</var><sub><var>N</var></sub> 与 e<sup><var>N</var>·<var>c</var><sub><var>N</var></sub></sup> 之间。如果仍取 <var>c</var><sub><var>N</var></sub> = <var>N</var><sup>−1/2</sup>（例如 <var>N</var> = 16 时 <var>c</var><sub><var>N</var></sub> = 1/4），独立权重的一阶项长度为 1，共享权重却达到 4，算上高阶项后总长度更会涨到约 15（见图 7）。所以残差流有界，当且仅当 <var>N</var>·<var>c</var><sub><var>N</var></sub> 有界，即 <strong><var>α</var><sub><var>N</var></sub> ≥ 1</strong>；这时总长度不超过 e<sup><var>a</var></sup>，对任意大的 <var>N</var> 都保持常数量级。
+
+如果取 <var>α</var><sub><var>N</var></sub> > 1（比如 <var>N</var><sup>−3/2</sup>），那么 <var>N</var>·<var>c</var><sub><var>N</var></sub> → 0，所有残差项随 <var>N</var> 消失，<var>x</var><sup><var>N</var></sup> → <var>U</var>，循环模型退化为恒等映射。单看前向它没有爆炸，但接下来的训练分析会把它排除掉。
+
+<LoopFigure id="binomial" language="zh" />
+
+<LoopDetails title="完整推导：展开式与总长度">
+
+把上面的选法写成式子：
+
+<LoopMath name="expansion" language="zh" />
+
+现在算 <var>x</var><sup><var>N</var></sup> 的总长度。由上面的正交工具，不同阶的 <var>W</var><sup><var>m</var></sup><var>U</var> 彼此正交，总长度的平方等于各阶长度的平方和。共享权重与独立权重的差别完全在<strong>同一阶内部</strong>那 C(<var>N</var>, <var>m</var>) 项怎么合成为第 <var>m</var> 阶的长度：共享权重是 C(<var>N</var>, <var>m</var>) 个相同向量按长度相加，平方后系数为 C(<var>N</var>, <var>m</var>)<sup>2</sup>；独立权重是 C(<var>N</var>, <var>m</var>) 个正交向量按平方相加，平方后系数只有 C(<var>N</var>, <var>m</var>)：
+
+<LoopMath name="norms" language="zh" />
+
+- <strong>独立权重</strong>：一阶项的平方是 <var>N</var><var>c</var><sub><var>N</var></sub><sup>2</sup>，全部阶加起来是 (1 + <var>c</var><sub><var>N</var></sub><sup>2</sup>)<sup><var>N</var></sup>。它不小于展开式的前两项 1 + <var>N</var><var>c</var><sub><var>N</var></sub><sup>2</sup>，又不超过 e<sup><var>N</var><var>c</var><sub><var>N</var></sub><sup>2</sup></sup>，所以它有界，当且仅当 <var>N</var><var>c</var><sub><var>N</var></sub><sup>2</sup> 有界。
+- <strong>共享权重</strong>：下界，总长度的平方不小于一阶项的平方 (<var>N</var><var>c</var><sub><var>N</var></sub>)<sup>2</sup>。上界，由 C(<var>N</var>, <var>m</var>) ≤ <var>N</var><sup><var>m</var></sup>/<var>m</var>! 可知第 <var>m</var> 阶的长度不超过 (<var>N</var><var>c</var><sub><var>N</var></sub>)<sup><var>m</var></sup>/<var>m</var>!，各阶长度之和不超过 e<sup><var>N</var><var>c</var><sub><var>N</var></sub></sup>，总长度（各阶长度的平方和再开方）也就不超过 e<sup><var>N</var><var>c</var><sub><var>N</var></sub></sup>。<var>α</var><sub><var>N</var></sub> ≥ 1 时 <var>N</var><var>c</var><sub><var>N</var></sub> ≤ <var>a</var>，总长度不超过 e<sup><var>a</var></sup>。
+
+</LoopDetails>
+
+<strong>第二步（一步更新与特征变化）：为什么要求 <var>γ</var><sub><var>N</var></sub> ≥ 0。</strong>现在看一步梯度更新。记损失对标量输出 <var>f</var> 的导数为 <var>ℓ</var>′ = ∂<var>ℓ</var>/∂<var>f</var>，输出 <var>f</var> 对第 <var>r</var> 次循环后残差流 <var>x</var><sup><var>r</var></sup> 的梯度向量为 <var>b</var><sub><var>r</var></sub> = ∂<var>f</var>/∂<var>x</var><sup><var>r</var></sup>。因为从 <var>x</var><sup><var>r</var></sup> 到最终输出 <var>x</var><sup><var>N</var></sup> 还要再走剩下的 <var>N</var> − <var>r</var> 次循环，反向传播正是把读出向量 <var>V</var> 左乘 (<var>I</var> + <var>c</var><sub><var>N</var></sub><var>W</var><sup>⊤</sup>)<sup><var>N</var>−<var>r</var></sup>；它的零阶项就是 <var>V</var>，因此 <var>b</var><sub><var>r</var></sub> 的每个坐标与 <var>V</var> 一样，都是 1/<var>n</var> 量级。
+
+由于同一个 <var>W</var> 在全部 <var>N</var> 次循环中都被使用，根据链式法则，<var>W</var> 的总梯度 <var>G</var> 是 <var>N</var> 次循环各自贡献的外积之和：第 <var>r</var> 次循环输入为 <var>x</var><sup><var>r</var>−1</sup>（坐标约 1）、传回的梯度为 <var>c</var><sub><var>N</var></sub><var>ℓ</var>′<var>b</var><sub><var>r</var></sub>（坐标约 <var>c</var><sub><var>N</var></sub>/<var>n</var>），贡献一项 <var>c</var><sub><var>N</var></sub><var>ℓ</var>′<var>b</var><sub><var>r</var></sub>(<var>x</var><sup><var>r</var>−1</sup>)<sup>⊤</sup>。这与循环神经网络沿时间反向传播（BPTT）时，把同一组权重在各个时间步的梯度相加是一回事：
+
+<LoopMath name="gradient" language="zh" />
+
+这 <var>N</var> 项会不会相互抵消？不会。每次循环的输入 <var>x</var><sup><var>r</var>−1</sup> 都以同一个 <var>U</var> 开头，每次循环的反向信号 <var>b</var><sub><var>r</var></sub> 都以同一个 <var>V</var> 开头，所以任意两次循环贡献的梯度都正相关。下图在上面的模型里算出了它们两两之间的余弦相似度：全部为正，<var>N</var> 项相加后的长度接近单项的 <var>N</var> 倍，而不是互相正交时的 √<var>N</var> 倍。这与第一步里 <var>N</var> 份增量同向累加是同一个机制：每一项都带着一个分支系数 <var>c</var><sub><var>N</var></sub>，<var>N</var> 项对齐相加，梯度的量级正比于 <var>N</var>·<var>c</var><sub><var>N</var></sub>。
+
+<LoopFigure id="gradient-cosine" language="zh" />
+
+一步更新沿负梯度方向把权重改变 <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup> 量级，这就是本节开头定义的步长。梯度里的每一项都是反向信号与一个以 <var>U</var> 开头的输入的外积，也就是说梯度与输入 <var>U</var> 对齐，所以第一次循环的特征 <var>h</var><sup>1</sup> = <var>W</var><var>U</var> 的变化 Δ<var>h</var><sup>1</sup> = Δ<var>W</var><var>U</var> 的量级就是 <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>。要让一步更新后隐藏层的特征变化保持有界、不随 <var>N</var> 爆炸，必须有 <strong><var>γ</var><sub><var>N</var></sub> ≥ 0</strong>。在前向稳定（<var>α</var><sub><var>N</var></sub> ≥ 1）的前提下，后续各次循环的特征变化也与它同量级。
+
+<LoopDetails title="完整推导：一步更新与第一次循环的特征变化">
+
+为了同时刻画 Adam 和 SGD，我们用指数 <var>γ</var><sub><var>N</var></sub> 表示<strong>一步更新后 <var>W</var> 的更新量 Δ<var>W</var> 随 <var>N</var> 的缩放</strong>：把 <var>N</var> 次循环的外积取平均（乘 1/<var>N</var>），再乘步长因子 <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>（论文中按 Tensor Programs 记号写作先用 <var>n</var><var>N</var><sup><var>α</var><sub><var>N</var></sub>−1</sup> 将梯度元素归一化到 Θ(1)，再乘学习率 <var>η</var><var>n</var><sup>−1</sup><var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>，两者给出的 Δ<var>W</var> 完全相同）：
+
+<LoopMath name="update" language="zh" />
+
+这里先看清 <var>γ</var><sub><var>N</var></sub> 与真实学习率的对应关系：因为每个 <var>b</var><sub><var>s</var></sub>(<var>x</var><sup><var>s</var>−1</sup>)<sup>⊤</sup> 的元素是 1/<var>n</var> 量级，对 <var>s</var> 取平均后仍是 1/<var>n</var> 量级，所以 Δ<var>W</var> 的每个元素是 <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>/<var>n</var> 量级。Adam 会用梯度的均方根自动抹去梯度自身的幅值缩放，更新步长直接由学习率决定，所以<strong>对 Adam 来说，<var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup> 就是学习率随 <var>N</var> 的缩放因子</strong>。
+
+接着看上式第二行——一步更新后，第一次循环的特征 <var>h</var><sup>1</sup> = <var>W</var><var>U</var> 改变了多少：
+
+- 第一次循环的输入 <var>x</var><sup>0</sup> = <var>U</var> 固定不变，因此特征变化精确等于 Δ<var>h</var><sup>1</sup> = Δ<var>W</var><var>U</var>。
+- 把 Δ<var>W</var> 中的外积 <var>b</var><sub><var>s</var></sub>(<var>x</var><sup><var>s</var>−1</sup>)<sup>⊤</sup> 右乘 <var>U</var>，矩阵乘向量就变成了标量内积 ⟨<var>x</var><sup><var>s</var>−1</sup>, <var>U</var>⟩ 乘以向量 <var>b</var><sub><var>s</var></sub>。
+- 为什么 ⟨<var>x</var><sup><var>s</var>−1</sup>, <var>U</var>⟩ ≈ <var>n</var>？因为每次循环的输入 <var>x</var><sup><var>s</var>−1</sup> = <var>U</var> + (<var>s</var> − 1)<var>c</var><sub><var>N</var></sub><var>W</var><var>U</var> + ⋯ 都以 <var>U</var> 为零阶项，而后面的高阶项都与 <var>U</var> 正交，所以内积就等于 ⟨<var>U</var>, <var>U</var>⟩ ≈ <var>n</var>。这个因式 <var>n</var> 恰好与 <var>b</var><sub><var>s</var></sub> 坐标的 1/<var>n</var> 抵消，使每一项的坐标都恢复到 Θ(1)——这正是 μP 的核心机制：参数更新由训练输入的外积构成，天然与输入对齐，所以元素只有 1/<var>n</var> 大小的 Δ<var>W</var> 作用在 <var>U</var> 上能产生常数量级的变化。
+- 同时，各个 <var>b</var><sub><var>s</var></sub> 都以同一个 <var>V</var> 为零阶项，方向彼此正相关，对 <var>s</var> 取平均不会抵消。因此 ‖Δ<var>h</var><sup>1</sup>‖<sub>rms</sub> 的量级就是 <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>。
+
+</LoopDetails>
+
+<strong>第三步（最终输出的变化）：同一个更新在 <var>N</var> 次循环里同向推动输出，要求 <var>α</var><sub><var>N</var></sub> + <var>γ</var><sub><var>N</var></sub> = 1。</strong>最后算一步更新后模型标量输出的变化 Δ<var>f</var>。权重加上 Δ<var>W</var> 后，这个 Δ<var>W</var> 在全部 <var>N</var> 次循环里都会被用到：在第 <var>r</var> 次循环中，残差分支多写入了一项 <var>c</var><sub><var>N</var></sub>Δ<var>W</var><var>x</var><sup><var>r</var>−1</sup>；根据梯度 <var>b</var><sub><var>r</var></sub> = ∂<var>f</var>/∂<var>x</var><sup><var>r</var></sup> 的定义，这项额外增量传到最终输出 <var>f</var> 上的变化（保留 Δ<var>W</var> 的一阶线性项）就是它与 <var>b</var><sub><var>r</var></sub> 的内积 Δ<var>f</var><sub><var>r</var></sub> = <var>c</var><sub><var>N</var></sub><var>b</var><sub><var>r</var></sub><sup>⊤</sup>Δ<var>W</var><var>x</var><sup><var>r</var>−1</sup>。
+
+Δ<var>f</var><sub><var>r</var></sub> 正是输出 <var>f</var> 对 <var>W</var> 的梯度中第 <var>r</var> 次循环贡献的那一项，与更新量 Δ<var>W</var> 的内积。Δ<var>W</var> 沿损失的负梯度方向，而上图表明梯度里的每一项都与第 <var>r</var> 项对齐，所以每一份 Δ<var>f</var><sub><var>r</var></sub> 都与 −<var>ℓ</var>′ 同号：全部 <var>N</var> 次循环都在把输出往降低损失的方向推，不会相互抵消。单次循环的贡献正比于分支系数 <var>c</var><sub><var>N</var></sub> 乘一步更新的步长 <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>，<var>N</var> 次循环同号加起来又乘一个 <var>N</var>：
+
+<LoopMath name="total" language="zh" />
+
+要让一步更新对最终输出的变化既不随 <var>N</var> 爆炸，也不随 <var>N</var> 消失，指数必须满足 1 − <var>α</var><sub><var>N</var></sub> − <var>γ</var><sub><var>N</var></sub> = 0，即 <strong><var>α</var><sub><var>N</var></sub> + <var>γ</var><sub><var>N</var></sub> = 1</strong>。
+
+<LoopDetails title="完整推导：输出变化中的两个内积">
+
+把上面的 Δ<var>W</var> 代入 Δ<var>f</var><sub><var>r</var></sub>。注意，当左边的 <var>b</var><sub><var>r</var></sub><sup>⊤</sup> 和右边的 <var>x</var><sup><var>r</var>−1</sup> 夹住外积 <var>b</var><sub><var>s</var></sub>(<var>x</var><sup><var>s</var>−1</sup>)<sup>⊤</sup> 时，矩阵乘积直接拆成两个标量内积的乘积：<var>b</var><sub><var>r</var></sub><sup>⊤</sup><var>b</var><sub><var>s</var></sub>(<var>x</var><sup><var>s</var>−1</sup>)<sup>⊤</sup><var>x</var><sup><var>r</var>−1</sup> = ⟨<var>b</var><sub><var>r</var></sub>, <var>b</var><sub><var>s</var></sub>⟩⟨<var>x</var><sup><var>r</var>−1</sup>, <var>x</var><sup><var>s</var>−1</sup>⟩：
+
+<LoopMath name="response" language="zh" />
+
+剩下的问题只在于：任意两次循环 <var>r</var> 和 <var>s</var> 之间，前向输入的内积 ⟨<var>x</var><sup><var>r</var>−1</sup>, <var>x</var><sup><var>s</var>−1</sup>⟩ 与反向信号的内积 ⟨<var>b</var><sub><var>r</var></sub>, <var>b</var><sub><var>s</var></sub>⟩ 是正是负、有多大？
+
+答案非常直观：每次循环的输入 <var>x</var><sup><var>r</var>−1</sup> 都以同一个 <var>U</var> 开头，每次循环的反向信号 <var>b</var><sub><var>r</var></sub> 都以同一个 <var>V</var> 开头。利用不同阶项两两正交的性质，两个内积只有同阶项才会相乘，而且每一阶的系数都是非负的：
+
+<LoopMath name="gram" language="zh" />
+
+看上式的两行：<var>m</var> = 0 的首项直接来自 ⟨<var>U</var>, <var>U</var>⟩/<var>n</var> → 1 和 <var>n</var>⟨<var>V</var>, <var>V</var>⟩ → 1，后面的高阶项全都是非负实数；在前向稳定（<var>N</var><var>c</var><sub><var>N</var></sub> ≤ <var>a</var>）时，每一行的总和都落在区间 [1, e<sup><var>a</var><sup>2</sup></sup>] 内。把两行相乘，因子 1/<var>n</var> 与 <var>n</var> 恰好约掉，说明对任意 <var>r</var>、<var>s</var>，乘积 ⟨<var>b</var><sub><var>r</var></sub>, <var>b</var><sub><var>s</var></sub>⟩⟨<var>x</var><sup><var>r</var>−1</sup>, <var>x</var><sup><var>s</var>−1</sup>⟩ 都是落在 [1, e<sup>2<var>a</var><sup>2</sup></sup>] 之间的正数；除以两项各自的长度，就是图 8 中的余弦相似度。因此每一份 Δ<var>f</var><sub><var>r</var></sub> 都与 −<var>ℓ</var>′ 同号，<var>N</var> 次循环的贡献同号累加，总和正比于 <var>N</var>·<var>c</var><sub><var>N</var></sub>·<var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup>。
+
+</LoopDetails>
+
+<strong>三条约束合拢，只剩唯一解 (1, 0)。</strong>把前三步得到的条件放在一起：
+
+<LoopMath name="conditions" language="zh" />
+
+第 2、3 条合起来给出 <var>α</var><sub><var>N</var></sub> = 1 − <var>γ</var><sub><var>N</var></sub> ≤ 1（训练给出的上界），第 1 条给出 <var>α</var><sub><var>N</var></sub> ≥ 1（前向给出的下界）。上下界重合，唯一解就是 <strong>(<var>α</var><sub><var>N</var></sub>, <var>γ</var><sub><var>N</var></sub>) = (1, 0)</strong>。这也回答了开头留下的两个问题：
+
+- <strong>为什么不能选衰减更快的 <var>α</var><sub><var>N</var></sub> > 1（如 <var>N</var><sup>−3/2</sup>）？</strong>如果 <var>α</var><sub><var>N</var></sub> > 1 且保持学习率不变（<var>γ</var><sub><var>N</var></sub> = 0），输出变化 <var>N</var><sup>1−<var>α</var><sub><var>N</var></sub></sup> 会随 <var>N</var> 趋于 0，网络学不动；如果为了补救而把学习率随 <var>N</var> 调大（取 <var>γ</var><sub><var>N</var></sub> = 1 − <var>α</var><sub><var>N</var></sub> &lt; 0），首轮特征的变化 <var>N</var><sup>−<var>γ</var><sub><var>N</var></sub></sup> 又会随 <var>N</var> 爆炸。
+- <strong>为什么共享权重收到 <var>N</var> 份梯度，学习率却不用除以 <var>N</var>？</strong>当残差分支乘上 <var>c</var><sub><var>N</var></sub> = <var>a</var>/<var>N</var>（即 <var>α</var><sub><var>N</var></sub> = 1）时，每次循环传回的梯度本身就已经带上了 1/<var>N</var>，<var>N</var> 次循环的梯度加起来正好是一个平均值，量级不随 <var>N</var> 增长；而在前向传播中，<var>N</var> 次循环同向累加的 <var>N</var> 倍又恰好与分支上的 1/<var>N</var> 抵消，使一步更新对最终输出的变化保持常数量级。无论是自动归一化梯度的 Adam，还是直接使用原始梯度的 SGD，学习率都不需要随 <var>N</var> 改变（<var>γ</var><sub><var>N</var></sub> = 0）。
+
+<LoopFigure id="phase" language="zh" />
+
+<strong>对比加深与循环：为什么深度是一段区间，循环却只有一个点。</strong>对 <var>L</var> 个权重彼此独立的层，同样设分支系数为 <var>c</var><sub><var>L</var></sub> = <var>a</var><var>L</var><sup>−<var>α</var><sub><var>L</var></sub></sup>、学习率缩放为 <var>L</var><sup>−<var>γ</var><sub><var>L</var></sub></sup>，重复上面的分析（即 Depth-μP 的分析）。有趣的是，<strong>训练这一侧的约束完全不变</strong>：虽然每层的更新 Δ<var>W</var><sub><var>l</var></sub> 只在第 <var>l</var> 层用一次，但它同样与该层的输入对齐，把最终输出往降低损失的同一方向（−<var>ℓ</var>′）推一份 <var>c</var><sub><var>L</var></sub><var>L</var><sup>−<var>γ</var><sub><var>L</var></sub></sup>；<var>L</var> 个独立层对输出变化的贡献照样同号相加，总变化同样是 <var>L</var>·<var>c</var><sub><var>L</var></sub>·<var>L</var><sup>−<var>γ</var><sub><var>L</var></sub></sup> ∝ <var>L</var><sup>1−<var>α</var><sub><var>L</var></sub>−<var>γ</var><sub><var>L</var></sub></sup>。因此独立层同样要求 <var>γ</var><sub><var>L</var></sub> ≥ 0 且 <var>α</var><sub><var>L</var></sub> + <var>γ</var><sub><var>L</var></sub> = 1，给出上界 <var>α</var><sub><var>L</var></sub> ≤ 1。两者的差别只在前向初始化。
+
+独立的层在前向传播时像随机游走一样按 √<var>L</var> 累加，只需要 <var>α</var><sub><var>L</var></sub> ≥ 1/2，于是在上下界之间留出了整段区间 <var>α</var><sub><var>L</var></sub> ∈ [1/2, 1]（学习率指数相应取 <var>γ</var><sub><var>L</var></sub> = 1 − <var>α</var><sub><var>L</var></sub>）：区间的左端点 (1/2, 1/2) 是 Depth-μP，右端点 (1, 0) 是 CompleteP。而共享权重的循环在前向传播时按 <var>N</var> 线性累加，把前向下界推高到 <var>α</var><sub><var>N</var></sub> ≥ 1，正好撞上训练上界 <var>α</var><sub><var>N</var></sub> ≤ 1，区间收缩成 (<var>α</var><sub><var>N</var></sub>, <var>γ</var><sub><var>N</var></sub>) = (1, 0) 一个点。把图 9 的权重从共享切换到独立，可以看到这一变化：“初始化不稳定”的边界从 <var>α</var> = 1 退到 1/2，可行的取法从一个点变成对角线上的一段。
+
+<LoopDetails title="对照表：加深与循环的约束">
+
+<LoopMath name="compare" language="zh" />
+
+</LoopDetails>
+
+论文附录把这一结论推广为对所有 (<var>α</var><sub><var>N</var></sub>, <var>γ</var><sub><var>N</var></sub>) 的完整分类，覆盖任意有限的训练步数，并扩展到含多个矩阵的残差分支（例如多层 MLP 块）；Transformer 中注意力块的配方由此类推。严格证明针对用 SGD 训练的线性网络；对非线性激活和 Adam，我们在额外假设下给出了论证。
+
+真实 Transformer 中的一步更新也符合这一预测。我们在初始化处对所有 <var>N</var> 使用同一个学习率（即 <var>γ</var><sub><var>N</var></sub> = 0）做一步 AdamW 更新，测量最终残差流的变化。按上面的推导，此时变化量正比于 <var>N</var><sup>1−<var>α</var><sub><var>N</var></sub></sup>：只有 <var>α</var><sub><var>N</var></sub> = 1 时与 <var>N</var> 无关，<var>α</var><sub><var>N</var></sub> 更小时随 <var>N</var> 增长，更大时随 <var>N</var> 缩小。实测结果完全一致：<var>α</var><sub><var>N</var></sub> = 0 和 1/2 时变化随 <var>N</var> 增长，<var>α</var><sub><var>N</var></sub> = 3/2 时随 <var>N</var> 缩小；只有 <var>α</var><sub><var>N</var></sub> = 1 时，<var>N</var> 从 1 增大到 64，第一步的变化始终稳定在 0.08 到 0.19 之间。前十步也是同样的规律。
+
+<LoopFigure id="one-step" language="zh" />
+
+<h2 id="recipe">Loop-μP 配方</h2>
+
+真实的 Looped Transformer 同时包含深度 <var>L</var> 和循环次数 <var>N</var>：每一次循环内部串联了 <var>L</var> 个权重独立的层，整组 <var>L</var> 层再共享权重重复执行 <var>N</var> 次。把上一节的结论分别用到这两个维度上：
+
+- <strong>循环维度 <var>N</var></strong>：整组层重复 <var>N</var> 次时同向累加，唯一解是 <var>α</var><sub><var>N</var></sub> = 1、<var>γ</var><sub><var>N</var></sub> = 0——残差分支乘以 <var>N</var><sup>−1</sup>，学习率不随 <var>N</var> 缩放（乘 <var>N</var><sup>0</sup>）。
+- <strong>深度维度 <var>L</var></strong>：同一次循环内的 <var>L</var> 个独立层按 √<var>L</var> 累加，可行区间为 <var>α</var><sub><var>L</var></sub> ∈ [1/2, 1]、<var>γ</var><sub><var>L</var></sub> = 1 − <var>α</var><sub><var>L</var></sub>。与 Depth-μP 一样，我们要求同一次循环内各层的特征变化尽可能充分，从而选出左端点 <var>α</var><sub><var>L</var></sub> = 1/2、<var>γ</var><sub><var>L</var></sub> = 1/2——残差分支和隐藏层学习率都乘以 <var>L</var><sup>−1/2</sup>。
+- <strong>宽度维度 <var>n</var></strong>：沿用标准 μP，隐藏层的 Adam 学习率乘以 <var>n</var><sup>−1</sup>。
+
+把三个维度的缩放合在一起，就得到 <strong>Loop-μP</strong> 的残差分支系数与隐藏层 Adam 学习率：
+
+<LoopMath name="multiplier" language="zh" />
+
+写成 pre-LN Transformer 的完整配方（相对于基础模型的宽度倍数记为 <var>m</var><sub><var>n</var></sub> = <var>n</var>/<var>n</var><sub>base</sub>、深度倍数记为 <var>m</var><sub><var>L</var></sub> = <var>L</var>/<var>L</var><sub>base</sub>），与非循环模型相比<strong>只有一处改动</strong>：注意力和 MLP 两个残差分支各自多乘一个 1/<var>N</var>。初始化方差、学习率、weight decay 和 AdamW <var>ε</var> 的规则都与非循环配方完全相同，所以在 <var>N</var> = 1 时调好超参数的模型，只需把残差分支除以 <var>N</var>，就能直接循环更多次。
+
+<LoopRecipe language="zh" />
+
+<h2 id="experiments">一个学习率，适用于所有循环次数</h2>
+
+我们在 FineWeb-Edu 上训练 Llama 风格的 pre-norm Looped Transformer，每个模型训练 10B token。词嵌入和输出层放在循环之外，中间的 <var>L</var> 层（<var>L</var> 取 12、24、48）循环 <var>N</var> 次（<var>N</var> 取 1、2、4、8）。对每一组 (<var>L</var>, <var>N</var>)，我们在 <var>L</var> = 12、<var>N</var> = 1 时调好的基础学习率附近扫描学习率。<var>L</var> = 12 时，我们比较四种循环因子：不缩放（1）、把循环当深度的 <var>N</var><sup>−1/2</sup>、Loop-μP 的 <var>N</var><sup>−1</sup>，以及比理论衰减更快的 <var>N</var><sup>−3/2</sup>。<var>L</var> = 24 和 48 时只用 Loop-μP，并按理论把学习率再乘以 (<var>L</var>/12)<sup>−1/2</sup>。
+
+<LoopFigure id="lr-transfer" language="zh" />
+
+<strong>只有 <var>N</var><sup>−1</sup> 让最优学习率不随 <var>N</var> 移动。</strong>在 Loop-μP 下，<var>L</var> = 12 时每个 <var>N</var> 的最优基础学习率都是 1.25×10<sup>−3</sup>，<var>L</var> = 24 和 48 时也一样。其他三种循环因子下，最优学习率都会移动：
+
+- 不缩放时，最优学习率从 <var>N</var> ≤ 2 时的 1.25×10<sup>−3</sup> 降到 <var>N</var> = 8 时的 7.5×10<sup>−4</sup>，学习率不低于 3×10<sup>−3</sup> 的训练在 <var>N</var> ≥ 4 时发散。这与一步更新随 <var>N</var> 增长的结果一致。
+- <var>N</var><sup>−3/2</sup> 下，最优学习率从 <var>N</var> = 1 时的 1.25×10<sup>−3</sup> 升到 <var>N</var> = 8 时的 3×10<sup>−3</sup>。理论能预测这一上移：这时一步更新的影响按 <var>N</var><sup>−1/2</sup> 缩小，要补回来，学习率需要按 <var>N</var><sup>1/2</sup> 增大，<var>N</var> = 8 时约为 3.5×10<sup>−3</sup>。
+- <var>N</var><sup>−1/2</sup> 下，最优学习率在 <var>N</var> ≥ 4 时也开始移动。
+
+<strong>Loop-μP 的 loss 也最低。</strong>当 <var>N</var> > 1 时，它在每个 <var>N</var> 上的最低 loss 都低于其他三种循环因子，而且随 <var>N</var> 增大下降得最多。这与前向的分析一致：不缩放和 <var>N</var><sup>−1/2</sup> 让残差流随 <var>N</var> 增长，<var>N</var><sup>−3/2</sup> 则把循环模型推向恒等映射。
+
+加上深度因子后，同一个基础学习率在 <var>L</var> = 12、24、48 时都是最优的。也就是说，我们训练的所有 (<var>L</var>, <var>N</var>) 组合共用同一个最优基础学习率。
+
+<h2 id="after-training">训练之后：循环的增量仍然同向</h2>
+
+上面的两条预测都是在初始化时验证的。它们在完整训练（20,000 步）之后还成立吗？我们对 <var>N</var> = 8 的循环模型计算每两次循环增量之间的余弦相似度，并与训练后的非循环 <var>L</var> = 48 模型的逐层增量对比。
+
+循环增量之间的相似度比初始化时低，但除最后一次循环外，任意两次循环的增量都仍然正相关，三种深度都是如此；只有最后一次循环与其他循环弱相关或负相关。非循环模型的层增量整体相似度低，主要只与相邻的层相关。
+
+<LoopFigure id="trained-cosine" language="zh" />
+
+我们还记录了每次循环后残差流的范数。不同 <var>N</var> 的轨迹各不相同，但在同一深度下，最后一次循环后的范数最多相差 1.32 倍，与初始化时范数不随 <var>N</var> 变化的结论一致。
+
+<LoopFigure id="pass-norm" language="zh" />
+
+<h2 id="conclusion">小结</h2>
+
+循环与加深的区别在于权重共享。共享权重让每次循环写入残差流的增量，以及一步更新带来的变化，都沿同一方向累加，而不像独立的层那样分散在互不相关的方向上。由此得到的 Loop-μP 在已有深度参数化的基础上，把每个残差分支乘以 1/<var>N</var>，学习率与 <var>N</var> 无关。在我们的语言模型实验中，Loop-μP 让学习率跨循环次数（到 8）和执行深度（到 384 层）迁移，loss 也比衰减更慢或更快的循环因子更低。
+
+这项工作还有一些局限。我们的理论沿用 Depth-μP 的设定，分析的是去均值的 MLP 残差块，严格证明只针对线性网络；推广到非线性激活和 Adam 依赖额外假设，注意力层和归一化层也还没有纳入分析。受算力限制，我们最大的模型为 438M 参数、训练 10B token，更大规模上的表现留待以后验证。
+
+我们希望 Loop-μP 能为循环模型社区提供一个简单的配方，以更低的调参成本训练更好的循环模型。

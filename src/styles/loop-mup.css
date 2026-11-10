@@ -1,0 +1,281 @@
+/* Loop-μP figures. Builds on the shared figure kit in smelt.css. */
+:root {
+  --lm-untied: var(--smelt-base);
+  --lm-loop: var(--smelt-loop);
+  --lm-a0: var(--plot-neutral);
+  --lm-a05: light-dark(#2f8a6c, #74c9a8);
+  --lm-a1: var(--smelt-loop);
+  --lm-a15: light-dark(#7a5aa6, #b9a0dc);
+  --lm-n1: light-dark(#eeb47e, #f7cfa6);
+  --lm-n2: light-dark(#df8a4d, #f2ad7a);
+  --lm-n4: light-dark(#c0602a, #e88b55);
+  --lm-n8: light-dark(#86391a, #d06a37);
+  --lm-width: light-dark(#34816a, #7fcbb2);
+  --lm-depth: light-dark(#384cbe, #9fadf0);
+  --lm-loop-term: light-dark(#dc702a, #f2a46c);
+  --lm-pos: light-dark(#b2182b, #e6766f);
+  --lm-neg: light-dark(#2166ac, #78a9db);
+}
+
+/* Two renderings of each chart; the figure's width picks one. */
+.lm-chart.is-narrow { display: none; }
+@container smelt-figure (width < 560px) {
+  .lm-chart.is-wide { display: none; }
+  .lm-chart.is-narrow { display: block; }
+}
+
+.lm-chart .lm-var { font-style: italic; }
+.lm-chart .lm-script { font-size: 12px; }
+.lm-chart .is-loop, .lm-legend .is-loop { color: var(--lm-loop); }
+.lm-chart .is-base, .lm-legend .is-base { color: var(--lm-untied); }
+.lm-chart .is-a0, .lm-legend .is-a0 { color: var(--lm-a0); }
+.lm-chart .is-a05, .lm-legend .is-a05 { color: var(--lm-a05); }
+.lm-chart .is-a1, .lm-legend .is-a1 { color: var(--lm-a1); }
+.lm-chart .is-a15, .lm-legend .is-a15 { color: var(--lm-a15); }
+.lm-chart .is-n1, .lm-legend .is-n1 { color: var(--lm-n1); }
+.lm-chart .is-n2, .lm-legend .is-n2 { color: var(--lm-n2); }
+.lm-chart .is-n4, .lm-legend .is-n4 { color: var(--lm-n4); }
+.lm-chart .is-n8, .lm-legend .is-n8 { color: var(--lm-n8); }
+.lm-chart text.lm-series-label { fill: currentColor; font-size: 14px; }
+.lm-chart .lm-line { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.lm-chart .lm-dot circle:not(.hit) { fill: currentColor; stroke: var(--paper); stroke-width: 1.3; }
+.lm-chart .lm-dot:hover circle:not(.hit), .lm-chart .lm-dot:focus-visible circle:not(.hit) { r: 5.5; }
+.lm-chart .is-faint { opacity: .32; }
+.lm-chart .lm-line.is-active { stroke-width: 3; }
+.lm-chart .lm-note, .lm-chart .lm-axis-note, .lm-chart .lm-unit-label { font-size: 13px; fill: var(--plot-muted); }
+.lm-legend { margin: 0 0 10px; }
+.lm-legend > span { color: var(--muted); }
+.lm-legend > span > i { color: inherit; }
+.lm-legend .is-loop, .lm-legend .is-base, .lm-legend [class*="is-a"], .lm-legend [class*="is-n"] { color: inherit; }
+.lm-legend > span[class*="is-"] > i { color: var(--swatch, currentColor); }
+.lm-legend > .is-loop { --swatch: var(--lm-loop); }
+.lm-legend > .is-base { --swatch: var(--lm-untied); }
+.lm-legend > .is-a0 { --swatch: var(--lm-a0); }
+.lm-legend > .is-a05 { --swatch: var(--lm-a05); }
+.lm-legend > .is-a1 { --swatch: var(--lm-a1); }
+.lm-legend > .is-a15 { --swatch: var(--lm-a15); }
+.lm-legend > .is-n1 { --swatch: var(--lm-n1); }
+.lm-legend > .is-n2 { --swatch: var(--lm-n2); }
+.lm-legend > .is-n4 { --swatch: var(--lm-n4); }
+.lm-legend > .is-n8 { --swatch: var(--lm-n8); }
+.lm-swatch-bar { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: currentColor; }
+.lm-swatch-star { font-style: normal; color: var(--ink); }
+.lm-legend-diverged i { font-style: normal; color: var(--ink); }
+.lm-stats .smelt-stat-value .lm-stat-note { margin-left: .5em; color: var(--muted); font: 13px/1.4 var(--sans); letter-spacing: 0; }
+.lm-stats .smelt-stat-value.is-good { color: var(--smelt-gain); }
+
+/* Figure 1: increments added head to tail. */
+.lm-chart .lm-panel { fill: var(--surface); stroke: var(--line); }
+.lm-chart .lm-unit { fill: none; stroke: var(--plot-muted); stroke-width: 1; stroke-dasharray: 3 4; }
+.lm-chart .lm-steps { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; opacity: .55; }
+.lm-chart .lm-steps.is-base { color: var(--lm-untied); }
+.lm-chart .lm-steps.is-loop { color: var(--lm-loop); }
+.lm-chart .lm-joint { opacity: .6; }
+.lm-chart .lm-joint.is-base { fill: var(--lm-untied); }
+.lm-chart .lm-joint.is-loop { fill: var(--lm-loop); }
+.lm-chart .lm-resultant { fill: none; stroke-width: 3.2; stroke-linecap: round; }
+.lm-chart .lm-resultant.is-base { stroke: var(--lm-untied); }
+.lm-chart .lm-resultant.is-loop { stroke: var(--lm-loop); }
+.lm-chart .lm-resultant-head.is-base { fill: var(--lm-untied); }
+.lm-chart .lm-resultant-head.is-loop { fill: var(--lm-loop); }
+.lm-chart .lm-origin { fill: var(--ink); }
+.lm-draw { stroke-dasharray: 1; stroke-dashoffset: 0; animation: lm-draw 700ms var(--smelt-ease) both; }
+@keyframes lm-draw { from { stroke-dashoffset: 1; } }
+@media (prefers-reduced-motion: reduce) { .lm-draw { animation: none; } }
+
+/* Figure 7: bars per order of the expansion. */
+.lm-chart .lm-bar { fill: currentColor; }
+.lm-chart .lm-bar.is-loop { color: var(--lm-loop); }
+.lm-chart .lm-bar.is-base { color: var(--lm-untied); }
+.lm-chart .lm-term:hover .lm-bar, .lm-chart .lm-term:focus-visible .lm-bar { opacity: .75; }
+
+/* Figures 3, 8 and 12: cosine heatmaps. */
+.lm-chart .lm-heat-frame { fill: none; stroke: var(--plot-axis); stroke-width: 1; }
+.lm-chart .lm-heat-hit { fill: transparent; cursor: crosshair; outline: none; }
+.lm-chart .lm-heat-hit:focus-visible { stroke: var(--accent); stroke-width: 2; }
+.lm-chart .cm-z { fill: var(--paper); }
+.lm-chart .cm-p1 { fill: color-mix(in srgb, var(--lm-pos) 10%, var(--paper)); }
+.lm-chart .cm-n1 { fill: color-mix(in srgb, var(--lm-neg) 10%, var(--paper)); }
+.lm-chart .cm-p2 { fill: color-mix(in srgb, var(--lm-pos) 20%, var(--paper)); }
+.lm-chart .cm-n2 { fill: color-mix(in srgb, var(--lm-neg) 20%, var(--paper)); }
+.lm-chart .cm-p3 { fill: color-mix(in srgb, var(--lm-pos) 30%, var(--paper)); }
+.lm-chart .cm-n3 { fill: color-mix(in srgb, var(--lm-neg) 30%, var(--paper)); }
+.lm-chart .cm-p4 { fill: color-mix(in srgb, var(--lm-pos) 40%, var(--paper)); }
+.lm-chart .cm-n4 { fill: color-mix(in srgb, var(--lm-neg) 40%, var(--paper)); }
+.lm-chart .cm-p5 { fill: color-mix(in srgb, var(--lm-pos) 50%, var(--paper)); }
+.lm-chart .cm-n5 { fill: color-mix(in srgb, var(--lm-neg) 50%, var(--paper)); }
+.lm-chart .cm-p6 { fill: color-mix(in srgb, var(--lm-pos) 60%, var(--paper)); }
+.lm-chart .cm-n6 { fill: color-mix(in srgb, var(--lm-neg) 60%, var(--paper)); }
+.lm-chart .cm-p7 { fill: color-mix(in srgb, var(--lm-pos) 70%, var(--paper)); }
+.lm-chart .cm-n7 { fill: color-mix(in srgb, var(--lm-neg) 70%, var(--paper)); }
+.lm-chart .cm-p8 { fill: color-mix(in srgb, var(--lm-pos) 80%, var(--paper)); }
+.lm-chart .cm-n8 { fill: color-mix(in srgb, var(--lm-neg) 80%, var(--paper)); }
+.lm-chart .cm-p9 { fill: color-mix(in srgb, var(--lm-pos) 90%, var(--paper)); }
+.lm-chart .cm-n9 { fill: color-mix(in srgb, var(--lm-neg) 90%, var(--paper)); }
+.lm-chart .cm-p10 { fill: color-mix(in srgb, var(--lm-pos) 100%, var(--paper)); }
+.lm-chart .cm-n10 { fill: color-mix(in srgb, var(--lm-neg) 100%, var(--paper)); }
+
+/* Figure 9: phase diagram and the three scales. */
+.lm-phase { display: grid; grid-template-columns: minmax(0, 420fr) minmax(0, 340fr); gap: 8px 28px; align-items: center; }
+@container smelt-figure (width < 560px) { .lm-phase { grid-template-columns: minmax(0, 1fr); } }
+.lm-chart .lm-region { stroke: none; }
+.lm-chart .lm-region.is-init { fill: color-mix(in srgb, var(--plot-red) 14%, var(--paper)); }
+.lm-chart .lm-region.is-training { fill: color-mix(in srgb, var(--lm-a15) 14%, var(--paper)); }
+.lm-chart .lm-region.is-trivial { fill: color-mix(in srgb, var(--plot-neutral) 16%, var(--paper)); }
+.lm-chart .lm-region-label { font: 600 13px var(--sans); fill: var(--plot-ink); }
+.lm-chart .lm-boundary { stroke: var(--plot-ink); stroke-width: 1.4; }
+.lm-chart .lm-diagonal { stroke: var(--plot-muted); stroke-width: 1.2; stroke-dasharray: 5 5; }
+.lm-chart .lm-diagonal-label { font-size: 13px; fill: var(--plot-muted); }
+.lm-chart .lm-star { fill: var(--lm-loop); stroke: var(--paper); stroke-width: 1.2; }
+.lm-chart .lm-star-label { font: 700 14px var(--sans); fill: var(--smelt-loop-ink); }
+.lm-chart .lm-point circle { fill: none; stroke: var(--ink); stroke-width: 2.4; }
+.lm-chart .lm-crosshair { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 2 3; opacity: .6; }
+.lm-chart .lm-plane-hit { fill: transparent; cursor: crosshair; touch-action: none; outline: none; }
+.lm-chart .lm-plane-hit:focus-visible { stroke: var(--accent); stroke-width: 2; }
+.lm-meters { display: grid; gap: 14px; font: 13px/1.6 var(--sans); }
+.lm-meter { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: baseline; padding-top: 10px; border-top: 1px solid var(--line); }
+.lm-meter-name { color: var(--ink); }
+.lm-meter-formula { grid-column: 1 / -1; color: var(--muted); font-family: var(--serif); font-size: 15px; }
+.lm-meter-status { grid-row: 1; grid-column: 2; font-weight: 700; }
+.lm-meter.is-good .lm-meter-status { color: var(--smelt-gain); }
+.lm-meter.is-bad .lm-meter-status { color: var(--plot-red-ink); }
+.lm-meter.is-muted .lm-meter-status { color: var(--muted); }
+.lm-meter-bar { grid-column: 1 / -1; position: relative; height: 6px; border-radius: 3px; background: var(--surface); }
+.lm-meter-bar::before { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--plot-axis); }
+.lm-meter-bar i { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: currentColor; }
+.lm-meter.is-good .lm-meter-bar i { color: var(--smelt-gain); }
+.lm-meter.is-bad .lm-meter-bar i { color: var(--plot-red); }
+.lm-meter.is-muted .lm-meter-bar i { color: var(--plot-neutral); }
+.lm-verdict { margin: 4px 0 0; padding: 10px 12px; border-radius: 6px; background: var(--surface); color: var(--ink); font-weight: 600; }
+.lm-verdict.is-loop-mup { background: color-mix(in srgb, var(--lm-loop) 12%, var(--paper)); }
+.lm-verdict.is-feasible { background: color-mix(in srgb, var(--lm-untied) 12%, var(--paper)); }
+.lm-chart .lm-feasible-line { stroke: var(--lm-untied); stroke-width: 5; stroke-linecap: round; }
+.lm-chart .lm-feasible-end { fill: var(--lm-untied); stroke: var(--paper); stroke-width: 1.4; }
+.lm-chart text.lm-feasible-label { font: 700 13px var(--sans); fill: var(--smelt-base-ink); }
+
+/* Figure 11: stars and the line through them. */
+.lm-chart .lm-envelope { fill: none; stroke: var(--ink); stroke-width: 1.3; stroke-dasharray: 4 4; }
+.lm-chart .lm-best { fill: currentColor; stroke: var(--ink); stroke-width: .9; }
+.lm-chart .lm-diverged path { fill: none; stroke: currentColor; stroke-width: 2; }
+.lm-chart .lm-side-title { font: 600 13px var(--sans); fill: var(--plot-ink); }
+.lm-chart text.lm-key-label { fill: var(--plot-ink); }
+
+/* Equations (MathML) and the recipe. */
+.lm-math { margin: 6px 0 26px; padding: 14px 4px; overflow-x: auto; border-block: 1px solid var(--line); color: var(--ink); }
+.lm-math math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; font-size: 1.06em; }
+.lm-math .lm-math-row { display: flex; align-items: baseline; gap: 10px; }
+.lm-math .lm-math-row + .lm-math-row { margin-top: 12px; }
+.lm-math .lm-math-label { flex: 0 0 auto; min-width: 5.8em; color: var(--muted); font: 13px/1.6 var(--sans); white-space: nowrap; }
+.lm-math .lm-brace-note { font-family: var(--sans); font-size: 12px; color: var(--muted); fill: var(--muted); }
+.lm-compare table { width: 100%; border-collapse: collapse; font: 14px/1.7 var(--sans); }
+.lm-compare th, .lm-compare td { padding: 8px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+.lm-compare tbody tr:last-child th, .lm-compare tbody tr:last-child td { border-bottom: 0; }
+.lm-compare thead th { color: var(--muted); font-size: 13px; font-weight: 400; }
+.lm-compare tbody th { color: var(--muted); font-weight: 400; white-space: nowrap; padding-left: 0; }
+.lm-compare .lm-nowrap { white-space: nowrap; }
+@media (max-width: 480px) { .lm-compare th, .lm-compare td { padding: 8px 6px; } .lm-compare tbody th { padding-left: 0; } }
+.lm-compare .lm-compare-loop { background: color-mix(in srgb, var(--lm-loop) 6%, var(--paper)); }
+.article-prose math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math; }
+.lm-width, .lm-math .lm-width { color: var(--lm-width); }
+.lm-depth, .lm-math .lm-depth { color: var(--lm-depth); }
+.lm-loop, .lm-math .lm-loop { color: var(--lm-loop-term); font-weight: 600; }
+.lm-recipe { margin: 6px 0 30px; font-family: var(--sans); }
+.lm-recipe-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.lm-recipe-column { padding: 16px 18px 14px; }
+.lm-recipe-column + .lm-recipe-column { border-left: 1px solid var(--line); background: color-mix(in srgb, var(--lm-loop) 6%, var(--paper)); }
+.lm-recipe-column h3 { margin: 0 0 10px; font: 600 13px/1.6 var(--sans); color: var(--muted); }
+.lm-recipe-rule { margin: 0 0 10px; }
+.lm-recipe-rule .lm-recipe-name { display: block; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.lm-recipe-rule math { font-size: 1.05em; }
+.lm-recipe-key { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+.lm-recipe-table td, .lm-recipe-table th { white-space: nowrap; }
+@media (max-width: 640px) {
+  .lm-recipe-columns { grid-template-columns: minmax(0, 1fr); }
+  .lm-recipe-column + .lm-recipe-column { border-left: 0; border-top: 1px solid var(--line); }
+}
+
+/* Figure 4: the ledger, each line a bar of N pieces. */
+.lm-ledger { display: grid; gap: 14px; margin-top: 4px; font: 13px/1.6 var(--sans); }
+.lm-ledger-row { --tone: var(--plot-neutral); --tone-ink: var(--muted); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: baseline; padding-top: 10px; border-top: 1px solid var(--line); }
+.lm-ledger-row.is-good { --tone: var(--smelt-gain); --tone-ink: var(--smelt-gain); }
+.lm-ledger-row.is-bad { --tone: var(--plot-red); --tone-ink: var(--plot-red-ink); }
+.lm-ledger-name { color: var(--ink); }
+.lm-ledger-status { color: var(--tone-ink); font-weight: 700; }
+.lm-ledger-formula { grid-column: 1 / -1; color: var(--muted); font-family: var(--serif); font-size: 15px; }
+.lm-ledger-track { grid-column: 1 / -1; position: relative; display: block; height: 20px; margin: 6px 12px 2px 0; background: var(--surface); color: var(--tone); }
+.lm-ledger-track svg { display: block; width: 100%; height: 100%; }
+.lm-ledger-track rect { fill: currentColor; }
+.lm-ledger-ref { position: absolute; top: -5px; bottom: -5px; border-left: 2px dashed var(--ink); }
+.lm-ledger-track.is-over::after { content: ''; position: absolute; left: 100%; top: 0; border: 10px solid transparent; border-left-color: currentColor; border-right-width: 0; }
+.lm-swatch-ref { display: inline-block; width: 0; height: 14px; border-left: 2px dashed var(--ink); }
+.lm-ledger + .lm-verdict { margin-top: 16px; font: 600 13px/1.6 var(--sans); }
+
+/* Figure 5: angle and length of WU against U, and cosines of repeated products. */
+.lm-chart .lm-gauge-outer { fill: none; stroke: var(--plot-axis); stroke-width: 1; stroke-dasharray: 3 4; }
+.lm-chart .lm-gauge-unit { fill: none; stroke: var(--plot-ink); stroke-width: 1.4; }
+.lm-chart .lm-gauge-right { stroke: var(--plot-axis); stroke-width: 1; stroke-dasharray: 3 4; }
+.lm-chart .lm-gauge-dot.is-loop { fill: var(--lm-loop); fill-opacity: .6; }
+.lm-chart .lm-gauge-dot.is-reference { fill: var(--plot-neutral); fill-opacity: .3; }
+.lm-chart .lm-gauge-vector { stroke: var(--ink); stroke-width: 2.6; }
+.lm-chart .lm-gauge-head { fill: var(--ink); }
+.lm-chart text.lm-cell-value { fill: var(--plot-ink); font-size: 13px; font-variant-numeric: tabular-nums; }
+.lm-chart text.lm-cell-value.is-strong { fill: var(--paper); }
+.lm-swatch-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.lm-swatch-line { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--plot-ink); }
+.lm-legend > .is-reference { --swatch: var(--plot-neutral); }
+
+/* Figure 6: paths through the unrolled block and how each order adds up. */
+.lm-chart .lm-route-rail { fill: none; stroke: var(--border-strong); stroke-width: 3; stroke-linejoin: round; }
+.lm-chart .lm-route { fill: none; stroke: var(--ink); stroke-width: 3.2; stroke-linejoin: round; stroke-linecap: round; }
+.lm-chart .lm-route-head, .lm-chart .lm-route-fork { fill: var(--ink); }
+.lm-chart .lm-route-box { fill: var(--paper); stroke: var(--plot-axis); stroke-width: 1.2; }
+.lm-chart .lm-route-box.is-on { fill: var(--surface); stroke: var(--ink); stroke-width: 2; }
+.lm-chart .lm-route-join { fill: var(--paper); stroke: var(--ink); stroke-width: 1.4; }
+.lm-chart .lm-route-plus { fill: none; stroke: var(--ink); stroke-width: 1.4; }
+.lm-path-terms { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 28px; margin: 6px 0 16px; font: 13px/1.7 var(--sans); color: var(--muted); }
+.lm-path-terms b { margin-left: 2px; font: 400 17px/1.3 var(--serif); }
+.lm-path-terms .is-loop b { color: var(--smelt-loop-ink); }
+.lm-path-terms .is-base b { color: var(--smelt-base-ink); }
+.lm-paths { border-top: 1px solid var(--line); font: 13px/1.6 var(--sans); color: var(--muted); }
+.lm-paths-row { display: grid; grid-template-columns: 7.2em minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr); gap: 6px 16px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.lm-paths-head { align-items: end; font-size: 12px; }
+.lm-paths-head .is-loop { color: var(--smelt-loop-ink); }
+.lm-paths-head .is-base { color: var(--smelt-base-ink); }
+.lm-paths-label { color: var(--ink); }
+.lm-paths-label small { display: block; color: var(--muted); font-size: 12px; }
+.lm-paths-glyphs { display: flex; flex-wrap: wrap; gap: 4px; }
+.lm-path { display: inline-flex; gap: 2px; padding: 5px; border: 1px solid transparent; border-radius: 6px; background: none; cursor: pointer; }
+.lm-path i { width: 10px; height: 10px; border: 1px solid var(--plot-axis); border-radius: 2px; }
+.lm-path i.is-on { border-color: var(--ink); background: var(--ink); }
+.lm-path:hover { border-color: var(--border-strong); }
+.lm-path[aria-pressed="true"] { border-color: var(--ink); background: var(--surface); }
+.lm-paths-sum { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lm-paths-sum b { color: var(--ink); font: 400 16px/1.3 var(--serif); white-space: nowrap; }
+.lm-paths-sum.is-loop { color: var(--lm-loop); }
+.lm-paths-sum.is-base { color: var(--lm-untied); }
+.lm-paths-sum.is-neutral { color: var(--plot-neutral); }
+.lm-mini { flex: none; overflow: visible; }
+.lm-mini line { stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; }
+.lm-mini.has-on line:not(.is-on):not(.lm-mini-sum) { opacity: .38; }
+.lm-mini .lm-mini-sum { stroke: var(--plot-muted); stroke-width: 1.2; stroke-dasharray: 3 3; }
+@container smelt-figure (width < 560px) {
+  .lm-paths-row { grid-template-columns: 6.4em minmax(0, 1fr); }
+  .lm-paths-head { display: none; }
+  .lm-paths-sum { grid-column: 1 / -1; }
+  .lm-paths-sum::before { content: attr(data-label); flex: 0 0 6.4em; color: var(--muted); font-size: 12px; }
+}
+
+/* Figure 8: length of the summed per-loop gradient contributions. */
+.lm-chart .lm-sum-bar.is-loop { fill: var(--lm-loop); }
+.lm-chart .lm-sum-bar.is-muted { fill: var(--plot-neutral); }
+.lm-chart .lm-sum-bar.is-ghost { fill: none; stroke: var(--plot-axis); stroke-width: 1.2; stroke-dasharray: 4 3; }
+
+/* Folded derivations: the algebra behind each step. */
+.lm-details { margin: 6px 0 30px; }
+.lm-details > summary { color: var(--muted); font-size: 13px; }
+.lm-details > summary:hover, .lm-details[open] > summary { color: var(--ink); }
+.lm-details > .disclosure-body { padding: 0 0 6px 18px; border-left: 2px solid var(--line); color: var(--ink); font-size: 15px; line-height: 1.9; }
+html[lang="en"] .lm-details > .disclosure-body { font-family: var(--serif); font-size: 16.5px; line-height: 1.75; }
+.lm-details > .disclosure-body ul { padding-left: 22px; }
+.lm-details > .disclosure-body li { margin: 8px 0; padding-left: 4px; }
+.lm-details > .disclosure-body > .lm-math { margin: 6px 0 18px; }

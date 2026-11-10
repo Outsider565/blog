@@ -1,0 +1,104 @@
+{
+ "provenance": {
+  "paperRepository": "papers/smelt (arXiv 2609.01343)",
+  "paperCommit": "668dbc2",
+  "sources": {
+   "img/frontier_ce_gain/raw.json": "89702bd10eaea49aea072f49e67f7b15098c8bbd4e0514e2e902473fba90c0a6",
+   "img/reducible_vs_compute/raw.json": "033191692660bf18c4d073346d8ae32db6efa85acc46c9451cdf6c0c80bb7981",
+   "raw_data/scaling_analysis/analysis/separate_scaling/bootstrap_gamma_ce_gain.json": "a6766cff535079c00d93348a86150b58139d7c5dfdc7dec76fb81ab9712724a4"
+  },
+  "note": "Coefficients copied at full precision from img/frontier_ce_gain/raw.json (data.coefficients; equal to exp/raw of deep_vec/loop_vec in img/reducible_vs_compute/raw.json). Fitted window = min/max over the 144 sparse-grid endpoints (deep_rows + loop_rows) of flops_per_token F, sparsity S, tokens D = training_compute / F, and training_compute C. Scale anchors = mean Baseline F per scale over the three sparsity buckets. Horizons = the six token counts D (rounded to whole tokens). Default = the 1.6B, S~97% (es42) Baseline endpoint with the longest horizon. Nothing is fitted or downsampled here; the page evaluates Eq. (3) itself. gammaBootstrap = gamma.base / gamma.loop ci95 and gamma.prob_loop_higher from bootstrap_gamma_ce_gain.json (cell bootstrap, 2,000 draws), unchanged.",
+  "paperTable": "sections/scaling_law.tex, tab:separate-fit"
+ },
+ "form": "L(F, S, D) = E + A*(1-S)^b/F^a + K/D^c; b fixed per architecture, fitted separately per architecture",
+ "fitPoints": {
+  "deep": 72,
+  "loop": 72
+ },
+ "coefficients": {
+  "baseline": {
+   "E": 1.4438877690706116,
+   "A": 1366.4262718303175,
+   "K": 1974771.8694127838,
+   "a": 0.3702804247685235,
+   "b": 0.153,
+   "c": 0.6593805747617105,
+   "gamma": 0.23712243099259991,
+   "rmse": 0.005540976352124142
+  },
+  "smelt": {
+   "E": 1.4492821246876508,
+   "A": 1963.3818903833926,
+   "K": 5263601.907272269,
+   "a": 0.3891648625400216,
+   "b": 0.146,
+   "c": 0.7011254023655156,
+   "gamma": 0.25025755032173314,
+   "rmse": 0.009518656839765018
+  }
+ },
+ "window": {
+  "F": [
+   633034080.0,
+   10320613380.0
+  ],
+  "S": [
+   0.8431362283140135,
+   0.9737958713467971
+  ],
+  "D": [
+   20486029312.0,
+   215599808512.0
+  ],
+  "C": [
+   1.2968354718374953e+19,
+   2.225122268454385e+21
+  ]
+ },
+ "scales": [
+  {
+   "label": "100M",
+   "F": 638410080.0
+  },
+  {
+   "label": "200M",
+   "F": 1329461760.0
+  },
+  {
+   "label": "600M",
+   "F": 4189319680.0
+  },
+  {
+   "label": "1.6B",
+   "F": 10176226560.0
+  }
+ ],
+ "horizons": [
+  20486029312,
+  30971789312,
+  62429069312,
+  114857869312,
+  167286669312,
+  215599808512
+ ],
+ "default": {
+  "F": 10233734400.0,
+  "S": 0.97,
+  "D": 215599808512.0,
+  "label": "1.6B, S≈97%, longest horizon"
+ },
+ "gammaBootstrap": {
+  "ci95": {
+   "baseline": [
+    0.22455450377985234,
+    0.25459054143864285
+   ],
+   "smelt": [
+    0.21202359256438344,
+    0.2879699019949738
+   ]
+  },
+  "probSmeltHigher": 0.706,
+  "draws": 2000
+ }
+}

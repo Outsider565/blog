@@ -1,0 +1,7 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { blogPath, pathTo } from '../lib/site';
+---
+<SiteLayout title="Page not found" description="The requested page could not be found." language="en" canonicalPath={pathTo('404.html')} translated={false} noindex>
+  <main id="main" class="not-found"><p class="eyebrow">404</p><h1>Page not found.</h1><p>这个页面不存在。</p></main>
+</SiteLayout>

@@ -1,0 +1,224 @@
+---
+// Figure 16: where inside attention the two visits agree. Stages run left to
+// right (top to bottom on phones); bars are the cross-visit cosine of one
+// configuration, rails show the spread over all 16, and the attention-pattern
+// column shows token-level overlap per layer against a control head.
+import type { Language } from '../../lib/site';
+import {
+  allCells, cell, cellKey, copy, cosineKeys, cosineTip, defaultSize, defaultSparsity, fmt, groups, layerTip, narrow, narrowPatternY, narrowRows, narrowX,
+  pattern, patternTicks, patternTip, pct, ranges, ratioText, readout, sizes, sparsities, stageOrder, swarm, symbols, wide, wideCenter, wideHalf, widePanelTop, wideY,
+  type CosineKey, type StageKey,
+} from '../../lib/smelt/attention-stages';
+import '../../styles/smelt/attention-stages.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language } = Astro.props;
+const text = copy[language];
+const values = cell(defaultSize, defaultSparsity);
+const p = pattern(defaultSize);
+const reference = values.x[0];
+const yTicks = [0, 0.2, 0.4, 0.6, 0.8, 1];
+const xTicks = [0, 0.25, 0.5, 0.75, 1];
+
+const ratio = ratioText(p.top8[0], p.control[0]);
+const isCosine = (stage: StageKey): stage is CosineKey => stage !== 'p';
+
+// Wide layout pieces. The attention-pattern column is a panel with its own % axis.
+const cP = wideCenter('p');
+const hP = wideHalf('p');
+const wideSwarm = swarm(p.layers.map(layer => layer[1]), wideY, 3, 7, 3);
+const wideCloudTop = Math.min(...p.layers.map(layer => wideY(layer[1])));
+const groupSpan = (stages: readonly StageKey[]) => {
+  const first = stages[0]!;
+  const last = stages[stages.length - 1]!;
+  return [wideCenter(first) - wideHalf(first) + 8, wideCenter(last) + wideHalf(last) - 8] as const;
+};
+
+// Narrow layout pieces.
+const layout = narrowRows();
+const rowP = layout.rows.p;
+const dotsY = narrowPatternY(rowP);
+const panelTop = rowP - narrow.patternRow / 2 + 2;
+const panelBottom = rowP + narrow.patternRow / 2 - 2;
+const narrowSwarm = swarm(p.layers.map(layer => layer[1]), narrowX, 3, 6.5, 2);
+const narrowCloudRight = Math.max(...p.layers.map(layer => narrowX(layer[1])));
+const firstRow = layout.rows.x - narrow.row / 2;
+---
+<div class="attention-stages" data-attention-stages data-language={language} data-size={defaultSize} data-sparsity={defaultSparsity} data-pattern="on">
+  <div class="smelt-controls">
+    <div class="smelt-control">
+      <span class="smelt-control-label" id={`stages-scale-${language}`}>{text.scale}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`stages-scale-${language}`} data-stages-size>
+        {sizes.map(size => <button type="button" data-value={size} aria-pressed={size === defaultSize ? 'true' : 'false'}>{size}</button>)}
+      </div>
+    </div>
+    <div class="smelt-control">
+      <span class="smelt-control-label" id={`stages-sparsity-${language}`}>{text.sparsity}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`stages-sparsity-${language}`} data-stages-sparsity>
+        {sparsities.map(sparsity => <button type="button" data-value={sparsity} aria-pressed={sparsity === defaultSparsity ? 'true' : 'false'}>{sparsity}</button>)}
+      </div>
+    </div>
+  </div>
+
+  <div class="stages-plot" data-reveal>
+    <svg class="smelt-chart stages-svg stages-wide" data-orient="v" viewBox={`0 0 ${wide.width} ${wide.height}`} role="group" aria-label={text.aria}>
+      {groups.map(group => {
+        const [start, end] = groupSpan(group.stages);
+        return <g class="stages-group">
+          <text x={(start + end) / 2} y="16" text-anchor="middle" class="stages-group-label">{text.groups[group.id]}</text>
+          <path d={`M${start} 30V25H${end}V30`} class="stages-bracket" />
+        </g>;
+      })}
+      {stageOrder.map(stage => <g class="stages-head">
+        <text x={wideCenter(stage)} y="58" text-anchor="middle" class="stages-symbol">{symbols[stage]}</text>
+        <text x={wideCenter(stage)} y="78" text-anchor="middle" class="stages-sub">{text.stages[stage]}</text>
+      </g>)}
+      {yTicks.map(tick => <>
+        <line x1={wide.left - 10} x2={wide.right} y1={wideY(tick)} y2={wideY(tick)} class="grid" />
+        <text x={wide.left - 16} y={wideY(tick) + 4.5} text-anchor="end">{tick.toFixed(1)}</text>
+      </>)}
+      <text class="axis-title" transform={`translate(14 ${(wide.top + wide.bottom) / 2}) rotate(-90)`} text-anchor="middle">{text.axis}</text>
+      <rect x={cP - hP} y={widePanelTop} width={hP * 2} height={wide.bottom - widePanelTop} rx="3" class="stages-pattern-bg" />
+      <g class="stages-pattern-ticks" aria-hidden="true">
+        {patternTicks.map(tick => <>
+          {tick > 0 && <line x1={cP - hP + 4} x2={cP + hP - 4} y1={wideY(tick)} y2={wideY(tick)} class="stages-pattern-grid" />}
+          <text x={cP - hP + 7} y={wideY(tick) - 4} class="stages-pattern-tick">{pct(tick)}</text>
+        </>)}
+      </g>
+      <line x1={wideCenter('x') - 30} x2={cP - hP - 5} y1={wideY(reference)} y2={wideY(reference)} class="stages-ref reveal-fade" data-ref />
+      <line x1={cP + hP + 5} x2={wideCenter('o') + 34} y1={wideY(reference)} y2={wideY(reference)} class="stages-ref reveal-fade" data-ref />
+      <text x={wideCenter('o') + 34} y={wideY(reference) - 7} text-anchor="end" class="stages-ref-label reveal-fade" data-ref-label>{text.refLabel(fmt(reference))}</text>
+      {stageOrder.map(stage => {
+        if (!isCosine(stage)) return <>
+          <g class="stages-pattern" data-pattern-group data-tip={patternTip(language, defaultSize)} aria-label={patternTip(language, defaultSize).replaceAll('\n', '; ')} role="img">
+            <rect x={cP - hP} y={widePanelTop} width={hP * 2} height={wide.bottom - widePanelTop} class="hit" />
+            <g class="stages-pattern-marks">
+              <line x1={cP - 22} x2={cP + 22} y1={wideY(p.chance)} y2={wideY(p.chance)} class="stages-chance" />
+              <text x={cP + hP - 7} y={wideY(p.chance) - 5} text-anchor="end" class="stages-chance-label">{text.chance(pct(p.chance))}</text>
+              <line x1={cP - 28} x2={cP + 28} y1={wideY(p.top8[0])} y2={wideY(p.top8[0])} class="stages-mean reveal-fade" data-mean />
+              <text x={cP} y={wideCloudTop - 24} text-anchor="middle" class="stages-value is-pattern reveal-fade" data-pattern-label>{pct(p.top8[0])}</text>
+              <text x={cP} y={wideCloudTop - 9} text-anchor="middle" class="stages-ratio reveal-fade" data-ratio-label>{text.ratio(ratio)}</text>
+              <circle cx={cP} cy={wideY(p.control[0])} r="4.2" class="stages-control reveal-pop" data-control />
+              <text x={cP} y={wideY(p.control[0]) + 19} text-anchor="middle" class="stages-control-label reveal-fade" data-control-label>{text.control(pct(p.control[0]))}</text>
+            </g>
+          </g>
+          <g class="stages-dots" data-dots>
+            {p.layers.map((layer, index) => <circle cx={cP + wideSwarm[index]!} cy={wideY(layer[1])} r="3" class="stages-dot reveal-pop" style={`--i:${index}`} tabindex={index === 0 ? '0' : '-1'} data-tip={layerTip(language, layer)} aria-label={layerTip(language, layer).replaceAll('\n', '; ')} role="img" />)}
+          </g>
+          <text x={cP} y={(wide.top + wide.bottom) / 2} text-anchor="middle" class="stages-off" data-pattern-off>
+            {text.onlyAtLines.map((line, index) => <tspan x={cP} dy={index ? 18 : -10}>{line}</tspan>)}
+          </text>
+        </>;
+        const index = cosineKeys.indexOf(stage);
+        const center = wideCenter(stage);
+        const [value] = values[stage];
+        const [low, high] = ranges[stage];
+        const railX = center + wide.bar / 2 + 8;
+        const tip = cosineTip(language, stage, defaultSize, defaultSparsity);
+        return <g class:list={['stages-stage', `is-${stage}`]} data-stage={stage} data-tip={tip} aria-label={tip.replaceAll('\n', '; ')} role="img">
+          <rect x={center - wideHalf(stage) + 6} y={wide.top - 10} width={wideHalf(stage) * 2 - 12} height={wide.bottom - wide.top + 10} class="hit" />
+          <rect x={center - wide.bar / 2} y={wideY(value)} width={wide.bar} height={wide.bottom - wideY(value)} rx="1.5" class="stages-bar reveal-grow" style={`--i:${index}`} data-bar />
+          <g class="stages-rail reveal-fade" style={`--i:${index}`}>
+            <path d={`M${railX - 3} ${wideY(high)}H${railX + 3}M${railX} ${wideY(high)}V${wideY(low)}M${railX - 3} ${wideY(low)}H${railX + 3}`} class="stages-rail-line" />
+          </g>
+          <text x={center} y={wideY(value) - 9} text-anchor="middle" class="stages-value reveal-fade" style={`--i:${index}`} data-value-label>{fmt(value)}</text>
+        </g>;
+      })}
+      <path d={`M${wide.left - 10} ${wide.bottom}H${wide.right}`} class="axis" />
+      <text x={cP} y={wide.bottom + 20} text-anchor="middle" class="stages-pattern-axis">{text.patternAxis}</text>
+    </svg>
+
+    <svg class="smelt-chart stages-svg stages-narrow" data-orient="h" viewBox={`0 0 ${narrow.width} ${layout.height}`} role="group" aria-label={text.aria}>
+      {xTicks.map(tick => <>
+        <line x1={narrowX(tick)} x2={narrowX(tick)} y1={firstRow} y2={layout.bottom} class="grid" />
+        <text x={narrowX(tick)} y={layout.bottom + 17} text-anchor="middle">{tick === 0 ? '0' : tick.toFixed(tick === 0.5 || tick === 1 ? 1 : 2)}</text>
+      </>)}
+      {layout.headers.map(header => <g class="stages-group">
+        <text x="0" y={header.y} class="stages-group-label">{text.groups[header.id as 'input' | 'look' | 'read']}</text>
+        <line x1={narrow.x0} x2={narrow.width} y1={header.y - 4.5} y2={header.y - 4.5} class="stages-bracket" />
+      </g>)}
+      {stageOrder.map(stage => <g class="stages-head">
+        <text x="0" y={layout.rows[stage] + 5} class="stages-symbol">{symbols[stage]}</text>
+        <text x={stage === 'pv' ? 28 : 20} y={layout.rows[stage] + 4.5} class="stages-sub">{text.stages[stage]}</text>
+      </g>)}
+      <rect x={narrow.x0 - 4} y={panelTop} width={narrow.width - narrow.x0 + 4} height={panelBottom - panelTop} rx="3" class="stages-pattern-bg" />
+      <g class="stages-pattern-ticks" aria-hidden="true">
+        {patternTicks.filter(tick => tick > 0).map(tick => <>
+          <line x1={narrowX(tick)} x2={narrowX(tick)} y1={rowP - 19} y2={rowP + 17} class="stages-pattern-grid" />
+          <text x={narrowX(tick)} y={rowP - 22} text-anchor={tick === 1 ? 'end' : 'middle'} class="stages-pattern-tick">{pct(tick)}</text>
+        </>)}
+      </g>
+      <line x1={narrowX(reference)} x2={narrowX(reference)} y1={layout.rows.x - narrow.row / 2 + 2} y2={panelTop - 4} class="stages-ref reveal-fade" data-ref />
+      <line x1={narrowX(reference)} x2={narrowX(reference)} y1={panelBottom + 4} y2={layout.rows.o + narrow.row / 2} class="stages-ref reveal-fade" data-ref />
+      {stageOrder.map(stage => {
+        if (!isCosine(stage)) return <>
+          <g class="stages-pattern" data-pattern-group data-tip={patternTip(language, defaultSize)} aria-label={patternTip(language, defaultSize).replaceAll('\n', '; ')} role="img">
+            <rect x={narrow.x0 - 4} y={panelTop} width={narrow.width - narrow.x0 + 4} height={panelBottom - panelTop} class="hit" />
+            <g class="stages-pattern-marks">
+              <line x1={narrowX(p.chance)} x2={narrowX(p.chance)} y1={rowP - 19} y2={rowP + 15} class="stages-chance" />
+              <text x={narrowX(0) + 3} y={rowP - 22} class="stages-chance-label">{text.chance(pct(p.chance))}</text>
+              <line x1={narrowX(p.top8[0])} x2={narrowX(p.top8[0])} y1={dotsY - 17} y2={dotsY + 17} class="stages-mean reveal-fade" data-mean />
+              <text x={narrowCloudRight + 8} y={dotsY + 4.5} class="stages-value is-pattern reveal-fade" data-pattern-label>{pct(p.top8[0])}</text>
+              <text x={narrowCloudRight + 8} y={rowP + 30} class="stages-ratio reveal-fade" data-ratio-label>{text.ratio(ratio)}</text>
+              <circle cx={narrowX(p.control[0])} cy={dotsY} r="4" class="stages-control reveal-pop" data-control />
+              <text x={narrowX(p.control[0])} y={rowP + 30} text-anchor="middle" class="stages-control-label reveal-fade" data-control-label>{text.control(pct(p.control[0]))}</text>
+            </g>
+          </g>
+          <g class="stages-dots" data-dots>
+            {p.layers.map((layer, index) => <circle cx={narrowX(layer[1])} cy={dotsY + narrowSwarm[index]!} r="3" class="stages-dot reveal-pop" style={`--i:${index}`} tabindex={index === 0 ? '0' : '-1'} data-tip={layerTip(language, layer)} aria-label={layerTip(language, layer).replaceAll('\n', '; ')} role="img" />)}
+          </g>
+          <text x={(narrow.x0 + narrow.width) / 2} y={rowP + 4.5} text-anchor="middle" class="stages-off" data-pattern-off>{text.onlyAt}</text>
+        </>;
+        const index = cosineKeys.indexOf(stage);
+        const middle = layout.rows[stage];
+        const [value] = values[stage];
+        const [low, high] = ranges[stage];
+        const railY = middle + narrow.bar / 2 + 5;
+        const tip = cosineTip(language, stage, defaultSize, defaultSparsity);
+        return <g class:list={['stages-stage', `is-${stage}`]} data-stage={stage} data-tip={tip} aria-label={tip.replaceAll('\n', '; ')} role="img">
+          <rect x="0" y={middle - narrow.row / 2} width={narrow.width} height={narrow.row} class="hit" />
+          <rect x={narrow.x0} y={middle - narrow.bar / 2} width={narrowX(value) - narrow.x0} height={narrow.bar} rx="1.5" class="stages-bar reveal-grow-x" style={`--i:${index}`} data-bar />
+          <g class="stages-rail reveal-fade" style={`--i:${index}`}>
+            <path d={`M${narrowX(low)} ${railY - 3}V${railY + 3}M${narrowX(low)} ${railY}H${narrowX(high)}M${narrowX(high)} ${railY - 3}V${railY + 3}`} class="stages-rail-line" />
+          </g>
+          <text x={narrowX(value) + 6} y={middle + 4.5} class="stages-value reveal-fade" style={`--i:${index}`} data-value-label>{fmt(value)}</text>
+        </g>;
+      })}
+      <path d={`M${narrow.x0} ${firstRow}V${layout.bottom}`} class="axis" />
+    </svg>
+  </div>
+
+  <div class="smelt-legend stages-legend">
+    <span><i class="stages-key-bar" aria-hidden="true"></i>{text.legendBar}</span>
+    <span><i class="stages-key-rail" aria-hidden="true"></i>{text.legendRail}</span>
+    <span><i class="stages-key-ref" aria-hidden="true"></i>{text.legendRef}</span>
+    <span><i class="stages-key-dots" aria-hidden="true"><b></b><b></b><b></b></i>{text.legendDots}</span>
+    <span><i class="smelt-swatch-ring stages-key-control" aria-hidden="true"></i>{text.legendControl}</span>
+  </div>
+  <p class="smelt-readout" aria-live="polite" data-stages-readout set:html={readout(language, defaultSize, defaultSparsity)}></p>
+
+  <div class="smelt-stats">
+    {text.stats.map(([value, label, tone]) => <div class="smelt-stat"><span class:list={['smelt-stat-value', { 'is-loop': tone === 'loop' }]}>{value}</span><span class="smelt-stat-label">{label}</span></div>)}
+  </div>
+
+  <details class="disclosure smelt-data">
+    <summary>{text.table}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="disclosure-body">
+      <p>{text.tableCosine}</p>
+      <div class="data-scroll" tabindex="0" role="region" aria-label={text.tableCosine}>
+        <table class="data-table">
+          <thead><tr><th scope="col">{text.tableHead.config}</th>{cosineKeys.map(stage => <th scope="col">{symbols[stage]}</th>)}</tr></thead>
+          <tbody>{allCells.map(entry => <tr data-highlight={entry.key === cellKey(defaultSize, defaultSparsity) ? '' : undefined}><th scope="row">{text.config(entry.size, entry.sparsity)}</th>{cosineKeys.map((stage: CosineKey) => <td>{fmt(cell(entry.size, entry.sparsity)[stage][0], 3)}</td>)}</tr>)}</tbody>
+        </table>
+      </div>
+      <p>{text.tablePattern}</p>
+      <div class="data-scroll" tabindex="0" role="region" aria-label={text.tablePattern}>
+        <table class="data-table">
+          <thead><tr><th scope="col">{text.scale}</th><th scope="col">{text.tableHead.same}</th><th scope="col">{text.tableHead.control}</th></tr></thead>
+          <tbody>{sizes.map(size => <tr><th scope="row">{size}</th><td>{pct(pattern(size).top8[0], 1)}</td><td>{pct(pattern(size).control[0], 1)}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+  <div hidden><slot /></div>
+</div>
+<script src="../../scripts/smelt/attention-stages.ts"></script>

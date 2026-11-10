@@ -1,0 +1,94 @@
+/* Figure 10: BeyondLoss (score vs validation loss + residual by scale). */
+.beyond-loss { font: 13px/1.6 var(--sans); }
+.beyond-loss .bl-stats { margin: 0 0 22px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+.bl-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; }
+.bl-panel { min-width: 0; }
+.bl-panel h4 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 2px; font: 600 13px/1.6 var(--sans); color: var(--ink); }
+.bl-letter { color: var(--muted); font-weight: 400; font-family: var(--serif); font-style: italic; }
+.bl-axis-note { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 10px; margin: 0 0 4px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.bl-better { color: var(--muted); }
+
+.bl-tick { transition: opacity 300ms var(--smelt-ease); }
+.bl-tick.is-leaving, .bl-tick.is-entering { opacity: 0; }
+.bl-fit { fill: none; stroke: var(--smelt-base-ink); stroke-width: 2; stroke-dasharray: 6 4; stroke-linecap: round; }
+.bl-dot.base-dot { stroke-width: 1.1; opacity: .42; }
+.bl-dot.loop-dot { stroke-width: .8; }
+.bl-stick { stroke-width: 1.6; stroke-linecap: round; opacity: .85; }
+.bl-stick.is-up { stroke: var(--smelt-loop); }
+/* Every SMELT mark stays in the SMELT hue family; residuals below the curve
+   are muted grey rather than Baseline blue. */
+.bl-stick.is-down { stroke: var(--plot-muted); opacity: .7; }
+.bl-chance { stroke: var(--plot-axis); stroke-width: 1.3; stroke-dasharray: .5 3.5; stroke-linecap: round; transition: opacity 300ms var(--smelt-ease); }
+.bl-chance.is-out { opacity: 0; }
+.bl-ring { fill: none; stroke: var(--ink); stroke-width: 1.4; pointer-events: none; opacity: 0; transition: opacity 120ms; }
+.bl-ring.is-on { opacity: 1; }
+.bl-hover { cursor: crosshair; }
+.bl-scatter { outline: none; border-radius: 4px; }
+.bl-scatter:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.bl-ring.is-key { stroke: var(--accent); stroke-width: 2; }
+.bl-scatter text.axis-title { font-family: var(--sans); font-size: 13px; fill: var(--plot-muted); }
+.bl-scatter text.bl-note { font-family: var(--sans); font-size: 13px; fill: var(--plot-muted); }
+.bl-scatter .bl-note-strong { fill: var(--smelt-loop-ink); font-weight: 600; }
+
+.bl-bar { fill: var(--smelt-loop-soft); }
+.bl-mean { stroke: var(--smelt-loop-ink); stroke-width: 2.6; stroke-linecap: round; }
+.bl-zero { stroke: var(--plot-axis); stroke-width: 1.2; }
+.bl-rdot { fill: var(--smelt-loop); opacity: .5; }
+.bl-rdot.is-down { fill: var(--plot-muted); opacity: .5; }
+.bl-base-mean { stroke: var(--smelt-base-ink); stroke-width: 2; stroke-dasharray: 4 3; stroke-linecap: butt; }
+.bl-residual .bl-col-base { fill: var(--smelt-base-ink); font-size: 13px; font-variant-numeric: tabular-nums; }
+.bl-ci { stroke: var(--plot-ink); stroke-width: 1.6; stroke-linecap: round; }
+.bl-diamond { fill: var(--plot-ink); stroke: var(--paper); stroke-width: 1; }
+.bl-residual .bl-col-label { fill: var(--plot-ink); font-family: var(--sans); font-size: 13px; }
+.bl-residual .bl-col-mean { fill: var(--smelt-loop-ink); font-size: 14px; font-variant-numeric: tabular-nums; }
+.bl-col { cursor: pointer; }
+.bl-col:hover { fill: color-mix(in srgb, var(--plot-ink) 4%, transparent); }
+.bl-col:focus-visible { stroke: var(--accent); stroke-width: 1.5; }
+
+/* Scale selection: other scales recede. */
+.beyond-loss.is-live .bl-dot, .beyond-loss.is-live .bl-stick, .beyond-loss.is-live .bl-rdot, .beyond-loss.is-live .bl-bar,
+.beyond-loss.is-live .bl-mean, .beyond-loss.is-live .bl-base-mean, .beyond-loss.is-live .bl-col-mean, .beyond-loss.is-live .bl-col-base, .beyond-loss.is-live .bl-col-label { transition: opacity 260ms var(--smelt-ease); }
+.beyond-loss .is-faded { opacity: .1; }
+.beyond-loss .bl-bar.is-faded, .beyond-loss .bl-mean.is-faded, .beyond-loss .bl-base-mean.is-faded, .beyond-loss .bl-col-mean.is-faded, .beyond-loss .bl-col-base.is-faded, .beyond-loss .bl-col-label.is-faded { opacity: .3; }
+.beyond-loss .bl-stick.is-focus { opacity: .95; stroke-width: 1.5; }
+.beyond-loss .bl-pooled.is-faded { opacity: .3; }
+
+/* Reveal: Baseline rings, then the fit, then residual sticks growing from the curve to SMELT. */
+.bl-scatter .bl-points-base .reveal-pop { transition-delay: calc(80ms + var(--i, 0) * 90ms); }
+.bl-scatter .reveal-fade { transition-delay: 420ms; }
+.bl-scatter .bl-sticks .reveal-draw { transition-duration: 600ms; transition-delay: calc(700ms + var(--i, 0) * 90ms); }
+.bl-scatter .bl-points-loop .reveal-pop { transition-delay: calc(980ms + var(--i, 0) * 90ms); }
+.bl-residual .reveal-grow { transition-delay: calc(300ms + var(--i, 0) * 110ms); }
+.bl-residual .reveal-fade { transition-delay: 760ms; }
+
+.bl-legend { margin-top: 12px; }
+.bl-legend-fit i { display: inline-block; width: 20px; border-top: 2px dashed var(--smelt-base-ink); }
+.bl-legend-fit { color: var(--smelt-base-ink); }
+.bl-legend-stick i { display: inline-block; width: 2px; height: 12px; background: var(--smelt-loop); opacity: .85; }
+.bl-legend-stick.is-up { color: var(--smelt-loop-ink); }
+.bl-legend-stick.is-down i { background: var(--plot-muted); opacity: .7; }
+.bl-legend-base { color: var(--smelt-base-ink); }
+.bl-legend-base i { display: inline-block; width: 18px; border-top: 2px dashed var(--smelt-base-ink); }
+.bl-endpoints + .bl-endpoints { margin-top: 18px; }
+.bl-endpoints caption { caption-side: top; text-align: left; padding: 0 0 6px; color: var(--ink); font: 600 12px/1.6 var(--sans); }
+.bl-legend-chance i { display: inline-block; width: 18px; border-top: 1.5px dotted var(--plot-axis); }
+.beyond-loss .smelt-readout { margin-top: 8px; }
+.bl-table-ci { color: var(--muted); }
+/* The two data disclosures read as one stacked list (shared hairline). */
+.beyond-loss .smelt-data:has(+ .smelt-data) { margin-bottom: 0; }
+.beyond-loss .smelt-data + .smelt-data { margin-top: -1px; }
+.bl-stats .smelt-stat-label { max-width: 24em; }
+
+@container smelt-figure (width < 640px) {
+  .bl-panels { grid-template-columns: minmax(0, 1fr); gap: 26px; }
+}
+@container smelt-figure (width < 480px) {
+  .beyond-loss .bl-stats { grid-template-columns: minmax(0, 1fr); }
+  .bl-stats .smelt-stat { display: grid; grid-template-columns: 7em minmax(0, 1fr); align-items: baseline; gap: 12px; padding: 10px 0 8px; }
+  .bl-stats .smelt-stat + .smelt-stat { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+  .bl-stats .smelt-stat-label { margin-top: 0; }
+}
+/* While the script arms the reveal, hide below-the-fold marks at once instead of fading them out. */
+.beyond-loss.is-arming .reveal-pop, .beyond-loss.is-arming .reveal-draw, .beyond-loss.is-arming .reveal-fade,
+.beyond-loss.is-arming .reveal-grow, .beyond-loss.is-arming .reveal-grow-x { transition: none !important; }
+.bl-scatter .bl-note.reveal-fade { transition-delay: 1500ms; }

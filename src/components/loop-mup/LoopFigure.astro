@@ -1,0 +1,43 @@
+---
+// One numbered Loop-μP figure. The view is the module's markup for its initial
+// state, so the page reads completely without JavaScript; the controls appear
+// once the script has taken over.
+import figures from '../../data/loop-mup/figures.json';
+import { modules } from '../../lib/loop-mup/figures';
+import { controls, html } from '../../lib/loop-mup/markup';
+import type { Language } from '../../lib/site';
+import '../../styles/smelt.css';
+import '../../styles/loop-mup.css';
+interface Props { id: keyof typeof figures; language: Language }
+const { id, language } = Astro.props;
+const figure = figures[id];
+const module = modules[id]!;
+const state = module.initial;
+const list = module.controls(state, language);
+const table = module.table?.(language);
+const title = `${language === 'zh' ? `图 ${figure.number}｜` : `Figure ${figure.number} | `}${figure.captions[language]}`;
+---
+<figure class:list={['research-figure', 'smelt-figure', 'lm-figure', `figure-${id}`]} id={`figure-${id}`} data-figure={id} data-figure-number={figure.number}>
+  <div class="smelt-figure-body lm-figure-body" data-lm-figure={id} data-language={language} data-state={JSON.stringify(state)}>
+    {list.length > 0 && <div class="smelt-controls lm-controls" data-lm-controls hidden set:html={controls(list, `lm-${id}-${language}`)} />}
+    <div class="lm-view" data-lm-view set:html={module.view(state, language)} />
+    <p class="sr-only" aria-live="polite" data-lm-live></p>
+    {table && <details class="disclosure smelt-data lm-data">
+      <summary>{table.summary}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+      <div class="disclosure-body">
+        <div class="data-scroll" tabindex="0" role="region" aria-label={table.summary}>
+          <table class="data-table">
+            <thead><tr>{table.head.map(cell => <th scope="col" set:html={html(cell)} />)}</tr></thead>
+            <tbody>{table.rows.map(row => <tr>{row.cells.map((cell, index) => index === 0
+              ? <th scope="row" class:list={[row.best?.[index] && 'is-best']} set:html={html(cell)} />
+              : <td class:list={[row.best?.[index] && 'is-best']} set:html={html(cell)} />)}</tr>)}</tbody>
+          </table>
+        </div>
+      </div>
+    </details>}
+  </div>
+  <figcaption><span class="caption-title" set:html={html(title)} /></figcaption>
+</figure>
+<script>
+  import '../../scripts/loop-mup/figures';
+</script>

@@ -1,0 +1,40 @@
+{
+  "zh": {
+    "names": [
+      { "name": "王少文", "markers": "1,2,3" },
+      { "name": "Bingrui Li", "markers": "1,2,3" },
+      { "name": "Tansheng Zhu", "markers": "1" },
+      { "name": "张舸", "markers": "2,3" },
+      { "name": "黄文灏", "markers": "2" },
+      { "name": "严珅", "markers": "2" },
+      { "name": "李建", "markers": "1,†" }
+    ],
+    "affiliations": [
+      { "marker": "1", "name": "清华大学" },
+      { "marker": "2", "name": "字节跳动 Seed" },
+      { "marker": "3", "name": "M-A-P" }
+    ],
+    "roles": [
+      "† 指导老师"
+    ]
+  },
+  "en": {
+    "names": [
+      { "name": "Shaowen Wang", "markers": "1,2,3" },
+      { "name": "Bingrui Li", "markers": "1,2,3" },
+      { "name": "Tansheng Zhu", "markers": "1" },
+      { "name": "Ge Zhang", "markers": "2,3" },
+      { "name": "Wenhao Huang", "markers": "2" },
+      { "name": "Shen Yan", "markers": "2" },
+      { "name": "Jian Li", "markers": "1,†" }
+    ],
+    "affiliations": [
+      { "marker": "1", "name": "Tsinghua University" },
+      { "marker": "2", "name": "ByteDance Seed" },
+      { "marker": "3", "name": "M-A-P" }
+    ],
+    "roles": [
+      "† Advisor"
+    ]
+  }
+}

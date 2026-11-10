@@ -1,0 +1,40 @@
+---
+import type { Language } from '../../lib/site';
+interface Props { language: Language; bibtex: string }
+const { language, bibtex } = Astro.props;
+---
+<section class="cite-work" id="citation" aria-labelledby="citation-heading" data-bibtex>
+  <h2 id="citation-heading">{language === 'zh' ? '引用' : 'Cite this work'}</h2>
+  <p>{language === 'zh' ? '如果这项工作对你有帮助，欢迎引用我们的论文：' : 'If you find this work useful, please cite our paper:'}</p>
+  <pre tabindex="0" aria-label="BibTeX"><code data-bibtex-code>{bibtex.trim()}</code></pre>
+  <div class="cite-actions">
+    <button type="button" data-copy-bibtex data-copied={language === 'zh' ? '已复制 BibTeX' : 'BibTeX copied'} data-copy-manual={language === 'zh' ? '自动复制未成功，已选中 BibTeX，请手动复制。' : 'Automatic copying failed. The BibTeX is selected; please copy it manually.'} hidden>{language === 'zh' ? '复制 BibTeX' : 'Copy BibTeX'}</button>
+    <span class="cite-status" role="status" aria-live="polite"></span>
+  </div>
+</section>
+<script>
+  for (const section of document.querySelectorAll<HTMLElement>('[data-bibtex]')) {
+    const button = section.querySelector<HTMLButtonElement>('[data-copy-bibtex]');
+    const code = section.querySelector<HTMLElement>('[data-bibtex-code]');
+    const status = section.querySelector<HTMLElement>('.cite-status');
+    if (!button || !code || !status) continue;
+    button.hidden = false;
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      status.textContent = '';
+      try {
+        await navigator.clipboard.writeText(code.textContent || '');
+        status.textContent = button.dataset.copied || '';
+      } catch {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(code);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        status.textContent = button.dataset.copyManual || '';
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+</script>

@@ -1,0 +1,184 @@
+---
+// Figures 8 and 9: every matched Baseline / SMELT configuration on a downstream
+// metric. A ledger of 96 cells counts the wins; four small multiples (one per
+// active scale) plot score against training compute, each pair joined by a
+// connector coloured by which model is better.
+import type { Language } from '../../lib/site';
+import { linePath, type Point } from '../../lib/smelt/plot';
+import {
+  bar, chance, copy, counted, display, formatGap, gap, metricText, pairGeometry, pairTip, pairs, panel, plotBox,
+  sizes, sparsities, sparsityLabel, stepLabel, steps, summary, tally, winLabel, wins, xScale, xTicks, yAxis, type MetricKey,
+} from '../../lib/smelt/downstream-pairs';
+import '../../styles/smelt/downstream-pairs.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language, metric: metricProp } = Astro.props;
+const metric: MetricKey = metricProp === 'mmlu' ? 'mmlu' : metricProp === 'comp' ? 'comp' : 'core';
+const text = copy[language];
+const scope = 'bar' as const;
+const sparsity = 'all' as const;
+const total = tally(metric, scope, sparsity);
+const info = metricText(metric, language);
+const slug = (size: string) => size.replace('.', 'p').toLowerCase();
+const stepIndex = (step: number) => steps.indexOf(step);
+const sizeIndex = (size: string) => sizes.indexOf(size);
+const esIndex = (es: number) => sparsities.findIndex(item => item.es === es);
+const axes = new Map(sizes.map(size => [size, yAxis(metric, sparsity, size)]));
+const geometry = pairs.map(pair => pairGeometry(pair, metric, axes.get(pair.size)!.scale));
+const cellState = (index: number) => {
+  const pair = pairs[index]!;
+  return !counted(pair, metric, scope) ? 'is-excluded' : wins(pair, metric) ? 'is-win' : 'is-loss';
+};
+const trail = (size: string, es: number, arch: 0 | 1) => linePath(pairs
+  .filter(pair => pair.size === size && pair.es === es)
+  .map(pair => { const g = geometry[pair.index]!; return (arch ? [g.xl, g.yl] : [g.xb, g.yb]) as Point; }));
+const ariaChart = language === 'zh'
+  ? `${info.name}：${sizes.length} 个模型规模的小图，每组匹配对的基线与 SMELT 分数以连线相连。`
+  : `${info.name}: one small chart per model scale, each matched pair's Baseline and SMELT scores joined by a line.`;
+---
+<div class="downstream-pairs" data-downstream-pairs data-metric={metric} data-language={language}>
+  <div class="smelt-controls dp-controls">
+    {metric === 'mmlu'
+      ? <div class="smelt-control"><span class="smelt-control-label" id={`dp-scope-${metric}`}>{text.scope}</span>
+          <div class="smelt-seg" role="group" aria-labelledby={`dp-scope-${metric}`} data-dp-scope>
+            <button type="button" data-value="bar" aria-pressed="true">{text.scopeBar}</button>
+            <button type="button" data-value="all" aria-pressed="false">{text.scopeAll}</button>
+          </div></div>
+      : <div class="smelt-control"><span class="smelt-control-label" id={`dp-metric-${metric}`}>{text.metric}</span>
+          <div class="smelt-seg" role="group" aria-labelledby={`dp-metric-${metric}`} data-dp-metric>
+            <button type="button" data-value="core" aria-pressed={metric === 'core' ? 'true' : 'false'}>DCLM Core</button>
+            <button type="button" data-value="comp" aria-pressed={metric === 'comp' ? 'true' : 'false'}>DCLM Completion</button>
+          </div></div>}
+    <div class="smelt-control"><span class="smelt-control-label" id={`dp-sparsity-${metric}`}>{text.sparsity}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`dp-sparsity-${metric}`} data-dp-sparsity>
+        <button type="button" data-value="all" aria-pressed="true">{text.all}</button>
+        {sparsities.map(item => <button type="button" data-value={String(item.es)} aria-pressed="false">{item[language]}</button>)}
+      </div></div>
+  </div>
+
+  <div class="dp-ledger" data-reveal data-dp-ledger>
+    <div class="dp-count">
+      <span class="dp-count-value"><span data-dp-won>{total.won}</span><span class="dp-count-sep"> / </span><span data-dp-total>{total.total}</span></span>
+      <span class="dp-count-label" data-dp-win-label>{winLabel(metric, scope, language)}</span>
+      <span class="sr-only" aria-live="polite" aria-atomic="true" data-dp-live></span>
+    </div>
+    <div class="dp-waffles" aria-hidden="true">
+      {sizes.map(size => {
+        const own = tally(metric, scope, sparsity, size);
+        return <div class="dp-waffle" data-dp-waffle={size}>
+          <span class="dp-waffle-title"><span>{size}</span><span class="dp-waffle-count" data-dp-size-count={size}>{own.won}/{own.total}</span></span>
+          <span class="dp-cells">
+            {pairs.filter(pair => pair.size === size).map(pair => <span class:list={['dp-cell', 'reveal-pop', cellState(pair.index)]} data-dp-cell={pair.index} data-es={pair.es} style={`--i:${stepIndex(pair.step) * 16 + sizeIndex(pair.size) * 4 + esIndex(pair.es)}`}></span>)}
+          </span>
+          <span class="dp-waffle-axis"><span>{text.branchFirst}</span><span>{text.branchLast}</span></span>
+        </div>;
+      })}
+    </div>
+    <p class="dp-ledger-note">
+      <span class="dp-key"><i class="dp-cell is-win"></i>{text.cellWin}</span>
+      <span class="dp-key"><i class="dp-cell is-loss"></i>{text.cellLoss}</span>
+      {metric === 'mmlu' && <span class="dp-key" data-dp-excluded-key><i class="dp-cell is-excluded"></i>{text.cellOut}</span>}
+      <span>{text.ledgerRows}</span>
+    </p>
+  </div>
+
+  <p class="dp-axis-y"><span data-dp-axis>{info.axis}</span><span class="dp-better" data-dp-better>{info.better}</span></p>
+  <div class="dp-panels" data-reveal role="group" aria-label={ariaChart}>
+    {sizes.map(size => {
+      const axis = axes.get(size)!;
+      const x = xScale(size);
+      const own = tally(metric, scope, sparsity, size);
+      const clip = `dp-clip-${metric}-${slug(size)}`;
+      const sized = pairs.filter(pair => pair.size === size);
+      return <svg class="smelt-chart dp-panel" viewBox={`0 0 ${panel.width} ${panel.height}`} data-dp-panel={size} role="group" aria-label={`${size} · ${info.name}`}>
+        <defs><clipPath id={clip}><rect x={plotBox.x0 - 5} y={plotBox.y0 - 6} width={plotBox.x1 - plotBox.x0 + 10} height={plotBox.y1 - plotBox.y0 + 12} /></clipPath></defs>
+        <text class="dp-panel-title" x={plotBox.x0} y="15">{size}</text>
+        <text class="dp-panel-count" x={plotBox.x1} y="15" text-anchor="end" data-dp-panel-count={size}>{own.won} / {own.total}</text>
+        <g data-dp-yticks>
+          {axis.ticks.map(tick => <g class="dp-tick"><line class="grid" x1={plotBox.x0} x2={plotBox.x1} y1={axis.scale(tick.value)} y2={axis.scale(tick.value)} /><text x={plotBox.x0 - 5} y={axis.scale(tick.value) + 4.5} text-anchor="end">{tick.label}</text></g>)}
+        </g>
+        <line class="axis" x1={plotBox.x0} x2={plotBox.x1} y1={plotBox.y1} y2={plotBox.y1} />
+        {xTicks(size).map(tick => {
+          const position = x(tick.value);
+          return <g class="dp-xtick"><line class="axis" x1={position} x2={position} y1={plotBox.y1} y2={plotBox.y1 + 4} /><text x={position} y={plotBox.y1 + 18} text-anchor="middle">{tick.label}</text></g>;
+        })}
+        {metric === 'mmlu' && <g class="dp-reference">
+          <line class="dp-chance" data-dp-chance x1={plotBox.x0} x2={plotBox.x1} y1={axis.scale(chance * 100)} y2={axis.scale(chance * 100)} />
+          <line class="dp-bar" data-dp-bar x1={plotBox.x0} x2={plotBox.x1} y1={axis.scale(bar * 100)} y2={axis.scale(bar * 100)} />
+        </g>}
+        <g clip-path={`url(#${clip})`}>
+          <g class="dp-trails reveal-fade">
+            {sparsities.map(item => <>
+              <path class="dp-trail is-base" data-dp-trail={`${size}|${item.es}|0`} data-es={item.es} d={trail(size, item.es, 0)} />
+              <path class="dp-trail is-loop" data-dp-trail={`${size}|${item.es}|1`} data-es={item.es} d={trail(size, item.es, 1)} />
+            </>)}
+          </g>
+          <g class="dp-links">
+            {sized.map(pair => { const g = geometry[pair.index]!; return <line class:list={['dp-link', 'reveal-draw', cellState(pair.index)]} pathLength="1" data-dp-link={pair.index} data-es={pair.es} x1={g.xb} y1={g.yb} x2={g.xl} y2={g.yl} style={`--i:${stepIndex(pair.step)}`} />; })}
+          </g>
+          <g class="dp-dots-base">
+            {sized.map(pair => { const g = geometry[pair.index]!; return <circle class:list={['dp-dot', 'base-dot', 'reveal-pop', !counted(pair, metric, scope) && 'is-excluded']} data-dp-base={pair.index} data-es={pair.es} cx={g.xb} cy={g.yb} r="3.3" style={`--i:${stepIndex(pair.step)}`} />; })}
+          </g>
+          <g class="dp-dots-loop">
+            {sized.map(pair => { const g = geometry[pair.index]!; return <circle class:list={['dp-dot', 'loop-dot', 'reveal-pop', !counted(pair, metric, scope) && 'is-excluded']} data-dp-loop={pair.index} data-es={pair.es} cx={g.xl} cy={g.yl} r="3.5" style={`--i:${stepIndex(pair.step)}`} />; })}
+          </g>
+        </g>
+        <g class="dp-hits">
+          {sized.map(pair => {
+            const g = geometry[pair.index]!;
+            return <g class="dp-hit" data-dp-hit={pair.index} data-es={pair.es} data-tip={pairTip(pair, metric, scope, language)} tabindex={pair.index === sized[0]?.index ? '0' : '-1'} role="img" aria-label={pairTip(pair, metric, scope, language).replaceAll('\n', '; ')}>
+              <rect class="hit" x={Math.min(g.xb, g.xl) - 6} y={Math.min(g.yb, g.yl) - 6} width={Math.abs(g.xb - g.xl) + 12} height={Math.abs(g.yb - g.yl) + 12} rx="6" />
+            </g>;
+          })}
+        </g>
+      </svg>;
+    })}
+  </div>
+  <p class="dp-axis-x">{text.xAxis}</p>
+
+  <div class="smelt-legend dp-legend">
+    <span class="is-base"><i class="smelt-swatch-ring"></i>{text.base}</span>
+    <span class="is-loop"><i class="smelt-swatch-dot"></i>{text.loop}</span>
+    <span class="dp-legend-link is-win"><i class="smelt-swatch"></i>{text.loopAhead}</span>
+    <span class="dp-legend-link is-loss"><i class="smelt-swatch"></i>{text.baseAhead}</span>
+    {metric === 'mmlu' && <>
+      <span class="dp-legend-excluded" data-dp-excluded-legend><i class="smelt-swatch-dot"></i>{text.excluded}</span>
+      <span class="dp-legend-line is-chance"><i></i>{text.chance}</span>
+      <span class="dp-legend-line is-bar"><i></i>{text.barLine}</span>
+    </>}
+  </div>
+  <p class="smelt-readout" data-dp-readout>{summary(metric, scope, sparsity, language)}</p>
+
+  <details class="disclosure smelt-data">
+    <summary>{text.table}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="data-scroll" tabindex="0" role="region" aria-label={text.table}>
+      <table class="data-table">
+        <thead><tr>
+          <th scope="col">{text.scale}</th><th scope="col">S</th><th scope="col">{text.branch}</th>
+          {(metric === 'mmlu' ? ['mmlu'] as const : ['core', 'comp'] as const).map(key => <>
+            <th scope="col">{metricText(key, language).name} · {text.base}</th><th scope="col">SMELT</th><th scope="col">{text.diff}</th>
+          </>)}
+          {metric === 'mmlu' && <th scope="col">{language === 'zh' ? '计入' : 'Counted'}</th>}
+        </tr></thead>
+        <tbody>
+          {pairs.map(pair => <tr>
+            <td>{pair.size}</td><td>{sparsityLabel(pair.es)}</td><td>{stepLabel(pair.step)}</td>
+            {(metric === 'mmlu' ? ['mmlu'] as const : ['core', 'comp'] as const).map(key => {
+              const better = gap(pair, key) > 0;
+              return <>
+                <td>{key === 'comp' ? display(pair, key, 0).toFixed(3) : display(pair, key, 0).toFixed(2)}</td>
+                <td>{key === 'comp' ? display(pair, key, 1).toFixed(3) : display(pair, key, 1).toFixed(2)}</td>
+                <td class={better ? 'is-best' : undefined}>{formatGap(key, gap(pair, key), language)}</td>
+              </>;
+            })}
+            {metric === 'mmlu' && <td>{counted(pair, 'mmlu', 'bar') ? '✓' : '–'}</td>}
+          </tr>)}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  <div hidden><slot /></div>
+  <noscript><style is:inline>.downstream-pairs .smelt-controls { display: none; }</style></noscript>
+</div>
+<script>
+  import '../../scripts/smelt/downstream-pairs';
+</script>

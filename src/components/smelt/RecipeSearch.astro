@@ -1,0 +1,206 @@
+---
+// Figures 2–4: the three 200M recipe ablations (loop span, executed depth,
+// loop count). One component, three modes. The default state is the paper's
+// chosen setting, rendered as real SVG; the script adds selection and motion.
+import type { Language } from '../../lib/site';
+import {
+  arrowHead, arrowPath, bestLabelOffset, chartGeometry, copy, defaults, flatPath, formatStat, frames, keys, runs,
+  schematicGeometry, schematicSize, spanNumbers, stats, tableRows, xScale, xTickLabels, yTicks,
+  type Mode, type State, type Variant,
+} from '../../lib/smelt/recipe-search';
+import '../../styles/smelt/recipe-search.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language, mode: rawMode } = Astro.props;
+const mode: Mode = rawMode === 'aspect' || rawMode === 'count' ? rawMode : 'span';
+const text = copy[language];
+const state: State = { mode, key: defaults[mode], sparsity: '85' };
+const all = runs(mode);
+const variants: Variant[] = ['wide', 'narrow'];
+const schematic = schematicGeometry(state);
+const sw = schematicSize.width;
+const sh = schematicSize.height[mode];
+const floor = schematicSize.floor;
+const uid = `rs-${mode}-${language}`;
+const statList = stats(state, language);
+const table = tableRows(mode, language);
+const ticks = xTickLabels(mode, language);
+const segLabel = (key: number) => mode === 'count' ? `${key}×` : String(key);
+const toneClass = (tone: string) => tone === 'plain' || tone === 'worse' ? '' : `is-${tone}`;
+const aspectLoop = (key: number) => all.find(run => run.series === 'loop' && run.key === key);
+const aspectBase = (key: number) => all.find(run => run.series === 'base' && run.key === key);
+const columns = [48, 143];
+// Physical/executed labels beside the looped points. On the narrow chart the 12/18 → 14/21 segment is
+// steep enough to cross a label below 14/21, so that one sits above its point.
+const labelOffset = (id: string, variant: Variant) => ({ l12: [9, 4.5, 'start'], l15: [9, 4.5, 'start'], l18: [0, 22, 'middle'], l21: variant === 'narrow' ? [0, -14, 'middle'] : [0, 22, 'middle'] } as Record<string, [number, number, string]>)[id];
+const numbers = spanNumbers(state.key);
+---
+<div class="recipe-search" data-recipe-search data-mode={mode} data-language={language} data-key={state.key} data-sparsity={state.sparsity} data-reveal>
+  <div class="smelt-controls rs-controls">
+    <div class="smelt-control">
+      <span class="smelt-control-label" id={`${uid}-key`}>{text.control[mode]}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`${uid}-key`} data-rs-keys>
+        {keys[mode].map(key => <button type="button" data-value={key} aria-pressed={key === state.key ? 'true' : 'false'}>{segLabel(key)}</button>)}
+      </div>
+    </div>
+    {mode === 'span' && <div class="smelt-control">
+      <span class="smelt-control-label" id={`${uid}-sparsity`}>{text.sparsity}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`${uid}-sparsity`} data-rs-sparsity>
+        {(['85', '95'] as const).map(value => <button type="button" data-value={value} aria-pressed={value === state.sparsity ? 'true' : 'false'}>S ≈ {value}%</button>)}
+      </div>
+    </div>}
+  </div>
+
+  <div class="rs-body">
+    <div class="rs-schematic">
+      <svg class="smelt-chart rs-schematic-svg" viewBox={`0 0 ${sw} ${sh}`} role="img" aria-label={text.schematicLabel[mode]} data-rs-schematic>
+        {schematic.ghosts.map((ghost, index) => <rect class="rs-ghost" data-rs-ghost={index} x={ghost.x} y={ghost.y} width={ghost.w} height={ghost.h} rx="3" opacity={ghost.o} />)}
+        <g class="rs-slabs">
+          {schematic.slabs.map((slab, index) => <g class="reveal-fade" style={`--i:${(mode === 'span' ? index : (mode === 'aspect' && index >= 18 ? index - 18 : index) * 0.4).toFixed(2)}`}>
+            <rect class="rs-slab" data-rs-slab={index} data-kind={schematic.kinds[index]} x={slab.x.toFixed(2)} y={slab.y.toFixed(2)} width={slab.w.toFixed(2)} height={slab.h.toFixed(2)} rx={mode === 'span' ? 2.5 : 1.2} opacity={slab.o} />
+          </g>)}
+        </g>
+        {mode === 'span' && <>
+          <g class="reveal-fade" style="--i:13">
+            <g class="rs-loop-arrow" data-rs-arrow opacity={schematic.arrow.o}>
+              <path class="rs-arrow" d={arrowPath(schematic.arrow)} data-rs-arrow-path />
+              <path class="rs-arrow rs-arrow-head" d={arrowHead(schematic.arrow)} data-rs-arrow-head />
+              <text class="loop-text rs-arrow-label" x={schematic.arrow.right + 25} y={(schematic.arrow.top + schematic.arrow.bottom) / 2 + 5} data-rs-arrow-label>×2</text>
+            </g>
+            {schematic.numbers.map((number, index) => <text class:list={['rs-number', (index === 1 || index === 2) && 'loop-text']} x="38" y={number.y.toFixed(2)} text-anchor="end" opacity={number.o} data-rs-number={index}>{numbers[index]}</text>)}
+          </g>
+          <path id={`${uid}-token`} class="rs-token-path" d={schematic.token} data-rs-token-path />
+          <circle class="rs-token" r="3.6" cx="0" cy="0" opacity="0" data-rs-token>
+            <animateMotion dur="5.2s" repeatCount="indefinite" begin="indefinite" calcMode="linear" keyPoints="0;1;1" keyTimes="0;0.84;1"><mpath href={`#${uid}-token`} /></animateMotion>
+            <animate attributeName="opacity" dur="5.2s" repeatCount="indefinite" begin="indefinite" values="0;1;1;0;0" keyTimes="0;0.04;0.8;0.85;1" />
+          </circle>
+        </>}
+        {mode === 'count' && <g class="reveal-fade" style="--i:13">
+          {schematic.visits.map((visit, index) => <text class="loop-text rs-visit" x="128" y={visit.y.toFixed(2)} opacity={visit.o} data-rs-visit={index}>{text.visit(index + 1)}</text>)}
+        </g>}
+        {mode === 'aspect' && columns.map((center, index) => {
+          const run = index === 0 ? aspectBase(state.key) : aspectLoop(state.key);
+          return <g class="rs-column-label" data-rs-column-label={index}>
+            <text class:list={['label-strong', index === 0 ? 'base-text' : 'loop-text']} x={center} y={floor + 22} text-anchor="middle">{index === 0 ? text.base : text.loopShort}</text>
+            <text class="rs-dim" x={center} y={floor + 41} text-anchor="middle" data-rs-physical={index}>{run ? text.physicalLine(run.physical) : ''}</text>
+            <text class="rs-dim" x={center} y={floor + 59} text-anchor="middle" data-rs-executed={index}>{run ? text.executedLine(run.executed) : ''}</text>
+            <text class="rs-missing" x={center} y="146" text-anchor="middle" opacity={schematic.missing[index]} data-rs-missing={index}>{text.notRun}</text>
+          </g>;
+        })}
+        {mode !== 'aspect' && <text class="label-strong rs-caption" x={mode === 'span' ? 86 : 80} y={floor + 36} text-anchor="middle" data-rs-caption>{text.schematicCaption(state)}</text>}
+      </svg>
+      <p class="rs-note" data-rs-note>{state.mode === 'span' && state.key === 0 ? text.noLoopNote : text.schematicNote[mode]}</p>
+    </div>
+
+    <div class="rs-plot">
+      <div class="rs-plot-head">
+        <span class="rs-ylabel">{text.yLabel}</span>
+        <span class="smelt-legend">
+          <span class="is-base"><i class="smelt-swatch-ring"></i>{text.base}</span>
+          <span class="is-loop"><i class="smelt-swatch-dot"></i>{text.loop}</span>
+          {mode === 'aspect' && <span class="rs-legend-note">{text.physicalExecuted}</span>}
+        </span>
+      </div>
+      {variants.map(variant => {
+        const frame = frames[variant];
+        const geometry = chartGeometry(state, variant);
+        const x = xScale(mode, variant);
+        const left = frame.left;
+        const right = frame.width - frame.right;
+        const top = frame.top;
+        const bottom = frame.height - frame.bottom;
+        const b = geometry.bracket;
+        return <svg class="smelt-chart rs-chart" data-variant={variant} viewBox={`0 0 ${frame.width} ${frame.height}`} role="group" aria-label={text.chartLabel[mode]}>
+          <g class="rs-grid">
+            {yTicks(state.sparsity).map((value, index) => <>
+              <line class="grid" x1={left} x2={right} y1={geometry.yTicks[index]!.toFixed(2)} y2={geometry.yTicks[index]!.toFixed(2)} data-rs-grid={index} />
+              <text class="rs-ytick" x={left - 8} y={(geometry.yTicks[index]! + 4.5).toFixed(2)} text-anchor="end" data-rs-ytick={index}>{value.toFixed(2)}</text>
+            </>)}
+          </g>
+          <g class="reveal-fade" style="--i:10"><rect class="rs-column" x={geometry.column.x.toFixed(2)} y={top} width={geometry.column.width.toFixed(2)} height={bottom - top} rx="3" data-rs-column /></g>
+          <line class="axis" x1={left} x2={right} y1={bottom} y2={bottom} />
+          {ticks.map(tick => <>
+            <text class:list={['rs-xtick', tick.key === state.key && 'is-selected']} x={x(tick.key).toFixed(2)} y={bottom + 19} text-anchor="middle" data-rs-xtick={tick.key}>{tick.label}</text>
+            {tick.sub && <text class="rs-xsub" x={x(tick.key).toFixed(2)} y={bottom + 35} text-anchor="middle">{tick.sub}</text>}
+          </>)}
+          <text class="rs-xtitle" x={(left + right) / 2} y={mode === 'aspect' ? bottom + 41 : frame.height - 2} text-anchor="middle">{variant === 'narrow' ? text.xTitleNarrow[mode] : text.xTitle[mode]}</text>
+
+          <line class="rs-ref reveal-fade" x1={left} x2={right} y1={geometry.ref.y.toFixed(2)} y2={geometry.ref.y.toFixed(2)} data-rs-ref />
+          <text class="base-text rs-ref-label reveal-fade" x={mode === 'aspect' ? left + 6 : right} y={geometry.ref.labelY.toFixed(2)} text-anchor={mode === 'aspect' ? 'start' : 'end'} data-rs-ref-label>{mode === 'aspect' ? (variant === 'narrow' ? text.refShort : text.refBest(all.find(run => run.id === 'b12')!.loss.toFixed(4))) : text.ref(all[0]!.loss.toFixed(4))}</text>
+
+          {mode === 'aspect' && (() => {
+            const x12 = x(12);
+            const x18 = x(18);
+            const y12 = geometry.best[0]!.y;
+            const y18 = geometry.best[1]!.y;
+            const arrowY = top - 6;
+            return <g class="rs-shift reveal-fade" style="--i:6">
+              <path class="rs-drop" d={`M${x12.toFixed(2)} ${arrowY + 4}V${(y12 - 11).toFixed(2)}M${x18.toFixed(2)} ${arrowY + 4}V${(y18 - 11).toFixed(2)}`} />
+              <path class="rs-shift-arrow" d={`M${(x12 + 4).toFixed(2)} ${arrowY}H${(x18 - 5).toFixed(2)}M${(x18 - 10).toFixed(2)} ${arrowY - 4}L${(x18 - 4).toFixed(2)} ${arrowY}L${(x18 - 10).toFixed(2)} ${arrowY + 4}`} />
+              <text class="rs-shift-label" x={((x12 + x18) / 2).toFixed(2)} y={arrowY - 8} text-anchor="middle">{text.shift}</text>
+            </g>;
+          })()}
+
+          {mode === 'aspect' && <path class="base-line rs-base-line reveal-fade" d={flatPath(geometry.lines.base)} data-rs-line="base" />}
+          <path class="loop-line rs-loop-line reveal-draw" pathLength="1" d={flatPath(geometry.lines.loop)} data-rs-line="loop" />
+
+          <g class="reveal-fade" style="--i:14">
+            <g class="rs-bracket" opacity={b.opacity} data-rs-bracket>
+              <path class="rs-bracket-line" d={`M${(b.x - 3).toFixed(2)} ${b.y1.toFixed(2)}H${(b.x + 3).toFixed(2)}M${b.x.toFixed(2)} ${b.y1.toFixed(2)}V${b.y2.toFixed(2)}M${(b.x - 3).toFixed(2)} ${b.y2.toFixed(2)}H${(b.x + 3).toFixed(2)}`} data-rs-bracket-line />
+            </g>
+          </g>
+
+          {geometry.best.map((point, index) => <g class="rs-best reveal-pop" style={`--i:${8 + index}`}>
+            <circle class:list={['rs-best-ring', mode === 'aspect' && index === 0 && 'is-base']} cx={point.x.toFixed(2)} cy={point.y.toFixed(2)} r="10" data-rs-best={index} />
+            {mode !== 'aspect' && <text class="loop-text rs-best-label" x={point.x.toFixed(2)} y={(point.y + bestLabelOffset).toFixed(2)} text-anchor="middle" data-rs-best-label={index}>{text.lowest}</text>}
+          </g>)}
+
+          {all.map((run, index) => {
+            const point = geometry.points[index]!;
+            const selected = mode === 'aspect' ? run.key === state.key : run.key === state.key;
+            const offset = mode === 'aspect' && run.series === 'loop' ? labelOffset(run.id, variant) : undefined;
+            return <g class:list={['rs-point', `is-${run.series}`, selected && 'is-selected']} transform={`translate(${point.cx.toFixed(2)} ${point.cy.toFixed(2)})`} data-rs-point={run.id} data-key={run.key} data-tip={text.tip(mode, run, '85')} role="button" aria-label={text.tip(mode, run, '85').replaceAll('\n', language === 'zh' ? '；' : '; ')} aria-pressed={selected ? 'true' : 'false'}>
+              <g class="reveal-pop" style={`--i:${index}`}>
+                <circle class="hit" r="14" />
+                <circle class="rs-halo" r="10.5" />
+                <circle class={run.series === 'base' ? 'base-dot' : 'loop-dot'} r="5" />
+              </g>
+              {offset && <text class="loop-text rs-point-label" x={offset[0]} y={offset[1]} text-anchor={offset[2]}>{run.physical}/{run.executed}</text>}
+            </g>;
+          })}
+        </svg>;
+      })}
+    </div>
+
+    <div class="smelt-stats rs-stats">
+      {statList.map((stat, index) => <div class="smelt-stat">
+        <span class:list={['smelt-stat-value', toneClass(stat.tone)]} data-rs-stat={index}>{formatStat(stat, stat.value)}</span>
+        <span class="smelt-stat-label" data-rs-stat-label={index}>{stat.label}</span>
+      </div>)}
+    </div>
+  </div>
+
+  <p class="smelt-readout rs-readout" data-rs-readout>{text.readout(state)}</p>
+  <p class="sr-only" aria-live="polite" data-rs-live></p>
+
+  <details class="disclosure smelt-data rs-data">
+    <summary>{text.table.summary}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="disclosure-body">
+      <div class="data-scroll" tabindex="0" role="region" aria-label={text.table.summary}>
+        <table class="data-table">
+          <thead><tr>{table.head.map(cell => <th scope="col">{cell}</th>)}</tr></thead>
+          {table.groups.map(group => <tbody>
+            {group.title && <tr class="rs-group"><th scope="rowgroup" colspan={table.head.length}>{group.title}</th></tr>}
+            {group.rows.map(row => <tr data-rs-row={row.key} data-series={row.series} data-group={row.group ?? ''} data-highlight={(row.key === state.key && (mode !== 'span' || row.group === '85') && (mode !== 'aspect' || row.series === 'loop')) ? '' : undefined}>
+              {row.cells.map((cell, index) => index === 0 ? <th scope="row" class:list={[row.best[index] && 'is-best']}>{cell}</th> : <td class:list={[row.best[index] && 'is-best']}>{cell}</td>)}
+            </tr>)}
+          </tbody>)}
+        </table>
+      </div>
+      <p class="data-note">{text.table.note[mode]}</p>
+    </div>
+  </details>
+  <div hidden><slot /></div>
+</div>
+<script>
+  import '../../scripts/smelt/recipe-search';
+</script>

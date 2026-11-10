@@ -1,0 +1,64 @@
+---
+// The Loop-μP recipe for a pre-LN Transformer (paper Table 1): the two rules
+// that involve depth or loops side by side, and the full table on demand.
+// Width, depth and loop terms are green, blue and orange as in the paper.
+import { html } from '../../lib/loop-mup/markup';
+import type { Language } from '../../lib/site';
+import '../../styles/loop-mup.css';
+interface Props { language: Language }
+const { language } = Astro.props;
+const zh = language === 'zh';
+const depth = '[d:$m$_{$L$}^{−1/2}]';
+const columns = [
+  { title: zh ? '非循环：$L$ 层' : 'Untied: $L$ layers', rules: [
+    { name: zh ? '注意力与 MLP 残差' : 'Attention and MLP residuals', formula: `$X$ ← $X$ + ${depth} · Block(LN($X$))` },
+    { name: zh ? '隐藏层 Adam 学习率' : 'Hidden-layer Adam learning rate', formula: `$η$ · [w:$m$_{$n$}^{−1}] · ${depth}` },
+  ] },
+  { title: zh ? '循环：$L$ 层 × $N$ 次' : 'Looped: $L$ layers × $N$ loops', rules: [
+    { name: zh ? '注意力与 MLP 残差' : 'Attention and MLP residuals', formula: `$X$ ← $X$ + [l:$N$^{−1}] · ${depth} · Block(LN($X$))` },
+    { name: zh ? '隐藏层 Adam 学习率（与 $N$ 无关）' : 'Hidden-layer Adam learning rate (independent of $N$)', formula: `$η$ · [w:$m$_{$n$}^{−1}] · ${depth}` },
+  ] },
+];
+const a = '$α$_{$L$}';
+const row = (name: string, untied: string, looped = untied) => [name, untied, looped] as const;
+const rows = [
+  row(zh ? '嵌入层初始化方差' : 'Embedding init. variance', '$σ$^2'),
+  row(zh ? '嵌入层学习率' : 'Embedding LR', '$η$'),
+  row(zh ? 'Pre-LN 初始化方差' : 'Pre-LN init. variance', '$σ$^2'),
+  row(zh ? 'Pre-LN 学习率' : 'Pre-LN LR', `$η$ [d:$m$_{$L$}^{${a}−1}]`),
+  row(zh ? '隐藏层初始化方差' : 'Hidden init. variance', '$σ$^2 [w:$m$_{$n$}^{−1}]'),
+  row(zh ? '隐藏层学习率' : 'Hidden LR', `$η$ [w:$m$_{$n$}^{−1}] [d:$m$_{$L$}^{${a}−1}]`),
+  row(zh ? '隐藏层偏置学习率' : 'Hidden bias LR', `$η$ [d:$m$_{$L$}^{${a}−1}]`),
+  row(zh ? '隐藏层 weight decay' : 'Hidden weight decay', '$ω$ [w:$m$_{$n$}]'),
+  row(zh ? '注意力残差' : 'Attention residual', `$X$ + [d:$m$_{$L$}^{−${a}}] MHA(LN($X$))`, `$X$ + [l:$N$^{−1}] [d:$m$_{$L$}^{−${a}}] MHA(LN($X$))`),
+  row(zh ? 'MLP 残差' : 'MLP residual', `$Z$ + [d:$m$_{$L$}^{−${a}}] MLP(LN($Z$))`, `$Z$ + [l:$N$^{−1}] [d:$m$_{$L$}^{−${a}}] MLP(LN($Z$))`),
+  row(zh ? '最终 LN 初始化方差' : 'Final-LN init. variance', '$σ$^2'),
+  row(zh ? '最终 LN 学习率' : 'Final-LN LR', '$η$'),
+  row(zh ? '输出层初始化方差' : 'Unembedding init. variance', '$σ$^2'),
+  row(zh ? '输出层学习率' : 'Unembedding LR', '$η$'),
+  row(zh ? '输出层前向' : 'Unembedding forward', '$X$$W$_{unemb}^{⊤} [w:$m$_{$n$}^{−1}]'),
+  row(zh ? 'AdamW $ε$（残差块）' : 'AdamW $ε$ (residual blocks)', `$ε$ [w:$m$_{$n$}^{−1}] [d:$m$_{$L$}^{−${a}}]`),
+  row(zh ? 'AdamW $ε$（嵌入与输出层）' : 'AdamW $ε$ (embedding and unembedding)', '$ε$ [w:$m$_{$n$}^{−1}]'),
+];
+const summary = zh ? '完整配方（Loop-μP 取 $α$_{$L$} = 1/2）' : 'Full recipe (Loop-μP uses $α$_{$L$} = 1/2)';
+---
+<div class="lm-recipe">
+  <div class="lm-recipe-columns">
+    {columns.map(column => <div class="lm-recipe-column">
+      <h3 set:html={html(column.title)} />
+      {column.rules.map(rule => <p class="lm-recipe-rule"><span class="lm-recipe-name" set:html={html(rule.name)} /><Fragment set:html={html(rule.formula)} /></p>)}
+    </div>)}
+  </div>
+  <p class="lm-recipe-key"><span class="lm-width" set:html={html(zh ? '绿：宽度 $m$_{$n$} = $n$/$n$_{base}' : 'Green: width $m$_{$n$} = $n$/$n$_{base}')} /><span class="lm-depth" set:html={html(zh ? '蓝：深度 $m$_{$L$} = $L$/$L$_{base}' : 'Blue: depth $m$_{$L$} = $L$/$L$_{base}')} /><span class="lm-loop" set:html={html(zh ? '橙：循环次数 $N$' : 'Orange: loop count $N$')} /></p>
+  <details class="disclosure smelt-data lm-data">
+    <summary><span set:html={html(summary)} /><span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="disclosure-body">
+      <div class="data-scroll" tabindex="0" role="region" aria-label={summary.replaceAll('$', '').replace('_{', '').replace('}', '')}>
+        <table class="data-table lm-recipe-table">
+          <thead><tr><th scope="col"></th><th scope="col" set:html={html(zh ? '非循环，$L$ 层' : 'Untied, $L$ layers')} /><th scope="col" set:html={html(zh ? '循环，$L$ 层 × $N$ 次' : 'Looped, $L$ layers × $N$ loops')} /></tr></thead>
+          <tbody>{rows.map(([name, untied, looped]) => <tr><th scope="row" set:html={html(name)} /><td set:html={html(untied)} /><td set:html={html(looped)} /></tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+</div>

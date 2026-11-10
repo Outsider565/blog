@@ -1,0 +1,74 @@
+---
+// Opening animation: the same 12 physical layers, executed once (standard) or
+// with the middle half executed twice (looped). The server renders the final
+// frame; the script replays the token's path when the hero comes into view.
+import type { Language } from '../../lib/site';
+import { arcPath, copy, executedLayers, isLooped, layerIndices, loopFrom, loopTo, narrowLayout, physicalLayers, slabCenter, slabLeft, wideLayout, type HeroLayout } from '../../lib/smelt/smelt-hero';
+import '../../styles/smelt.css';
+import '../../styles/smelt/smelt-hero.css';
+interface Props { language: Language }
+const { language } = Astro.props;
+const text = copy[language];
+const layouts: HeroLayout[] = [wideLayout, narrowLayout];
+const visitsOf = (kind: string, layer: number) => kind === 'looped' && isLooped(layer) ? 2 : 1;
+const executedOf = (kind: string) => kind === 'looped' ? executedLayers : physicalLayers;
+const counterHeads: { x: number; lines: readonly string[] }[] = [{ x: 652, lines: text.unique }, { x: 726, lines: text.executed }];
+const headLines = Math.max(...counterHeads.map(head => head.lines.length)) - 1;
+---
+<div class="smelt-hero" data-smelt-hero data-language={language}>
+  {layouts.map(layout => {
+    const wide = layout.id === 'wide';
+    const arrow = `smelt-hero-arrow-${layout.id}`;
+    return <svg class:list={['smelt-chart', 'smelt-hero-svg', `is-${layout.id}`]} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label={text.aria} data-hero-layout={layout.id}>
+      <defs>
+        <marker id={arrow} viewBox="0 0 8 8" refX="6.2" refY="4" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto"><path d="M0.6 0.8L7 4L0.6 7.2" class="hero-arrowhead" /></marker>
+      </defs>
+      {wide && <g class="hero-counter-head">
+        {counterHeads.map(head => <text x={head.x} y={layout.rows[0].titleY} text-anchor="middle">{head.lines.map((line, index) => <tspan x={head.x} dy={index ? 14 : 0}>{line}</tspan>)}</text>)}
+        <line x1="616" x2="760" y1={layout.rows[0].titleY + 9 + headLines * 14} y2={layout.rows[0].titleY + 9 + headLines * 14} class="hero-hairline" />
+      </g>}
+      {layout.rows.map(row => {
+        const center = row.railY;
+        const looped = row.kind === 'looped';
+        return <g class:list={['hero-row', `is-${row.kind}`]} data-hero-row={row.kind}>
+          <text x="0" y={row.titleY} class="hero-title">{looped ? text.looped : text.standard}{wide && <tspan class="hero-note" dx="10">{looped ? text.loopedNote : text.standardNote}</tspan>}</text>
+          {!wide && <text x={layout.width} y={row.titleY} text-anchor="end" class="hero-inline-count"><tspan class="hero-note">{text.uniqueShort} </tspan><tspan class="hero-num">{physicalLayers}</tspan><tspan class="hero-note"> · {text.executedShort} </tspan><tspan class:list={['hero-num', { 'is-loop': looped }]} data-hero-count>{executedOf(row.kind)}</tspan></text>}
+          <line x1={layout.inX} x2={layout.outX} y1={center} y2={center} class="hero-rail" />
+          {looped && <path d={arcPath(layout, row, row.slabTop - 2.5)} class="hero-arc" marker-end={`url(#${arrow})`} />}
+          {looped && <g class="hero-twice-label">
+            <rect x={(slabLeft(layout, loopFrom) + slabLeft(layout, loopTo) + layout.slabW) / 2 - 17} y={(row.arcTop ?? 0) - 9} width="34" height="18" class="hero-knockout" />
+            <text x={(slabLeft(layout, loopFrom) + slabLeft(layout, loopTo) + layout.slabW) / 2} y={(row.arcTop ?? 0) + 5} text-anchor="middle" class="hero-twice">{text.twice}</text>
+          </g>}
+          <rect x={layout.inX - (wide ? 12 : 10)} y={center - (wide ? 6 : 5)} width={wide ? 12 : 10} height={wide ? 12 : 10} rx="2" class="hero-io" />
+          <circle cx={layout.outX + (wide ? 7 : 6)} cy={center} r={wide ? 7 : 6} class="hero-io hero-out is-on" data-hero-out />
+          {row.kind === 'standard' && wide && <>
+            <text x={layout.inX - 6} y={center + 26} text-anchor="middle" class="hero-io-label">{text.input}</text>
+            <text x={layout.outX + 7} y={center + 26} text-anchor="middle" class="hero-io-label">{text.output}</text>
+          </>}
+          {layerIndices.map(layer => {
+            const loopLayer = looped && isLooped(layer);
+            const visits = visitsOf(row.kind, layer);
+            return <g class:list={['hero-layer', loopLayer ? 'is-loop' : 'is-base', visits === 2 ? 'is-v2' : 'is-v1']} data-layer={layer}>
+              <rect x={slabLeft(layout, layer)} y={row.slabTop} width={layout.slabW} height={row.slabH} rx="3" class="hero-slab" />
+              <text x={slabCenter(layout, layer)} y={row.slabTop + row.slabH - (wide ? 7 : 5)} text-anchor="middle" class="hero-index" style={`font-size:${layout.numberSize}px`}>{layer}</text>
+              {row.dotY.map((y, visit) => visit < visits && <circle cx={slabCenter(layout, layer)} cy={y} r={wide ? 3.4 : 3} class="hero-dot is-on" data-dot={`${layer}-${visit + 1}`} />)}
+            </g>;
+          })}
+          {looped && row.dotY.map((y, visit) => <text x={layout.x0 - 8} y={y + 4.5} text-anchor="end" class="hero-visit-label">{visit === 0 ? text.visit1 : text.visit2}</text>)}
+          {wide && <>
+            <text x="652" y={center + 11} text-anchor="middle" class="hero-counter">{physicalLayers}</text>
+            <text x="726" y={center + 11} text-anchor="middle" class:list={['hero-counter', { 'is-loop': looped }]} data-hero-count>{executedOf(row.kind)}</text>
+          </>}
+          <circle cx={layout.outX} cy={center} r={wide ? 5 : 4.5} class="hero-pulse" data-hero-pulse />
+        </g>;
+      })}
+    </svg>;
+  })}
+  <div class="smelt-hero-foot">
+    <p class="smelt-hero-caption">{text.caption}</p>
+    <button type="button" class="smelt-button smelt-hero-replay" data-hero-replay aria-label={text.replayLabel} hidden><span aria-hidden="true">↻</span> {text.replay}</button>
+  </div>
+</div>
+<script>
+  import '../../scripts/smelt/smelt-hero';
+</script>

@@ -1,0 +1,101 @@
+---
+// Display equations of the Loop-μP derivation, written in MathML so they need
+// no math library. Vectors and matrices use bold italic letters as in the paper.
+import { html } from '../../lib/loop-mup/markup';
+import type { Language } from '../../lib/site';
+import '../../styles/loop-mup.css';
+interface Props { name: 'model' | 'expansion' | 'norms' | 'gradient' | 'update' | 'response' | 'gram' | 'total' | 'conditions' | 'compare' | 'multiplier'; language: Language }
+const { name, language } = Astro.props;
+const zh = language === 'zh';
+// Depth versus loops: forward and training bounds on the branch and LR exponents.
+const compare = {
+  head: zh ? ['独立的 $L$ 层（加深）', '共享权重，循环 $N$ 次（循环）'] : ['$L$ independent layers (depth)', 'One shared block, $N$ loops'],
+  rows: ([
+    [
+      zh ? '前向累积' : 'Forward pass',
+      zh ? '正交随机游走，√$L$·$c$_{$L$} 有界 ⟹ $α$_{$L$} ≥ 1/2' : 'Orthogonal random walk, √$L$·$c$_{$L$} bounded ⟹ $α$_{$L$} ≥ 1/2',
+      zh ? '同向线性累加，$N$·$c$_{$N$} 有界 ⟹ $α$_{$N$} ≥ 1' : 'Aligned linear sum, $N$·$c$_{$N$} bounded ⟹ $α$_{$N$} ≥ 1',
+    ],
+    [
+      zh ? '一步更新' : 'One training step',
+      zh ? '$γ$_{$L$} ≥ 0，$α$_{$L$} + $γ$_{$L$} = 1 ⟹ $α$_{$L$} ≤ 1' : '$γ$_{$L$} ≥ 0, $α$_{$L$} + $γ$_{$L$} = 1 ⟹ $α$_{$L$} ≤ 1',
+      zh ? '$γ$_{$N$} ≥ 0，$α$_{$N$} + $γ$_{$N$} = 1 ⟹ $α$_{$N$} ≤ 1' : '$γ$_{$N$} ≥ 0, $α$_{$N$} + $γ$_{$N$} = 1 ⟹ $α$_{$N$} ≤ 1',
+    ],
+    [
+      zh ? '可行指数' : 'Feasible exponents',
+      zh ? '区间 1/2 ≤ $α$_{$L$} ≤ 1，$γ$_{$L$} = 1 − $α$_{$L$}' : 'Interval 1/2 ≤ $α$_{$L$} ≤ 1, $γ$_{$L$} = 1 − $α$_{$L$}',
+      zh ? '唯一解 [l:$α$_{$N$} = 1]，[l:$γ$_{$N$} = 0]' : 'Unique point [l:$α$_{$N$} = 1], [l:$γ$_{$N$} = 0]',
+    ],
+  ] as [string, string, string][]),
+};
+// Underbrace helper for MathML: places an annotation below an expression.
+const brace = (expr: string, note: string) =>
+  `<munder><munder><mrow>${expr}</mrow><mo stretchy="true">⏟</mo></munder><mtext class="lm-brace-note">${note}</mtext></munder>`;
+
+const expansionRow1 = `<mrow><mo>(</mo><mi>𝑰</mi><mo>+</mo><mi>c</mi><msub><mi>𝑾</mi><mn>2</mn></msub><mo>)</mo></mrow><mrow><mo>(</mo><mi>𝑰</mi><mo>+</mo><mi>c</mi><msub><mi>𝑾</mi><mn>1</mn></msub><mo>)</mo></mrow><mi>𝑼</mi><mo>=</mo><mi>𝑼</mi><mo>+</mo>${brace('<mi>c</mi><msub><mi>𝑾</mi><mn>1</mn></msub><mi>𝑼</mi><mo>+</mo><mi>c</mi><msub><mi>𝑾</mi><mn>2</mn></msub><mi>𝑼</mi>', zh ? '正交向量，合成长度 √2 c' : 'orthogonal, length √2 c')}<mo>+</mo><msup><mi>c</mi><mn>2</mn></msup><msub><mi>𝑾</mi><mn>2</mn></msub><msub><mi>𝑾</mi><mn>1</mn></msub><mi>𝑼</mi>`;
+const expansionRow2 = `<msup><mrow><mo>(</mo><mi>𝑰</mi><mo>+</mo><mi>c</mi><mi>𝑾</mi><mo>)</mo></mrow><mn>2</mn></msup><mi>𝑼</mi><mo>=</mo><mi>𝑼</mi><mo>+</mo>${brace('<mn>2</mn><mi>c</mi><mi>𝑾</mi><mi>𝑼</mi>', zh ? '同一向量，合成长度 2c' : 'identical, length 2c')}<mo>+</mo><msup><mi>c</mi><mn>2</mn></msup><msup><mi>𝑾</mi><mn>2</mn></msup><mi>𝑼</mi>`;
+const expansionRow3 = `<msup><mi>𝒙</mi><mi>N</mi></msup><mo>=</mo><msup><mrow><mo>(</mo><mi>𝑰</mi><mo>+</mo><msub><mi>c</mi><mi>N</mi></msub><mi>𝑾</mi><mo>)</mo></mrow><mi>N</mi></msup><mi>𝑼</mi><mo>=</mo>${brace('<mi>𝑼</mi>', 'm = 0')}<mo>+</mo>${brace('<mi>N</mi><msub><mi>c</mi><mi>N</mi></msub><mi>𝑾</mi><mi>𝑼</mi>', 'm = 1')}<mo>+</mo><mo>⋯</mo><mo>=</mo><munderover><mo>∑</mo><mrow><mi>m</mi><mo>=</mo><mn>0</mn></mrow><mi>N</mi></munderover><mrow><mo>(</mo><mfrac linethickness="0"><mi>N</mi><mi>m</mi></mfrac><mo>)</mo></mrow><msubsup><mi>c</mi><mi>N</mi><mi>m</mi></msubsup><msup><mi>𝑾</mi><mi>m</mi></msup><mi>𝑼</mi>`;
+
+const normsShared = `<msubsup><mrow><mo>‖</mo><msup><mi>𝒙</mi><mi>N</mi></msup><mo>‖</mo></mrow><mi>rms</mi><mn>2</mn></msubsup><mo>→</mo><munderover><mo>∑</mo><mrow><mi>m</mi><mo>=</mo><mn>0</mn></mrow><mi>N</mi></munderover><msup><mrow><mo>(</mo><mfrac linethickness="0"><mi>N</mi><mi>m</mi></mfrac><mo>)</mo></mrow><mn>2</mn></msup><msubsup><mi>c</mi><mi>N</mi><mrow><mn>2</mn><mi>m</mi></mrow></msubsup><mo>=</mo><mn>1</mn><mo>+</mo>${brace('<msup><mrow><mo>(</mo><mi>N</mi><msub><mi>c</mi><mi>N</mi></msub><mo>)</mo></mrow><mn>2</mn></msup>', zh ? 'm = 1：按长度相加' : 'm = 1: add in length')}<mo>+</mo><mo>⋯</mo>`;
+const normsUntied = `<msubsup><mrow><mo>‖</mo><msup><mi>𝒙</mi><mi>N</mi></msup><mo>‖</mo></mrow><mi>rms</mi><mn>2</mn></msubsup><mo>→</mo><munderover><mo>∑</mo><mrow><mi>m</mi><mo>=</mo><mn>0</mn></mrow><mi>N</mi></munderover><mrow><mo>(</mo><mfrac linethickness="0"><mi>N</mi><mi>m</mi></mfrac><mo>)</mo></mrow><msubsup><mi>c</mi><mi>N</mi><mrow><mn>2</mn><mi>m</mi></mrow></msubsup><mo>=</mo><mn>1</mn><mo>+</mo>${brace('<mi>N</mi><msubsup><mi>c</mi><mi>N</mi><mn>2</mn></msubsup>', zh ? 'm = 1：按平方相加' : 'm = 1: add in quadrature')}<mo>+</mo><mo>⋯</mo><mo>=</mo><msup><mrow><mo>(</mo><mn>1</mn><mo>+</mo><msubsup><mi>c</mi><mi>N</mi><mn>2</mn></msubsup><mo>)</mo></mrow><mi>N</mi></msup>`;
+
+const updateFirstLoop = `<mi mathvariant="normal">Δ</mi><msup><mi>𝒉</mi><mn>1</mn></msup><mo>=</mo><mi mathvariant="normal">Δ</mi><mi>𝑾</mi><mi>𝑼</mi><mo>=</mo><mo>−</mo><mi>η</mi><mi>a</mi><msup><mi>ℓ</mi><mo>′</mo></msup><msup><mi>N</mi><mrow><mo>−</mo><msub><mi>γ</mi><mi>N</mi></msub></mrow></msup><mo>·</mo><mfrac><mn>1</mn><mi>N</mi></mfrac><munderover><mo>∑</mo><mrow><mi>s</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover>${brace('<mo stretchy="false">⟨</mo><msup><mi>𝒙</mi><mrow><mi>s</mi><mo>−</mo><mn>1</mn></mrow></msup><mo separator="true">,</mo><mi>𝑼</mi><mo stretchy="false">⟩</mo>', '≈ n')}<mspace width="0.15em" />${brace('<msub><mi>𝒃</mi><mi>s</mi></msub>', zh ? '坐标 ∼ 1/n' : 'entries ∼ 1/n')}<mspace width="0.4em" /><mo stretchy="false">⟹</mo><mspace width="0.4em" /><msub><mrow><mo>‖</mo><mi mathvariant="normal">Δ</mi><msup><mi>𝒉</mi><mn>1</mn></msup><mo>‖</mo></mrow><mi>rms</mi></msub><mo>∝</mo><msup><mi>N</mi><mrow><mo>−</mo><msub><mi>γ</mi><mi>N</mi></msub></mrow></msup>`;
+
+const responseSub = `<mi mathvariant="normal">Δ</mi><msub><mi>f</mi><mi>r</mi></msub><mo>=</mo><mo>−</mo><mi>η</mi><mi>a</mi><msup><mi>ℓ</mi><mo>′</mo></msup><msub><mi>c</mi><mi>N</mi></msub><msup><mi>N</mi><mrow><mo>−</mo><msub><mi>γ</mi><mi>N</mi></msub></mrow></msup><mo>·</mo><mfrac><mn>1</mn><mi>N</mi></mfrac><munderover><mo>∑</mo><mrow><mi>s</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover>${brace('<mo stretchy="false">⟨</mo><msub><mi>𝒃</mi><mi>r</mi></msub><mo separator="true">,</mo><msub><mi>𝒃</mi><mi>s</mi></msub><mo stretchy="false">⟩</mo>', '∼ 1/n, > 0')}<mspace width="0.2em" />${brace('<mo stretchy="false">⟨</mo><msup><mi>𝒙</mi><mrow><mi>r</mi><mo>−</mo><mn>1</mn></mrow></msup><mo separator="true">,</mo><msup><mi>𝒙</mi><mrow><mi>s</mi><mo>−</mo><mn>1</mn></mrow></msup><mo stretchy="false">⟩</mo>', '∼ n, > 0')}`;
+
+const gramInput = `<mfrac><mn>1</mn><mi>n</mi></mfrac><mo stretchy="false">⟨</mo><msup><mi>𝒙</mi><mrow><mi>r</mi><mo>−</mo><mn>1</mn></mrow></msup><mo separator="true">,</mo><msup><mi>𝒙</mi><mrow><mi>s</mi><mo>−</mo><mn>1</mn></mrow></msup><mo stretchy="false">⟩</mo><mo>→</mo>${brace('<mn>1</mn>', zh ? 'm = 0（来自 U）' : 'm = 0 (from U)')}<mo>+</mo><munder><mo>∑</mo><mrow><mi>m</mi><mo>≥</mo><mn>1</mn></mrow></munder><mrow><mo>(</mo><mfrac linethickness="0"><mrow><mi>r</mi><mo>−</mo><mn>1</mn></mrow><mi>m</mi></mfrac><mo>)</mo></mrow><mrow><mo>(</mo><mfrac linethickness="0"><mrow><mi>s</mi><mo>−</mo><mn>1</mn></mrow><mi>m</mi></mfrac><mo>)</mo></mrow><msubsup><mi>c</mi><mi>N</mi><mrow><mn>2</mn><mi>m</mi></mrow></msubsup><mo>∈</mo><mo stretchy="false">[</mo><mn>1</mn><mo separator="true">,</mo><msup><mi mathvariant="normal">e</mi><msup><mi>a</mi><mn>2</mn></msup></msup><mo stretchy="false">]</mo>`;
+const gramBack = `<mi>n</mi><mo stretchy="false">⟨</mo><msub><mi>𝒃</mi><mi>r</mi></msub><mo separator="true">,</mo><msub><mi>𝒃</mi><mi>s</mi></msub><mo stretchy="false">⟩</mo><mo>→</mo>${brace('<mn>1</mn>', zh ? 'm = 0（来自 V）' : 'm = 0 (from V)')}<mo>+</mo><munder><mo>∑</mo><mrow><mi>m</mi><mo>≥</mo><mn>1</mn></mrow></munder><mrow><mo>(</mo><mfrac linethickness="0"><mrow><mi>N</mi><mo>−</mo><mi>r</mi></mrow><mi>m</mi></mfrac><mo>)</mo></mrow><mrow><mo>(</mo><mfrac linethickness="0"><mrow><mi>N</mi><mo>−</mo><mi>s</mi></mrow><mi>m</mi></mfrac><mo>)</mo></mrow><msubsup><mi>c</mi><mi>N</mi><mrow><mn>2</mn><mi>m</mi></mrow></msubsup><mo>∈</mo><mo stretchy="false">[</mo><mn>1</mn><mo separator="true">,</mo><msup><mi mathvariant="normal">e</mi><msup><mi>a</mi><mn>2</mn></msup></msup><mo stretchy="false">]</mo>`;
+const gramSum = `<mrow><mo>|</mo><mi mathvariant="normal">Δ</mi><mi>f</mi><mo>|</mo></mrow><mo>=</mo><munderover><mo>∑</mo><mrow><mi>r</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><mrow><mo>|</mo><mi mathvariant="normal">Δ</mi><msub><mi>f</mi><mi>r</mi></msub><mo>|</mo></mrow><mo>∝</mo>${brace('<mi>N</mi>', zh ? '循环 N 次同号累加' : 'N aligned loops')}<mo>·</mo>${brace('<msub><mi>c</mi><mi>N</mi></msub>', zh ? '分支系数 N^(−α_N)' : 'branch N^(−α_N)')}<mo>·</mo>${brace('<msup><mi>N</mi><mrow><mo>−</mo><msub><mi>γ</mi><mi>N</mi></msub></mrow></msup>', zh ? '一步更新步长' : 'update step')}<mo>=</mo><mi>a</mi><msup><mi>N</mi><mrow><mn>1</mn><mo>−</mo><msub><mi>α</mi><mi>N</mi></msub><mo>−</mo><msub><mi>γ</mi><mi>N</mi></msub></mrow></msup>`;
+
+const conditionsRow4 = `<msub><mi>α</mi><mi>N</mi></msub><mo>=</mo><mn>1</mn><mo>−</mo><msub><mi>γ</mi><mi>N</mi></msub><mo>≤</mo><mn>1</mn><mspace width="0.6em" /><mtext>${zh ? '且' : 'and'}</mtext><mspace width="0.6em" /><msub><mi>α</mi><mi>N</mi></msub><mo>≥</mo><mn>1</mn><mspace width="0.8em" /><mo stretchy="false">⟹</mo><mspace width="0.8em" /><mo>(</mo><msub><mi class="lm-loop">α</mi><mi class="lm-loop">N</mi></msub><mo separator="true">,</mo><msub><mi class="lm-loop">γ</mi><mi class="lm-loop">N</mi></msub><mo>)</mo><mo>=</mo><mo>(</mo><mn class="lm-loop">1</mn><mo separator="true">,</mo><mn class="lm-loop">0</mn><mo>)</mo>`;
+
+const multiplierMath = `<mi>c</mi><mo>=</mo><mi>a</mi><mo>·</mo>${brace('<msup class="lm-loop"><mi>N</mi><mrow><mo>−</mo><mn>1</mn></mrow></msup>', zh ? '循环 (α_N = 1)' : 'loop (α_N = 1)')}<mo>·</mo>${brace('<msup class="lm-depth"><mi>L</mi><mrow><mo>−</mo><mn>1</mn><mo>/</mo><mn>2</mn></mrow></msup>', zh ? '深度 (α_L = 1/2)' : 'depth (α_L = 1/2)')}<mo separator="true">,</mo><mspace width="1.8em" /><msub><mi>η</mi><mtext>${zh ? '隐藏层' : 'hidden'}</mtext></msub><mo>∝</mo><mi>η</mi><mo>·</mo>${brace('<msup class="lm-width"><mi>n</mi><mrow><mo>−</mo><mn>1</mn></mrow></msup>', zh ? '宽度 (μP)' : 'width (μP)')}<mo>·</mo>${brace('<msup class="lm-depth"><mi>L</mi><mrow><mo>−</mo><mn>1</mn><mo>/</mo><mn>2</mn></mrow></msup>', zh ? '深度 (γ_L = 1/2)' : 'depth (γ_L = 1/2)')}<mo>·</mo>${brace('<msup class="lm-loop"><mi>N</mi><mn>0</mn></msup>', zh ? '循环 (γ_N = 0)' : 'loop (γ_N = 0)')}`;
+// Lines may break only between fragments: after a comma and before ⟹.
+const cell = (source: string) => source.split(/(?<=[,，]) |(?= ⟹ )/).map(part => `<span class="lm-nowrap">${html(part.trim())}</span>`).join(' ');
+---
+{name === 'model' && <div class="lm-math">
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '输入与读出' : 'Input & readout'}</span><math><msup><mi>𝒙</mi><mn>0</mn></msup><mo>=</mo><mi>𝑼</mi><mo separator="true">,</mo><mspace width="1.4em" /><mi>f</mi><mo>=</mo><msup><mi>𝑽</mi><mo>⊤</mo></msup><msup><mi>𝒙</mi><mi>N</mi></msup><mo>=</mo><mo stretchy="false">⟨</mo><mi>𝑽</mi><mo separator="true">,</mo><msup><mi>𝒙</mi><mi>N</mi></msup><mo stretchy="false">⟩</mo></math></div>
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '第 r 次循环' : 'Loop r'}</span><math><msup><mi>𝒉</mi><mi>r</mi></msup><mo>=</mo><mi>𝑾</mi><msup><mi>𝒙</mi><mrow><mi>r</mi><mo>−</mo><mn>1</mn></mrow></msup><mo separator="true">,</mo><mspace width="1.2em" /><msup><mi>𝒙</mi><mi>r</mi></msup><mo>=</mo><msup><mi>𝒙</mi><mrow><mi>r</mi><mo>−</mo><mn>1</mn></mrow></msup><mo>+</mo><msub><mi>c</mi><mi>N</mi></msub><msup><mi>𝒉</mi><mi>r</mi></msup><mspace width="0.6em" /><mo stretchy="false">(</mo><mi>r</mi><mo>=</mo><mn>1</mn><mo separator="true">,</mo><mo>…</mo><mo separator="true">,</mo><mi>N</mi><mo stretchy="false">)</mo><mo separator="true">,</mo><mspace width="1.2em" /><msub><mi>c</mi><mi>N</mi></msub><mo>=</mo><mi>a</mi><msup><mi>N</mi><mrow><mo>−</mo><msub><mi>α</mi><mi>N</mi></msub></mrow></msup></math></div>
+</div>}
+{name === 'expansion' && <div class="lm-math">
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '独立两层' : '2 untied layers'}</span><math set:html={expansionRow1} /></div>
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '共享循环 2 次' : '2 shared loops'}</span><math set:html={expansionRow2} /></div>
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '共享循环 N 次' : 'N shared loops'}</span><math set:html={expansionRow3} /></div>
+</div>}
+{name === 'norms' && <div class="lm-math">
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '共享权重' : 'Shared'}</span><math set:html={normsShared} /></div>
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '独立权重' : 'Independent'}</span><math set:html={normsUntied} /></div>
+</div>}
+{name === 'gradient' && <div class="lm-math">
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '总梯度' : 'Gradient'}</span><math><mi>𝑮</mi><mo>=</mo><mfrac><mrow><mo>∂</mo><mi>ℓ</mi></mrow><mrow><mo>∂</mo><mi>𝑾</mi></mrow></mfrac><mo>=</mo><msup><mi>ℓ</mi><mo>′</mo></msup><msub><mi>c</mi><mi>N</mi></msub><munderover><mo>∑</mo><mrow><mi>r</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><msub><mi>𝒃</mi><mi>r</mi></msub><msup><mrow><mo stretchy="false">(</mo><msup><mi>𝒙</mi><mrow><mi>r</mi><mo>−</mo><mn>1</mn></mrow></msup><mo stretchy="false">)</mo></mrow><mo>⊤</mo></msup><mo separator="true">,</mo><mspace width="1.2em" /><msub><mi>𝒃</mi><mi>r</mi></msub><mo>=</mo><mfrac><mrow><mo>∂</mo><mi>f</mi></mrow><mrow><mo>∂</mo><msup><mi>𝒙</mi><mi>r</mi></msup></mrow></mfrac><mo>=</mo><msup><mrow><mo>(</mo><mi>𝑰</mi><mo>+</mo><msub><mi>c</mi><mi>N</mi></msub><msup><mi>𝑾</mi><mo>⊤</mo></msup><mo>)</mo></mrow><mrow><mi>N</mi><mo>−</mo><mi>r</mi></mrow></msup><mi>𝑽</mi></math></div>
+</div>}
+{name === 'update' && <div class="lm-math">
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '一步更新' : 'One step'}</span><math><mi mathvariant="normal">Δ</mi><mi>𝑾</mi><mo>=</mo><mo>−</mo><mi>η</mi><mi>a</mi><msup><mi>ℓ</mi><mo>′</mo></msup><msup><mi>N</mi><mrow><mo>−</mo><msub><mi>γ</mi><mi>N</mi></msub></mrow></msup><mo>·</mo><mfrac><mn>1</mn><mi>N</mi></mfrac><munderover><mo>∑</mo><mrow><mi>s</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><msub><mi>𝒃</mi><mi>s</mi></msub><msup><mrow><mo stretchy="false">(</mo><msup><mi>𝒙</mi><mrow><mi>s</mi><mo>−</mo><mn>1</mn></mrow></msup><mo stretchy="false">)</mo></mrow><mo>⊤</mo></msup></math></div>
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '首轮特征变化' : 'First loop'}</span><math set:html={updateFirstLoop} /></div>
+</div>}
+{name === 'response' && <div class="lm-math">
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '按循环展开' : 'By loop'}</span><math><mi mathvariant="normal">Δ</mi><mi>f</mi><mo>≈</mo><munderover><mo>∑</mo><mrow><mi>r</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><mi mathvariant="normal">Δ</mi><msub><mi>f</mi><mi>r</mi></msub><mo separator="true">,</mo><mspace width="1.2em" /><mi mathvariant="normal">Δ</mi><msub><mi>f</mi><mi>r</mi></msub><mo>=</mo><msub><mi>c</mi><mi>N</mi></msub><msubsup><mi>𝒃</mi><mi>r</mi><mo>⊤</mo></msubsup><mi mathvariant="normal">Δ</mi><mi>𝑾</mi><msup><mi>𝒙</mi><mrow><mi>r</mi><mo>−</mo><mn>1</mn></mrow></msup></math></div>
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '代入 ΔW' : 'Plug in ΔW'}</span><math set:html={responseSub} /></div>
+</div>}
+{name === 'gram' && <div class="lm-math">
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '前向输入对齐' : 'Inputs'}</span><math set:html={gramInput} /></div>
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '反向信号对齐' : 'Backward'}</span><math set:html={gramBack} /></div>
+</div>}
+{name === 'total' && <div class="lm-math">
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '总输出变化' : 'Total Δf'}</span><math set:html={gramSum} /></div>
+</div>}
+{name === 'conditions' && <div class="lm-math">
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '1. 前向稳定' : '1. Forward init'}</span><math><msub><mrow><mo>‖</mo><msup><mi>𝒙</mi><mi>N</mi></msup><mo>‖</mo></mrow><mi>rms</mi></msub><mo>∼</mo><mi>N</mi><msub><mi>c</mi><mi>N</mi></msub><mo>∝</mo><msup><mi>N</mi><mrow><mn>1</mn><mo>−</mo><msub><mi>α</mi><mi>N</mi></msub></mrow></msup><mo>≤</mo><mi>O</mi><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo><mspace width="0.8em" /><mo stretchy="false">⟹</mo><mspace width="0.8em" /><msub><mi>α</mi><mi>N</mi></msub><mo>≥</mo><mn>1</mn></math></div>
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '2. 更新有界' : '2. Feature step'}</span><math><msub><mrow><mo>‖</mo><mi mathvariant="normal">Δ</mi><msup><mi>𝒉</mi><mn>1</mn></msup><mo>‖</mo></mrow><mi>rms</mi></msub><mo>∝</mo><msup><mi>N</mi><mrow><mo>−</mo><msub><mi>γ</mi><mi>N</mi></msub></mrow></msup><mo>≤</mo><mi>O</mi><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo><mspace width="0.8em" /><mo stretchy="false">⟹</mo><mspace width="0.8em" /><msub><mi>γ</mi><mi>N</mi></msub><mo>≥</mo><mn>0</mn></math></div>
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '3. 输出有效' : '3. Output Δf'}</span><math><mrow><mo>|</mo><mi mathvariant="normal">Δ</mi><mi>f</mi><mo>|</mo></mrow><mo>∼</mo><mi>N</mi><msub><mi>c</mi><mi>N</mi></msub><msup><mi>N</mi><mrow><mo>−</mo><msub><mi>γ</mi><mi>N</mi></msub></mrow></msup><mo>∝</mo><msup><mi>N</mi><mrow><mn>1</mn><mo>−</mo><msub><mi>α</mi><mi>N</mi></msub><mo>−</mo><msub><mi>γ</mi><mi>N</mi></msub></mrow></msup><mo>=</mo><mi mathvariant="normal">Θ</mi><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo><mspace width="0.8em" /><mo stretchy="false">⟹</mo><mspace width="0.8em" /><msub><mi>α</mi><mi>N</mi></msub><mo>+</mo><msub><mi>γ</mi><mi>N</mi></msub><mo>=</mo><mn>1</mn></math></div>
+  <div class="lm-math-row"><span class="lm-math-label">{zh ? '唯一解' : 'Unique solution'}</span><math set:html={conditionsRow4} /></div>
+</div>}
+{name === 'compare' && <div class="lm-math lm-compare">
+  <table>
+    <thead><tr><th scope="col"></th>{compare.head.map(cell => <th scope="col" set:html={html(cell)} />)}</tr></thead>
+    <tbody>{compare.rows.map(([label, untied, looped]) => <tr><th scope="row">{label}</th><td set:html={cell(untied)} /><td class="lm-compare-loop" set:html={cell(looped)} /></tr>)}</tbody>
+  </table>
+</div>}
+{name === 'multiplier' && <div class="lm-math">
+  <math display="block" set:html={multiplierMath} />
+</div>}

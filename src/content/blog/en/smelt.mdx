@@ -1,0 +1,126 @@
+---
+title: "SMELT: Scaling Laws for Budget-Matched Looped Transformers"
+subtitle: "With compute, parameters, and KV cache all matched, looping still yields a net gain for MoE models"
+description: "Do Looped Transformers gain from the looped architecture itself, or from the extra compute they spend? With per-token FLOPs, total non-embedding parameters, and KV cache all matched, we find that looping beats the Baseline across the board on both loss and benchmarks."
+language: "en"
+urlSlug: "smelt"
+published: "2026-11-03"
+category: "Model Architecture"
+tags: ["SMELT", "Looped Transformer", "MoE", "Scaling Laws", "Pretraining"]
+author: "Shaowen Wang, Ge Zhang et al."
+translationNotice: "Translated from Chinese with AI assistance."
+paper: "https://arxiv.org/abs/2609.01343"
+sections: [{"id":"budget","title":"The Budget-Matching Framework"},{"id":"recipe","title":"The Optimal Loop Recipe"},{"id":"scaling","title":"Quantifying the Extra Gain with Scaling Laws"},{"id":"downstream","title":"Gains on Downstream Tasks"},{"id":"mechanism","title":"Inside the Loop"},{"id":"conclusion","title":"Summary"}]
+---
+
+import SmeltFigure from '../../../components/smelt/SmeltFigure.astro';
+import SmeltHero from '../../../components/smelt/SmeltHero.astro';
+import SmeltFormula from '../../../components/smelt/SmeltFormula.astro';
+
+Do the gains of Looped Transformers come from the looped architecture itself, or from the extra compute they spend?
+
+A standard Transformer executes each layer only once, whereas <strong>a Looped Transformer executes some of its layers repeatedly, giving the model deeper computation without adding parameters.</strong> The idea has already shown considerable promise on tasks such as reasoning and math. But every extra pass costs extra compute, and most comparisons so far fix only model size, mixing the architecture’s own advantage with the extra compute it spends.
+
+<SmeltHero language="en" />
+
+<p><strong>To tell whether looping itself helps, a comparison has to match compute, parameters, and KV cache at the same time.</strong></p>
+
+So we study looping on MoE Transformers while closely matching per-token FLOPs, total non-embedding parameters, and KV cache. A series of ablations leads to a loop recipe we call SMELT, which we compare with the Baseline pair by pair across 4 model sizes × 4 sparsity levels, up to 54B total parameters (excluding embeddings). To our knowledge, this is the first multi-scale study of block-level looping that matches all three budgets at once and fits a separate scaling law to each architecture. <strong>SMELT reaches lower validation loss than the Baseline in all 16 matched configurations, and on the compute-optimal frontier it needs 6.8%–18.0% less training compute to reach the same loss.</strong>
+
+<h2 id="budget">The Budget-Matching Framework</h2>
+
+A fair comparison has to control three quantities at once: per-token FLOPs, which determine training and inference cost; total parameters, which bound knowledge capacity; and the KV cache, which limits the context length that can be served.
+
+We use MoE to decouple parameters from compute. The matching works as follows: (1) make the model narrower or shallower to offset the extra computation of the repeated passes; (2) add experts to make up the total parameter count; and (3) adjust the attention configuration (GQA ratio and head dimension) to match the KV cache.
+
+<SmeltFigure id="recipe" language="en" />
+
+<h2 id="recipe">The Optimal Loop Recipe</h2>
+
+Under these budget-matching rules, we search at small scale over the loop span, the effective depth-to-width ratio, and the loop count, in that order, and reach the following conclusions.
+
+1\) <strong>Looping the middle 50% of layers gives the lowest validation loss.</strong> We vary the fraction of looped layers from 0% (no looping) to 100% (every layer looped). Validation loss is lowest at around 50%. We conjecture that the first and last layers serve specialized roles, so keeping independent parameters for these layers may work better than sharing them.
+
+<SmeltFigure id="loop-span" language="en" />
+
+2\) <strong>Looped models have a larger optimal effective depth-to-width ratio than unlooped models.</strong> With the loop span fixed at 50%, we compare different effective depth-to-width ratios (executed depth divided by model width). The looped model’s optimal ratio is larger. We conjecture that this may be related to parameter sharing: the extra executed depth adds no new parameters, and the same shared parameters receive gradient signals from both “shallow” and “deep” positions. This multi-depth gradient signal may make deeper configurations easier to optimize than an equally deep stack of independently parameterized layers.
+
+<SmeltFigure id="depth-width" language="en" />
+
+3\) <strong>Looping twice gives the largest gain.</strong> We sweep the loop count from one to four and find that two is best. Because FLOPs must stay matched, each additional loop makes the model narrower still; we attribute the regression of three and four loops relative to two to this narrowing, though both still beat the Baseline.
+
+<SmeltFigure id="loop-count" language="en" />
+
+Combining these three findings, we name the final recipe SMELT: in a sparse MoE model, loop the middle half of the layers twice and use a larger effective depth-to-width ratio.
+
+<h2 id="scaling">Quantifying the Extra Gain with Scaling Laws</h2>
+
+We scale the SMELT recipe to four model sizes (named after the Baseline’s active non-embedding parameter count per token: 100M, 200M, 600M, and 1.6B), each at four sparsity levels; higher sparsity adds experts to raise total parameters while the parameters activated per token stay fixed. Total parameters (excluding embeddings) reach up to 54B. For every combination, we train a Baseline and a SMELT model under matched budgets. SMELT reaches lower validation loss in all 16 matched configurations.
+
+<SmeltFigure id="loss-compute" language="en" />
+
+To quantify how the advantage changes with scale, we fit a separate Chinchilla-style scaling law to each architecture:
+
+<SmeltFormula language="en" />
+
+Here <var>E</var> is the irreducible loss. The capacity term in the middle depends on per-token FLOPs <var>F</var> and sparsity <var>S</var>, and shrinks as <var>F</var> grows or <var>S</var> rises. The final data term depends on the number of training tokens <var>D</var> and shrinks as data grows. The Baseline and SMELT each get their own six coefficients (<var>E</var>, <var>A</var>, <var>K</var>, <var>a</var>, <var>b</var>, <var>c</var>).
+
+<SmeltFigure id="coefficients" language="en" />
+
+The fits show that SMELT has both a larger capacity exponent <var>a</var> (0.3892 vs. 0.3703) and a larger data exponent <var>c</var> (0.7011 vs. 0.6594) than the Baseline, meaning that SMELT’s loss falls faster as compute and data grow. On the compute-optimal frontier, from 10²⁰ FLOPs up to the top of the fitted range (about 2.2×10²¹ FLOPs), SMELT needs less training compute than the Baseline to reach the same loss: it saves 6.8%–10.0% at 10²⁰ FLOPs and 14.7%–18.0% at 10²¹ FLOPs, depending on sparsity (S ≈ 85%–97%; the S = 0 level is not in the fit). By the fitted point estimates, the savings grow with the compute budget.
+
+<SmeltFigure id="frontier" language="en" />
+
+<h2 id="downstream">Gains on Downstream Tasks</h2>
+
+We evaluate downstream tasks such as DCLM and MMLU, and SMELT does better in the vast majority of matched pairs (16 configurations × 6 training horizons, 96 in all): all 96 on DCLM Completion and 83 on DCLM Core. On MMLU, it wins 29 of the 30 pairs whose Baseline scores clearly above chance.
+
+<SmeltFigure id="dclm-core" language="en" />
+
+<SmeltFigure id="mmlu" language="en" />
+
+More notably, these downstream gains do not come only from lower loss. We first fit a curve mapping validation loss to downstream score on the Baseline runs, then place the SMELT points on the same plot. <strong>At the same validation loss, SMELT’s mean result on each of the three metrics, at every scale, is better than the Baseline curve predicts,</strong> and on DCLM Core and DCLM Completion, measured against this curve fitted across all four scales, the gap widens with scale (although the same-scale Baseline’s own residual against the curve also rises with scale).
+
+<SmeltFigure id="beyond-loss" language="en" />
+
+We then examine how the gain from looping is distributed across domains and tasks.
+
+On validation loss, the more structured the domain, the larger the gain: Code leads, Finance and Math/STEM follow, and Knowledge and Web gain the least. Long texts also gain noticeably more than short ones: samples longer than 256 tokens gain about 1.5× as much as samples of 256 tokens or fewer. As a control, adding experts or parameters does not produce this length dependence, indicating that it is a property specific to looping.
+
+<SmeltFigure id="domain-gain" language="en" />
+
+<SmeltFigure id="length-gain" language="en" />
+
+On downstream tasks, SMELT’s advantage over the Baseline widens markedly once in-context examples are given (on the 16-task average, the gap rises from 0.9 points with no examples to 1.9 points with one) and then roughly holds up to 8 examples. On Dyck Languages, a task that relies heavily on its examples, the two are roughly level up to 4 examples; the gap then opens gradually from 8 examples on, reaching 29.8% vs. 26.4% at 32 examples.
+
+<SmeltFigure id="icl-gain" language="en" />
+
+<h2 id="mechanism">Inside the Loop</h2>
+
+Next, we examine how the second visit through the looped layers differs from the first, from three angles: expert routing, the residual stream, and attention patterns.
+
+<strong>Expert routing.</strong> The second visit reuses some of the experts chosen on the first, and the overlap between the two visits’ expert sets is far above chance.
+
+<SmeltFigure id="expert-reuse" language="en" />
+
+<strong>Residual-stream updates.</strong> The second visit consistently writes a larger update to the residual stream than the first. The two updates point in partly overlapping but different directions (at 1.6B and S ≈ 85%, the cosine between the two visits’ updates at the same physical layer averages about 0.56, against about 0.16 between different layers). We read this as the second visit amplifying the signal the first visit established rather than overriding it.
+
+<SmeltFigure id="residual-flow" language="en" />
+
+<strong>Attention retrieval.</strong> Between the two visits, the queries (Q) and the keys (K) each reach a cosine similarity as high as 0.89–0.93, so the model attends to largely the same positions. The change happens mainly in the values (V) and the outputs computed from them. In other words, the second visit still “looks in the same place,” but what it “reads” has changed.
+
+<SmeltFigure id="attention-stages" language="en" />
+
+<strong>Case study: Dyck language.</strong> Dyck Languages is a bracket-matching task in which the model must locate the relevant answers in the given examples to predict correctly. We find that a key attention head concentrates on the BOS token on the first visit, while on the second visit the same head attends to the answer positions.
+
+<SmeltFigure id="dyck-attention" language="en" />
+
+In the Baseline, the attention sink grows stronger with depth. The looped architecture shows the opposite trend: on the second visit, the attention sink weakens instead. We believe the attention freed by the weaker sink on the second visit goes to content-relevant positions, though the direct evidence is the Dyck head above, whose attention moves from BOS to the example answers; we further conjecture that this may relate to SMELT’s advantage in in-context learning.
+
+<SmeltFigure id="attention-sink" language="en" />
+
+<h2 id="conclusion">Summary</h2>
+
+Under matched budgets, our scaling laws and downstream evaluations point to the same conclusion: for MoE Transformers, looping still yields a net gain. The mechanistic analysis offers descriptive clues to where that gain comes from. Current limitations include the limited scale of the ablations and the lack of system-level optimization for wall-clock efficiency.
+
+Looking ahead, we hope this budget-matching protocol and the SMELT recipe can give the looped-model community a reference experimental setup and point of comparison. Building on it, future work can explore more architectural variants under fair conditions.

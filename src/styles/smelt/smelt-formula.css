@@ -1,0 +1,19 @@
+/* SmeltFormula: interactive terms. The term tones are neutral on purpose:
+   Figure 6 already uses blue / coral for Baseline / SMELT, so a term is told
+   apart by weight instead (capacity = strong, data = light, E = grey), the same
+   weights its bar segments use. */
+.smelt-formula[data-smelt-formula] .term-e { --term: var(--plot-neutral); }
+.smelt-formula[data-smelt-formula] .term-capacity { --term: var(--plot-ink); }
+.smelt-formula[data-smelt-formula] .term-data { --term: color-mix(in srgb, var(--plot-ink) 42%, var(--paper)); }
+.smelt-formula[data-smelt-formula] .term { cursor: pointer; transition: background 200ms var(--smelt-ease), opacity 200ms var(--smelt-ease), box-shadow 200ms var(--smelt-ease); }
+.smelt-formula[data-smelt-formula] .term[data-active] { background: color-mix(in srgb, var(--plot-ink) 8%, transparent); box-shadow: inset 0 -2px 0 var(--term); }
+.smelt-formula[data-smelt-formula][data-active] .term:not([data-active]),
+.smelt-formula[data-smelt-formula][data-active] .smelt-formula-key > button:not([data-active]) { opacity: .42; }
+.smelt-formula-lhs { white-space: nowrap; }
+
+.smelt-formula-key > button { display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 999px; padding: 2px 9px 2px 7px; background: none; color: var(--muted); font: inherit; line-height: inherit; cursor: pointer; transition: color 180ms var(--smelt-ease), background 180ms var(--smelt-ease), opacity 200ms var(--smelt-ease); }
+.smelt-formula-key > button::before { content: ''; width: 14px; height: 2px; background: var(--term); }
+.smelt-formula-key > button:hover, .smelt-formula-key > button[data-active] { color: var(--ink); }
+.smelt-formula-key > button[aria-pressed="true"] { background: var(--highlight); color: var(--ink); }
+.smelt-formula-key > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 600px) { .smelt-formula[data-smelt-formula] sup { font-size: 12px; } }

@@ -1,0 +1,14 @@
+---
+import type { Language } from '../lib/site';
+interface Props { language: Language }
+const { language } = Astro.props;
+---
+<label class="theme-switch" for="site-theme" data-theme-control hidden>
+  <span class="sr-only">{language === 'zh' ? '外观主题' : 'Color theme'}</span>
+  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.5" /><path d="M12 4a8 8 0 0 0 0 16Z" fill="currentColor" /></svg>
+  <select id="site-theme" data-theme-select>
+    <option value="system">{language === 'zh' ? '跟随系统' : 'System'}</option>
+    <option value="light">{language === 'zh' ? '浅色' : 'Light'}</option>
+    <option value="dark">{language === 'zh' ? '深色' : 'Dark'}</option>
+  </select>
+</label>

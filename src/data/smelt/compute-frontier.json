@@ -1,0 +1,163 @@
+{
+ "provenance": {
+  "paperRepository": "papers/smelt (arXiv 2609.01343)",
+  "paperCommit": "668dbc2",
+  "sources": {
+   "img/frontier_ce_gain/raw.json": "89702bd10eaea49aea072f49e67f7b15098c8bbd4e0514e2e902473fba90c0a6",
+   "raw_data/scaling_analysis/analysis/separate_scaling/bootstrap_gamma_ce_gain.json": "a6766cff535079c00d93348a86150b58139d7c5dfdc7dec76fb81ab9712724a4",
+   "raw_data/scaling_analysis/analysis/separate_scaling/result.json": "0acea6dacfdb3748890e44d2a1ac41a2e8732ac49214d368ccb0a8e647a89357"
+  },
+  "note": "Coefficients and fitted compute window from img/frontier_ce_gain/raw.json at full precision; x range and annotated budget from its render block. CE Gain points and cell-bootstrap 95% intervals (2,000 draws) from bootstrap_gamma_ce_gain.json; they equal tab:ce-gain after rounding (points to 0.1 pp, intervals to whole percent). Tokens-per-parameter (TPP) values from result.json, used only as a cross-check of the allocation the page computes. The page evaluates F* (Eq. 4), the frontier L*(C, S) and CE Gain (Eq. 6) itself in closed form.",
+  "paperTable": "sections/scaling_law.tex, tab:ce-gain and tab:tpp"
+ },
+ "coefficients": {
+  "baseline": {
+   "E": 1.4438877690706116,
+   "A": 1366.4262718303175,
+   "K": 1974771.8694127838,
+   "a": 0.3702804247685235,
+   "b": 0.153,
+   "c": 0.6593805747617105,
+   "gamma": 0.23712243099259991
+  },
+  "smelt": {
+   "E": 1.4492821246876508,
+   "A": 1963.3818903833926,
+   "K": 5263601.907272269,
+   "a": 0.3891648625400216,
+   "b": 0.146,
+   "c": 0.7011254023655156,
+   "gamma": 0.25025755032173314
+  }
+ },
+ "gammaCi95": {
+  "baseline": [
+   0.22455450377985234,
+   0.25459054143864285
+  ],
+  "smelt": [
+   0.21202359256438344,
+   0.2879699019949738
+  ],
+  "probSmeltHigher": 0.706
+ },
+ "evaluationSparsity": [
+  0.85,
+  0.95,
+  0.97
+ ],
+ "fittedWindow": [
+  1.2968354718374953e+19,
+  2.225122268454385e+21
+ ],
+ "xlim": [
+  1e+19,
+  1e+22
+ ],
+ "annotatedBudget": 1e+21,
+ "defaultSparsity": 0.97,
+ "ceGain": {
+  "0.85": [
+   {
+    "C": 1e+20,
+    "point": 9.952741778463214,
+    "ci95": [
+     1.0235821842349766,
+     21.544633016753806
+    ],
+    "probPositive": 0.989
+   },
+   {
+    "C": 1e+21,
+    "point": 18.033850343909606,
+    "ci95": [
+     8.180362382449172,
+     28.013882107917315
+    ],
+    "probPositive": 0.9995
+   },
+   {
+    "C": 1e+22,
+    "point": 23.464784372319556,
+    "ci95": [
+     8.171416058420391,
+     42.384459286273284
+    ],
+    "probPositive": 0.989
+   }
+  ],
+  "0.95": [
+   {
+    "C": 1e+20,
+    "point": 7.797980657786097,
+    "ci95": [
+     3.3738539623331105,
+     14.91666615932454
+    ],
+    "probPositive": 1.0
+   },
+   {
+    "C": 1e+21,
+    "point": 15.77104151236951,
+    "ci95": [
+     10.25469339933434,
+     24.656663038684584
+    ],
+    "probPositive": 0.9995
+   },
+   {
+    "C": 1e+22,
+    "point": 20.860138156176568,
+    "ci95": [
+     0.0,
+     48.08123639963043
+    ],
+    "probPositive": 0.9695
+   }
+  ],
+  "0.97": [
+   {
+    "C": 1e+20,
+    "point": 6.7628921998958536,
+    "ci95": [
+     3.511234799808637,
+     13.57247459295316
+    ],
+    "probPositive": 1.0
+   },
+   {
+    "C": 1e+21,
+    "point": 14.672606228359552,
+    "ci95": [
+     8.138812113157307,
+     25.007602785057546
+    ],
+    "probPositive": 0.998
+   },
+   {
+    "C": 1e+22,
+    "point": 19.578182304453573,
+    "ci95": [
+     0.0,
+     51.07154142387927
+    ],
+    "probPositive": 0.951
+   }
+  ]
+ },
+ "bootstrapDraws": 2000,
+ "tpp1e21": {
+  "0.85": {
+   "baseline": 56.411778093256714,
+   "smelt": 55.96087144008554
+  },
+  "0.95": {
+   "baseline": 78.19215087884521,
+   "smelt": 75.10457794401395
+  },
+  "0.97": {
+   "baseline": 91.01088186345933,
+   "smelt": 86.11555976826509
+  }
+ }
+}

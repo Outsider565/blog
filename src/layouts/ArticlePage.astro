@@ -1,0 +1,88 @@
+---
+import { render, type CollectionEntry } from 'astro:content';
+import SiteLayout from './SiteLayout.astro';
+import Title from '../components/Title.astro';
+import FigureViewer from '../components/article/FigureViewer.astro';
+import CiteThisWork from '../components/article/CiteThisWork.astro';
+import { blogPath, dateLabel } from '../lib/site';
+import ThemeSwitcher from '../components/ThemeSwitcher.astro';
+import '../styles/article.css';
+import '../styles/charts.css';
+interface Props { post: CollectionEntry<'blog'> }
+const { post } = Astro.props;
+const { Content, headings } = await render(post);
+const { language, title, titleEmphasis, subtitle, description, urlSlug, category, published } = post.data;
+const sections = post.data.sections || headings.filter(heading => heading.depth === 2).map(heading => ({ id: heading.slug, title: heading.text }));
+type Byline = { names: { name: string; markers: string }[]; affiliations: { marker: string; name: string }[]; roles: string[] };
+const bylines = import.meta.glob<Record<'zh' | 'en', Byline>>('../data/*/authors.json', { eager: true, import: 'default' });
+const citations = import.meta.glob<string>('../data/*/citation.bib', { eager: true, query: '?raw', import: 'default' });
+const byline = bylines[`../data/${urlSlug}/authors.json`]?.[language];
+const bibtex = citations[`../data/${urlSlug}/citation.bib`];
+const article = {
+  published, updated: post.data.updated,
+  authors: byline?.names.map(author => author.name) || [post.data.author],
+  section: category, tags: post.data.tags, citation: post.data.paper,
+};
+---
+<SiteLayout title={title} description={description} language={language} slug={urlSlug} article={article}>
+  <main id="main" class="article-shell">
+    <article>
+      <header class="article-header" id="article-top">
+        <div class="article-tools">
+          <span class="language-switch" aria-label={language === 'zh' ? '语言' : 'Language'}>
+            <a href={blogPath('zh', urlSlug)} lang="zh-CN" hreflang="zh-CN" aria-current={language === 'zh' ? 'page' : undefined} data-language="zh">中文</a>
+            <span aria-hidden="true">/</span>
+            <a href={blogPath('en', urlSlug)} lang="en" hreflang="en" aria-current={language === 'en' ? 'page' : undefined} data-language="en">EN</a>
+          </span>
+          <ThemeSwitcher language={language} />
+        </div>
+        <div class="article-meta"><span>{category}</span><span aria-hidden="true">/</span><time datetime={published.toISOString()}>{dateLabel(published, language)}</time></div>
+        <h1><Title text={title} emphasis={titleEmphasis} /></h1>
+        <p class="article-subtitle">{subtitle}</p>
+        {byline ? <div class="byline">
+          <p class="author-names">{byline.names.map(author => <span>{author.name}<sup>{author.markers}</sup></span>)}</p>
+          <p class="affiliations">{byline.affiliations.map(affiliation => <span><sup>{affiliation.marker}</sup> {affiliation.name}</span>)}</p>
+          <p class="author-roles">{byline.roles.map(role => <span>{role}</span>)}</p>
+        </div> : <p class="byline">{post.data.author}</p>}
+        {post.data.translationNotice && <p class="translation-notice">{post.data.translationNotice}</p>}
+        <div class="article-resources">{post.data.paper && <a href={post.data.paper} target="_blank" rel="noopener noreferrer">{language === 'zh' ? '论文' : 'Paper'} ↗</a>}{post.data.repository && <a href={post.data.repository} target="_blank" rel="noopener noreferrer">{language === 'zh' ? '训练代码' : 'Training code'} ↗</a>}{bibtex && <a href="#citation">{language === 'zh' ? '引用' : 'Cite'} ↓</a>}</div>
+      </header>
+      <div class="reading-layout">
+        <aside class="article-toc" aria-label={language === 'zh' ? '文章目录' : 'Article contents'}>
+          <details open>
+            <summary>{language === 'zh' ? '目录' : 'On this page'}<span aria-hidden="true">↗</span></summary>
+            <nav><a href="#article-top">{language === 'zh' ? '开篇' : 'Introduction'}</a>{sections.map(section => <a href={`#${section.id}`}>{section.title}</a>)}{bibtex && <a href="#citation">{language === 'zh' ? '引用' : 'Cite this work'}</a>}</nav>
+          </details>
+        </aside>
+        <div class="article-prose" data-article-body>
+          <Content />
+          {bibtex && <CiteThisWork language={language} bibtex={bibtex} />}
+          <div class="article-end"><span aria-hidden="true">✳</span></div>
+        </div>
+      </div>
+    </article>
+  </main>
+  <FigureViewer language={language} />
+</SiteLayout>
+<script src="../scripts/language.ts"></script>
+<script>
+  const contents = document.querySelector<HTMLDetailsElement>('.article-toc details');
+  if (contents && matchMedia('(max-width: 1100px)').matches) contents.open = false;
+  const links = [...document.querySelectorAll<HTMLAnchorElement>('.article-toc nav a')];
+  for (const link of links) link.addEventListener('click', () => {
+    if (contents && matchMedia('(max-width: 1100px)').matches) contents.open = false;
+  });
+  const observer = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      for (const link of links) {
+        if (link.hash === `#${entry.target.id}`) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
+      }
+    }
+  }, { rootMargin: '-10% 0px -65% 0px' });
+  for (const link of links) {
+    const section = document.getElementById(link.hash.slice(1));
+    if (section) observer.observe(section);
+  }
+</script>

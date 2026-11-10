@@ -1,0 +1,69 @@
+/* Figure 13: SMELT's lead vs number of in-context examples. */
+.icl-gain { --ig-other: color-mix(in srgb, var(--plot-axis) 55%, transparent); --ig-selected: var(--plot-ink); }
+.icl-gain .ig-stats { margin: 0 0 18px; }
+.icl-gain .ig-controls { margin-bottom: 14px; }
+.ig-select {
+  appearance: none; -webkit-appearance: none;
+  min-width: 13em; padding: 5px 30px 5px 13px;
+  border: 1px solid var(--border-strong); border-radius: 999px;
+  background: var(--paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2373766e' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat right 12px center;
+  color: var(--ink); font: 12px/1.5 var(--sans); cursor: pointer;
+}
+.ig-select:hover { border-color: var(--accent); }
+.ig-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.icl-gain .ig-panels { gap: 22px 30px; }
+.icl-gain .smelt-panel p { margin-bottom: 4px; }
+.icl-gain .ig-legend { margin: 0 0 6px; gap: 2px 14px; }
+.icl-gain .ig-legend > span { gap: 6px; }
+.icl-gain .ig-key-mean { color: var(--smelt-gain); }
+.icl-gain .ig-key-mean .smelt-swatch { border-top-width: 3px; }
+.icl-gain .ig-key-selected { color: var(--ig-selected); }
+.icl-gain .ig-legend > span[hidden] { display: none; }
+.icl-gain .ig-key-other { color: var(--plot-axis); }
+.icl-gain .ig-key-other .smelt-swatch { border-top-width: 1px; }
+.icl-gain .ig-legend .is-base .smelt-swatch, .icl-gain .ig-legend .is-loop .smelt-swatch { width: 14px; margin-right: -10px; }
+.icl-gain .ig-swatch-dashed { border-top-style: dashed !important; }
+.icl-gain .ig-key-gap { color: var(--smelt-gain); }
+.ig-swatch-gap { display: inline-block; width: 0; height: 12px; border-left: 2px solid currentColor; }
+
+.ig-chart .ig-extra { fill: color-mix(in srgb, var(--ink) 3.5%, transparent); }
+.ig-chart .ig-extra-label { fill: var(--plot-muted); font-family: var(--sans); font-size: 12.5px; }
+.ig-chart .ig-zero { stroke: var(--plot-axis); stroke-width: 1.2; }
+
+.ig-chart .ig-task { cursor: pointer; }
+.ig-chart .ig-task-hit { fill: none; stroke: transparent; stroke-width: 12; stroke-linejoin: round; pointer-events: stroke; }
+.ig-chart .ig-task-line { fill: none; stroke: var(--ig-other); stroke-width: 1.2; stroke-linejoin: round; transition: stroke 240ms var(--smelt-ease), stroke-width 240ms var(--smelt-ease); }
+.ig-chart .ig-task-dot { fill: var(--ig-selected); stroke: var(--paper); stroke-width: 1.2; opacity: 0; transition: opacity 240ms var(--smelt-ease); pointer-events: none; }
+.ig-chart .ig-task:hover .ig-task-line, .ig-chart .ig-task:focus-visible .ig-task-line { stroke: var(--plot-muted); stroke-width: 1.8; }
+.ig-chart .ig-task[data-selected] .ig-task-line { stroke: var(--ig-selected); stroke-width: 2.2; }
+.ig-chart .ig-task[data-selected] .ig-task-dot { opacity: 1; }
+.ig-chart .ig-task[data-selected] { cursor: default; }
+.ig-chart .ig-mean { cursor: default; }
+.ig-chart .ig-mean-line { fill: none; stroke: var(--smelt-gain); stroke-width: 3; stroke-linejoin: round; }
+.ig-chart .ig-mean-dot { fill: var(--smelt-gain); stroke: var(--paper); stroke-width: 1.4; pointer-events: none; }
+.ig-chart .ig-task:focus-visible .ig-task-hit, .ig-chart .ig-mean:focus-visible .ig-task-hit { stroke: color-mix(in srgb, var(--accent) 25%, transparent); }
+
+.ig-chart .ig-end { font-family: var(--sans); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.ig-chart .ig-end-mean { fill: var(--smelt-gain); }
+.ig-chart .ig-end-selected { fill: var(--ig-selected); }
+.ig-chart .ig-end[hidden] { display: none; }
+.ig-chart .ig-base-line { stroke-dasharray: 6 4; }
+.ig-chart .ig-connector { stroke: var(--smelt-gain); stroke-width: 2; opacity: .6; }
+.ig-chart .ig-connector.is-negative { stroke: var(--plot-axis); }
+.ig-chart [data-pad] { opacity: 0; }
+.ig-chart .ig-guide { stroke: var(--plot-axis); stroke-width: 1; }
+.ig-chart .ig-col .hit { cursor: crosshair; }
+.ig-chart .ig-col:focus-visible .hit { stroke: var(--accent); stroke-width: 1.5; }
+.ig-chart .ig-tick { transition: opacity 200ms var(--smelt-ease); }
+
+.icl-gain .ig-readout { margin-top: 12px; color: var(--ink); }
+.icl-gain .smelt-data { margin-top: 10px; }
+
+/* Phone: headline numbers as a ruled list, value beside its label. */
+@container smelt-figure (width < 560px) {
+  .icl-gain .ig-stats { grid-template-columns: minmax(0, 1fr); }
+  .icl-gain .ig-stats .smelt-stat { display: grid; grid-template-columns: 5.2em minmax(0, 1fr); align-items: baseline; gap: 10px; padding: 9px 0 8px; border-left: 0; border-bottom: 1px solid var(--line); }
+  .icl-gain .ig-stats .smelt-stat + .smelt-stat { padding-left: 0; border-left: 0; }
+  .icl-gain .ig-stats .smelt-stat-value { font-size: 22px; }
+  .icl-gain .ig-stats .smelt-stat-label { margin-top: 0; }
+}

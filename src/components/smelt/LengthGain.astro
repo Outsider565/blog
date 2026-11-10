@@ -1,0 +1,100 @@
+---
+// Figure 12: normalized gain by sample length for SMELT and two Baseline-only controls.
+import data from '../../data/smelt/length-gain.json';
+import { bucketLabel, bucketTip, geometry, valueWithSem, half, halfSegments, halves, labelPositions, lengthCopy, ratioLabel, seriesKeys, seriesPaths, stepOf, xAt, yScale, yTicks, type Variant } from '../../lib/smelt/length-gain';
+import type { Language } from '../../lib/site';
+import '../../styles/smelt/length-gain.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language } = Astro.props;
+const text = lengthCopy(language);
+const uid = `lg-${language}-${Math.random().toString(36).slice(2, 8)}`;
+const variants: Variant[] = ['wide', 'narrow'];
+const statClass = { loop: 'is-loop', size: 'is-neutral', experts: 'is-neutral' } as const;
+---
+<div class="length-gain" data-length-gain data-language={language}>
+  <div class="smelt-stats lg-stats">
+    {seriesKeys.map(key => <div class="smelt-stat" data-lg-stat={key}>
+      <span class:list={['smelt-stat-value', statClass[key]]} data-lg-ratio={key}>{ratioLabel(halves(key).ratio)}</span>
+      <span class="smelt-stat-label">{text.stat[key]}</span>
+    </div>)}
+  </div>
+  <div class="smelt-controls lg-controls">
+    <div class="smelt-legend lg-legend" role="group" aria-label={text.legend}>
+      {seriesKeys.map(key => <button type="button" data-lg-toggle={key} class={`lg-key-${key}`}><i class={`lg-swatch lg-swatch-${key}`} aria-hidden="true"><b></b></i>{text.seriesLong[key]}</button>)}
+    </div>
+  </div>
+  {variants.map(variant => {
+    const g = geometry[variant];
+    const y = yScale(variant);
+    const wide = variant === 'wide';
+    const step = stepOf(variant);
+    const divider = g.x0 + half * step;
+    const labels = labelPositions(variant, seriesKeys);
+    const clip = `${uid}-${variant}`;
+    return <svg class:list={['smelt-chart', 'lg-chart', `lg-${variant}`]} data-variant={variant} viewBox={`0 0 ${g.width} ${g.height}`} role="group" aria-label={text.aria} data-reveal>
+      <defs><clipPath id={clip}><rect class="reveal-grow-x" x={g.x0 - 12} y={g.y1 - 20} width={g.x1 - g.x0 + 24} height={g.y0 - g.y1 + 40} /></clipPath></defs>
+      <rect class="lg-long-region" x={divider} y={g.y1 - 30} width={g.x1 - divider} height={g.y0 - g.y1 + 30} />
+      {yTicks.map(value => <line class="grid" x1={g.x0} x2={g.x1} y1={y(value)} y2={y(value)} />)}
+      <line class="lg-ref" x1={g.x0} x2={g.x1} y1={y(1)} y2={y(1)} />
+      <line class="lg-divider" x1={divider} x2={divider} y1={g.y1 - 30} y2={g.y0} />
+      <text class="lg-region" x={(g.x0 + divider) / 2} y={g.y1 - 12} text-anchor="middle">{text.short}</text>
+      <text class="lg-region" x={(divider + g.x1) / 2} y={g.y1 - 12} text-anchor="middle">{text.long}</text>
+      {yTicks.map(value => <text x={g.x0 - 10} y={y(value) + 4.5} text-anchor="end" class:list={[{ 'lg-tick-ref': value === 1 }]}>{value.toFixed(1)}</text>)}
+      {data.buckets.map((value, index) => <text x={xAt(variant, index)} y={g.y0 + 21} text-anchor="middle">{bucketLabel(value, !wide)}</text>)}
+      <path class="axis" d={`M${g.x0} ${g.y0}H${g.x1}`} />
+      <text class="axis-title" x={(g.x0 + g.x1) / 2} y={g.y0 + 47} text-anchor="middle">{wide ? text.xAxis : text.xAxisShort}</text>
+      {wide
+        ? <text class="axis-title" transform={`translate(16 ${(g.y0 + g.y1) / 2}) rotate(-90)`} text-anchor="middle">{text.yAxis}{language === 'zh' ? '（1.0 = 平均）' : ' (1.0 = mean)'}</text>
+        : <text class="axis-title" x="0" y="16">{text.yAxis}{language === 'zh' ? '（1.0 = 平均）' : ' (1.0 = mean)'}</text>}
+      <line class="lg-guide" x1="0" x2="0" y1={g.y1 - 4} y2={g.y0} visibility="hidden" />
+      {[...seriesKeys].reverse().map(key => {
+        const paths = seriesPaths(variant, key);
+        const h = halves(key);
+        const segments = halfSegments(variant, h.short, h.long);
+        const order = seriesKeys.indexOf(key);
+        return <g class="lg-series" data-series={key}>
+          <g clip-path={`url(#${clip})`}>
+            <path class="lg-band" d={paths.band} />
+            <path class="lg-line" d={paths.line} />
+            {paths.points.map(([cx, cy], index) => key === 'experts'
+              ? <rect class="lg-dot" data-index={index} x={cx - 3.6} y={cy - 3.6} width="7.2" height="7.2" />
+              : <circle class="lg-dot" data-index={index} cx={cx} cy={cy} r={key === 'loop' ? 4.2 : 3.8} />)}
+          </g>
+          <line class="lg-half reveal-fade" data-half="short" x1={segments.short.x1} x2={segments.short.x2} y1={segments.short.y} y2={segments.short.y} style={`--i: ${6 + order}`} />
+          <line class="lg-half reveal-fade" data-half="long" x1={segments.long.x1} x2={segments.long.x2} y1={segments.long.y} y2={segments.long.y} style={`--i: ${6 + order}`} />
+          {wide && <g class="lg-direct reveal-fade" style={`--i: ${8 + order}`}>
+            <path class="lg-leader" d={`M${segments.long.x2 + 3} ${segments.long.y}L${g.x1 + 8} ${labels[key]}`} />
+            <text x={g.x1 + 12} y={labels[key] + 4.5}><tspan class="lg-direct-name">{text.direct[key]}</tspan><tspan class="lg-direct-ratio" dx="6" data-lg-direct-ratio>{ratioLabel(h.ratio)}</tspan></text>
+          </g>}
+        </g>;
+      })}
+      {data.buckets.map((_, index) => <g class="lg-col" data-index={index} data-tip={bucketTip(index, language)}>
+        <rect class="hit" x={xAt(variant, index) - step / 2} y={g.y1 - 4} width={step} height={g.y0 - g.y1 + 4} />
+      </g>)}
+    </svg>;
+  })}
+  <p class="smelt-readout lg-definition">{language === 'zh'
+    ? '归一化收益：每组对比在某个长度区间上的损失下降，除以它在全部 8 个区间上的平均下降；阴影为跨对比的标准误，虚线为 SMELT 在短、长两半样本上的平均。'
+    : "Normalized gain: a contrast's loss improvement in one length bucket, divided by its mean improvement over all 8 buckets; bands show the standard error across contrasts, and dashed segments mark SMELT's mean over the short and long halves."}</p>
+  <details class="disclosure smelt-data">
+    <summary>{language === 'zh' ? '查看各长度区间的数值' : 'Values for every length bucket'}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="disclosure-body">
+      <div class="data-scroll" tabindex="0" role="region" aria-label={text.aria}>
+        <table class="data-table">
+          <thead><tr><th scope="col">{language === 'zh' ? '长度上界（token）' : 'Upper bound (tokens)'}</th>{seriesKeys.map(key => <th scope="col">{text.series[key]}</th>)}</tr></thead>
+          <tbody>
+            {data.buckets.map((value, index) => <tr><th scope="row">{value}</th>{seriesKeys.map(key => <td>{valueWithSem(data.series[key].shape[index] ?? 0, data.series[key].sem[index] ?? 0)}</td>)}</tr>)}
+            <tr data-highlight><th scope="row">{language === 'zh' ? '长 ÷ 短' : 'Long ÷ short'}</th>{seriesKeys.map(key => <td><strong>{ratioLabel(halves(key).ratio)}</strong></td>)}</tr>
+          </tbody>
+        </table>
+      </div>
+      <p>{language === 'zh'
+        ? `对比组数：SMELT vs 基线 ${data.series.loop.n} 组，增加参数 ${data.series.size.n} 组（同稀疏度下相邻规模），增加专家 ${data.series.experts.n} 组（同规模下相邻稀疏度）。`
+        : `Contrasts: SMELT vs Baseline ${data.series.loop.n}, More parameters ${data.series.size.n} (adjacent scales at the same sparsity), More experts ${data.series.experts.n} (adjacent sparsities at the same scale).`}</p>
+    </div>
+  </details>
+  <div hidden><slot /></div>
+</div>
+<script>
+  import '../../scripts/smelt/length-gain';
+</script>

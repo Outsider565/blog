@@ -1,0 +1,175 @@
+---
+// Figure 7: compute-optimal frontiers of the two fitted laws (Eq. 4-5), with the
+// CE Gain (Eq. 6) at a scrubbable budget, magnified in a lens, and CE Gain vs. C.
+import data from '../../data/smelt/compute-frontier.json';
+import { computeFrontierCopy } from '../../lib/smelt/compute-frontier-copy';
+import { dimensionPath, fitWindow, formatGain, formatSparsity, frontierSeries, gainSeries, gainTicks, gapDimension, layouts, lensText, lossTicks, markerGeometry, minorTicks, scales, seriesPath, snapshot, sparsities, spreadLabels, tableBudgets, whiskers, xLimit, type Variant } from '../../lib/smelt/compute-frontier';
+import { billions, sci, supHtml } from '../../lib/smelt/scaling-fit';
+import { decadeTicks } from '../../lib/smelt/plot';
+import type { Language } from '../../lib/site';
+import '../../styles/smelt.css';
+import '../../styles/smelt/compute-frontier.css';
+interface Props { language: Language; mode?: string; metric?: string }
+const { language } = Astro.props;
+const text = computeFrontierCopy[language];
+const uid = `cf-${Math.random().toString(36).slice(2, 8)}`;
+const sparsity = data.defaultSparsity;
+const compute = data.annotatedBudget;
+const state = snapshot(compute, sparsity);
+const series = { baseline: frontierSeries('baseline', sparsity), smelt: frontierSeries('smelt', sparsity) };
+const gains = Object.fromEntries(sparsities.map(value => [value, gainSeries(value)]));
+const decades = decadeTicks(xLimit[0], xLimit[1]);
+const variants: Variant[] = ['wide', 'narrow'];
+const budgetLabel = (value: number) => sci(value, 3);
+const percent = (value: number) => `${Math.round(value)}%`;
+const ci = state.table ? `[${percent(state.table.ci95[0]!)}, ${percent(state.table.ci95[1]!)}]` : '—';
+const fmtAllocation = (entry: typeof state.allocation.baseline) => ({ F: sci(entry.flops, 3), D: billions(entry.tokens), tpp: entry.tpp.toFixed(0) });
+const ariaLabel = text.ariaChart(formatGain(state.gain), budgetLabel(compute), formatSparsity(sparsity));
+const range = { min: Math.log10(xLimit[0]), max: Math.log10(xLimit[1]) };
+const whiskerLabel = (tip: string) => `${tip.replaceAll('\n', ' · ')} · ${text.whiskerAction}`;
+---
+<div class="compute-frontier" data-compute-frontier data-language={language}>
+  <div class="smelt-controls cf-controls">
+    <div class="smelt-control">
+      <span class="smelt-control-label" id={`${uid}-s`}>{text.sparsity}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`${uid}-s`} data-cf-sparsity>
+        {sparsities.map(value => <button type="button" data-value={String(value)} aria-pressed={value === sparsity ? 'true' : 'false'}>{formatSparsity(value)}</button>)}
+      </div>
+    </div>
+    <div class="smelt-control">
+      <span class="smelt-control-label" id={`${uid}-b`}>{text.budget}</span>
+      <div class="smelt-seg" role="group" aria-labelledby={`${uid}-b`} data-cf-budget>
+        {tableBudgets.map(value => <button type="button" data-value={String(value)} aria-pressed={value === compute ? 'true' : 'false'} aria-label={`${budgetLabel(value)} FLOPs`} set:html={supHtml(budgetLabel(value))} />)}
+      </div>
+    </div>
+  </div>
+
+  <div class="cf-figure" data-reveal>
+    {variants.map(variant => {
+      const layout = layouts[variant];
+      const { x, y, g } = scales(layout);
+      const marks = markerGeometry(state, layout);
+      const dim = dimensionPath(marks.lens.arrowX0 + 5 * Math.sign(marks.lens.arrowX1 - marks.lens.arrowX0), marks.lens.arrowX1 - 5 * Math.sign(marks.lens.arrowX1 - marks.lens.arrowX0), marks.lens.arrowY);
+      const lensMid = layout.lens.x + layout.lens.w / 2;
+      const lensCopy = lensText(layout);
+      const endY = spreadLabels(sparsities.map(value => g(gains[value]!.at(-1)!)), 13, layout.stripTop + 4, layout.stripBottom - 4);
+      const id = `${uid}-${variant}`;
+      const veil = [[layout.left, x(fitWindow[0])], [x(fitWindow[1]), layout.right]] as const;
+      return <svg class:list={['smelt-chart', 'cf-chart', `cf-${variant}`]} viewBox={`0 0 ${layout.width} ${layout.height}`} data-cf-variant={variant} role="group" aria-label={ariaLabel}>
+        <defs>
+          <clipPath id={`${id}-main`}><rect x={layout.left} y={layout.mainTop - 2} width={layout.right - layout.left + 30} height={layout.mainBottom - layout.mainTop + 2} /></clipPath>
+          <clipPath id={`${id}-strip`}><rect x={layout.left} y={layout.stripTop} width={layout.right - layout.left} height={layout.stripBottom - layout.stripTop} /></clipPath>
+          <clipPath id={`${id}-lens`}><rect x={layout.lens.x} y={layout.lens.y} width={layout.lens.w} height={layout.lens.h} /></clipPath>
+        </defs>
+
+        {/* grids and axes */}
+        {lossTicks.map(tick => <><line class="grid" x1={layout.left} x2={layout.right} y1={y(tick)} y2={y(tick)} /><text x={layout.left - 8} y={y(tick) + 4.5} text-anchor="end">{tick.toFixed(1)}</text></>)}
+        {gainTicks.map(tick => <><line class:list={[tick === 0 ? 'cf-zero' : 'grid']} x1={layout.left} x2={layout.right} y1={g(tick)} y2={g(tick)} /><text x={layout.left - 8} y={g(tick) + 4.5} text-anchor="end">{tick}%</text></>)}
+        {decades.map(tick => <><line class="grid" x1={x(tick)} x2={x(tick)} y1={layout.mainTop} y2={layout.mainBottom} /><line class="grid" x1={x(tick)} x2={x(tick)} y1={layout.stripTop} y2={layout.stripBottom} /></>)}
+        <path class="axis" d={`M${layout.left} ${layout.mainTop}V${layout.mainBottom}H${layout.right}M${layout.left} ${layout.stripTop}V${layout.stripBottom}H${layout.right}`} />
+        {minorTicks.map(tick => <line class="cf-minor" x1={x(tick)} x2={x(tick)} y1={layout.stripBottom} y2={layout.stripBottom + 3} />)}
+        {decades.map(tick => <><line class="axis" x1={x(tick)} x2={x(tick)} y1={layout.stripBottom} y2={layout.stripBottom + 5} /><text x={x(tick)} y={layout.xTickY} text-anchor="middle" class="cf-tick">{sci(tick)}</text></>)}
+        <text class="axis-title" x={(layout.left + layout.right) / 2} y={layout.xTitleY} text-anchor="middle">{text.xTitle}</text>
+        {layout.titlesAbove ? <>
+          <text class="axis-title" x={layout.yTitleX} y={layout.mainTop - 14}>{text.yLoss}</text>
+          <text class="axis-title" x={layout.yTitleX} y={layout.stripTop - 14}>{text.yGain}</text>
+        </> : <>
+          <text class="axis-title" transform={`translate(${layout.yTitleX} ${(layout.mainTop + layout.mainBottom) / 2}) rotate(-90)`} text-anchor="middle">{text.yLoss}</text>
+          <text class="axis-title" transform={`translate(${layout.yTitleX} ${(layout.stripTop + layout.stripBottom) / 2}) rotate(-90)`} text-anchor="middle">{text.yGain}</text>
+        </>}
+
+        {/* frontiers */}
+        <g clip-path={`url(#${id}-main)`}>
+          <path class="base-line cf-base reveal-fade" data-cf-path="baseline" d={seriesPath(series.baseline, layout, 'loss')} />
+          <path class="loop-line cf-loop reveal-draw" pathLength="1" data-cf-path="smelt" d={seriesPath(series.smelt, layout, 'loss')} />
+        </g>
+
+        {/* CE Gain vs. compute */}
+        <g clip-path={`url(#${id}-strip)`}>
+          {sparsities.map((value, index) => <path class:list={['cf-gain-line', { 'is-active': value === sparsity }, { 'reveal-draw': value === sparsity }]} pathLength={value === sparsity ? 1 : undefined} data-cf-gain={String(value)} d={seriesPath(gains[value]!, layout, 'gain')} style={`--i:${index + 4}`} />)}
+        </g>
+        {layout.endLabels && sparsities.map((value, index) => <text class:list={['cf-end-label', { 'is-active': value === sparsity }]} data-cf-gain-label={String(value)} x={layout.right + (layout.inset ? 12 : 6)} y={endY[index]! + 4.5}>{formatSparsity(value)}</text>)}
+
+        {/* extrapolation veil */}
+        {veil.map(([from, to]) => <><rect class="cf-veil" x={from} y={layout.mainTop} width={Math.max(0, to - from)} height={layout.mainBottom - layout.mainTop} /><rect class="cf-veil" x={from} y={layout.stripTop} width={Math.max(0, to - from)} height={layout.stripBottom - layout.stripTop} /></>)}
+        <text class="cf-veil-label" x={layout.inset ? x(fitWindow[1]) + 7 : layout.right - 4} y={layout.inset ? layout.stripTop + 17 : layout.mainTop + 18} text-anchor={layout.inset ? 'start' : 'end'}>{layout.inset ? `${text.extrapolationNote} →` : text.extrapolationNote}</text>
+
+        {/* moving marks */}
+        <line class="cf-scrub" data-cf-scrub x1={marks.scrubX} x2={marks.scrubX} y1={layout.mainTop} y2={layout.stripBottom} />
+        <rect class="cf-box reveal-fade" data-cf-box x={marks.box.x0} y={marks.box.y0} width={marks.box.x1 - marks.box.x0} height={Math.max(4, marks.box.y1 - marks.box.y0)} style="--i:6" />
+        {marks.connectors.map((line, index) => <line class="cf-connector reveal-fade" data-cf-connector={String(index)} x1={line[0]} y1={line[1]} x2={line[2]} y2={line[3]} style="--i:6" />)}
+        <line class="cf-main-arrow" data-cf-main-arrow x1={marks.smelt[0]} x2={marks.base[0]} y1={marks.smelt[1]} y2={marks.base[1]} />
+        <path class="cf-edge" data-cf-edge d={marks.edge} />
+        <circle class="base-dot" data-cf-base-dot cx={marks.base[0]} cy={marks.base[1]} r="3.4" visibility={marks.baseVisible ? 'visible' : 'hidden'} />
+        <circle class="loop-dot" data-cf-loop-dot cx={marks.smelt[0]} cy={marks.smelt[1]} r="4" />
+        <circle class="cf-gain-dot" data-cf-gain-dot cx={marks.gainPoint[0]} cy={marks.gainPoint[1]} r="4" />
+
+        {/* lens */}
+        <g class="cf-lens reveal-fade" data-cf-lens style="--i:7">
+          <rect class="cf-lens-frame" x={layout.lens.x} y={layout.lens.y} width={layout.lens.w} height={layout.lens.h} rx="3" />
+          {lensCopy.tag && <text class="cf-lens-tag" x={layout.lens.x + 10} y={layout.lens.y + 21}>{text.zoom}</text>}
+          <g clip-path={`url(#${id}-lens)`}>
+            <path class="base-line cf-base" data-cf-lens-path="baseline" d={marks.lens.base} />
+            <path class="loop-line" data-cf-lens-path="smelt" d={marks.lens.smelt} />
+          </g>
+          <path class="cf-gap-dim" data-cf-gap-dim d={gapDimension(marks.lens.arrowX0, marks.lens.arrowY, marks.lens.gapY)} />
+          <path class="cf-dim" data-cf-dim d={dim.line} />
+          <path class="cf-dim-head" data-cf-dim-head d={dim.heads} />
+          <circle class="base-dot" data-cf-lens-base cx={marks.lens.arrowX1} cy={marks.lens.arrowY} r="4.2" />
+          <circle class="loop-dot" data-cf-lens-loop cx={marks.lens.arrowX0} cy={marks.lens.arrowY} r="4.6" />
+          <text class="cf-lens-gain" data-cf-lens-gain x={lensCopy.gainX} y={marks.lens.labelY} text-anchor="start">{text.lensGain(formatGain(state.gain))}</text>
+          <text class="cf-lens-gap" data-cf-lens-gap x={lensCopy.gapX} y={marks.lens.labelY} text-anchor="end">{text.lensGap(1000 * state.lossGap)}</text>
+          <text class="cf-lens-budgets" data-cf-lens-budgets x={lensMid} y={marks.lens.valueY} text-anchor="middle"><tspan class="loop-text" data-cf-lens-loop-label>{budgetLabel(compute)}</tspan><tspan dx="4">→</tspan><tspan class="base-text" dx="4" data-cf-lens-base-label>{budgetLabel(state.referenceCompute)}</tspan><tspan dx="4">FLOPs</tspan></text>
+        </g>
+
+        {/* interaction layer */}
+        <rect class="cf-hit" data-cf-hit x={layout.left} y={layout.mainTop} width={layout.right - layout.left} height={layout.stripBottom - layout.mainTop} />
+        <g data-cf-whiskers>
+          {whiskers(sparsity, layout).map(item => <g class:list={['cf-whisker', { 'is-extrapolated': item.cell.C > fitWindow[1] }]} role="button" data-tip={text.whiskerTip(budgetLabel(item.cell.C), formatSparsity(sparsity), `${item.cell.point.toFixed(1)}%`, percent(item.cell.ci95[0]!), percent(item.cell.ci95[1]!), item.cell.C > fitWindow[1])} data-budget={String(item.cell.C)} aria-label={whiskerLabel(text.whiskerTip(budgetLabel(item.cell.C), formatSparsity(sparsity), `${item.cell.point.toFixed(1)}%`, percent(item.cell.ci95[0]!), percent(item.cell.ci95[1]!), item.cell.C > fitWindow[1]))}>
+            <rect class="hit" x={item.x - 9} y={item.y1 - 4} width="18" height={item.y0 - item.y1 + 8} />
+            <path class="cf-whisker-line" d={`M${item.x} ${item.y0}V${item.y1}M${item.x - 3.5} ${item.y0}h7${item.clipped ? `M${item.x - 3.5} ${item.y1 + 4}L${item.x} ${item.y1}L${item.x + 3.5} ${item.y1 + 4}` : `M${item.x - 3.5} ${item.y1}h7`}`} />
+            <circle class="cf-whisker-dot" cx={item.x} cy={item.y} r="3" />
+          </g>)}
+        </g>
+      </svg>;
+    })}
+  </div>
+
+  <div class="cf-scrubber">
+    <label for={`${uid}-range`}>{text.scrub}</label>
+    <input type="range" id={`${uid}-range`} min={range.min} max={range.max} step="0.005" value={Math.log10(compute)} style={`--fill:${(100 * (Math.log10(compute) - range.min) / (range.max - range.min)).toFixed(2)}%`} aria-valuetext={`${budgetLabel(compute)} FLOPs`} data-cf-range />
+    <output for={`${uid}-range`} data-cf-output set:html={supHtml(budgetLabel(compute))} />
+  </div>
+
+  <p class="smelt-legend cf-legend">
+    <span class="is-base"><span class="smelt-swatch cf-swatch-dash"></span>{text.base}</span>
+    <span class="is-loop"><span class="smelt-swatch"></span>{text.loop}</span>
+    <span class="cf-legend-gain"><span class="smelt-swatch"></span>{text.gainLine}</span>
+    <span><span class="cf-swatch-veil"></span>{text.extrapolated}</span>
+  </p>
+
+  <div class="smelt-stats cf-stats" data-reveal data-cf-stats>
+    <div class="smelt-stat reveal-fade" style="--i:0"><span class="smelt-stat-value is-gain" data-cf-stat="gain">{formatGain(state.gain)}</span><span class="smelt-stat-label" data-cf-label="gain" set:html={supHtml(text.statGain(budgetLabel(compute), formatSparsity(sparsity), state.gain < 0, state.extrapolated))} /></div>
+    <div class="smelt-stat reveal-fade" style="--i:1"><span class="smelt-stat-value is-base" data-cf-stat="reference" set:html={supHtml(budgetLabel(state.referenceCompute))} /><span class="smelt-stat-label">{text.statReference}</span></div>
+    <div class="smelt-stat reveal-fade" style="--i:2"><span class="smelt-stat-value" data-cf-stat="ci">{ci}</span><span class="smelt-stat-label" data-cf-label="ci" set:html={supHtml(state.table ? text.statCi : text.statCiNone)} /></div>
+  </div>
+  <p class="smelt-readout" aria-live="polite" data-cf-readout set:html={supHtml(text.allocation(fmtAllocation(state.allocation.baseline), fmtAllocation(state.allocation.smelt)))} />
+
+  <details class="disclosure smelt-data">
+    <summary>{text.dataTitle}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <div class="disclosure-body">
+      <p set:html={supHtml(text.dataCaption)} />
+      <div class="data-scroll" tabindex="0" role="region" aria-label={text.dataTitle}>
+        <table class="data-table">
+          <thead><tr><th scope="col">{text.dataBudget}</th>{sparsities.map(value => <th scope="col">S ≈ {formatSparsity(value)}</th>)}</tr></thead>
+          <tbody>{tableBudgets.map((budget, row) => <tr><th scope="row" set:html={supHtml(`${budgetLabel(budget)}${budget > fitWindow[1] ? '†' : ''}`)} />{sparsities.map(value => { const cell = data.ceGain[String(value) as keyof typeof data.ceGain][row]!; return <td>{cell.point.toFixed(1)}% [{percent(cell.ci95[0]!).replace('%', '')}, {percent(cell.ci95[1]!).replace('%', '')}]</td>; })}</tr>)}</tbody>
+        </table>
+      </div>
+      <p set:html={supHtml(`${text.dataTpp}${language === 'zh' ? '：' : ': '}${sparsities.map(value => `S ≈ ${formatSparsity(value)} ${data.tpp1e21[String(value) as keyof typeof data.tpp1e21].baseline.toFixed(0)} / ${data.tpp1e21[String(value) as keyof typeof data.tpp1e21].smelt.toFixed(0)}`).join(' · ')}`)} />
+    </div>
+  </details>
+  <div hidden><slot /></div>
+</div>
+{/* Without JavaScript the chart shows its default state (S ≈ 97%, 10²¹ FLOPs); hide the controls that could not respond. */}
+<noscript><style is:inline>.compute-frontier .cf-controls, .compute-frontier .cf-scrubber { display: none; } .compute-frontier .cf-hit, .compute-frontier .cf-whisker { cursor: default; }</style></noscript>
+<script src="../../scripts/smelt/compute-frontier.ts"></script>

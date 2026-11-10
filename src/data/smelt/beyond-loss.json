@@ -1,0 +1,155 @@
+{
+ "provenance": {
+  "paper": "SMELT (arXiv 2609.01343)",
+  "repository": "papers/smelt",
+  "commit": "668dbc2",
+  "sources": [
+   {
+    "path": "img/loss_to_benchmark/raw.json",
+    "sha256": "a436ca52a3399b9670e205cab0a34c2707569906cba947e3804aa1efd929e2a9",
+    "fields": [
+     "metrics[].baseline_fit",
+     "baseline_r_squared",
+     "loop_residual_mean",
+     "loop_residual_ci",
+     "loop_residual_per_scale"
+    ]
+   },
+   {
+    "path": "img/residual_heatmap/raw.json",
+    "sha256": "c62b94166eab0f8b82b4f392b1f708e179000f5703f823287c35cca6df236f0d",
+    "use": "cross-check of per-scale means and positive counts"
+   }
+  ],
+  "points": "Endpoints (validation loss and scores) come from src/data/smelt/downstream-pairs.json, which joins the same 192 endpoints.",
+  "note": "Baseline-only four-parameter monotone sigmoid y = b + a / (1 + exp(-d * alpha * (loss - tau))), d = +1 for DCLM Completion (increasing) and -1 for DCLM Core and MMLU (sections/data_analysis.tex, Eq. sigmoid-calibration). SMELT residual delta = scale * sign * (y - yhat(loss)); positive means SMELT beats a Baseline at the same validation loss. Per-endpoint residuals are recomputed in the component; their per-scale means and positive counts were asserted equal to loop_residual_per_scale. ci is the pooled 95% paired cell bootstrap interval (5000 samples) recorded in the source."
+ },
+ "metrics": [
+  {
+   "key": "comp",
+   "label": "DCLM Completion",
+   "scale": 1000.0,
+   "unit": "millinats",
+   "sign": -1.0,
+   "fit": {
+    "direction": "increasing",
+    "a": 4.3996791638,
+    "b": 0.696986537,
+    "alpha": 1.1465965335,
+    "tau": 2.4350996836
+   },
+   "r2": 0.9966,
+   "mean": 8.0085,
+   "ci": [
+    5.5559,
+    10.6184
+   ],
+   "perScale": {
+    "100M": {
+     "mean": 1.7321,
+     "positive": 12,
+     "total": 24
+    },
+    "200M": {
+     "mean": 6.4621,
+     "positive": 15,
+     "total": 24
+    },
+    "600M": {
+     "mean": 11.5586,
+     "positive": 23,
+     "total": 24
+    },
+    "1.6B": {
+     "mean": 12.2812,
+     "positive": 24,
+     "total": 24
+    }
+   }
+  },
+  {
+   "key": "core",
+   "label": "DCLM Core",
+   "scale": 100.0,
+   "unit": "pp",
+   "sign": 1.0,
+   "fit": {
+    "direction": "decreasing",
+    "a": 0.7222424809,
+    "b": 0.083081078,
+    "alpha": 4.3816253451,
+    "tau": 1.6567726424
+   },
+   "r2": 0.9743,
+   "mean": 0.8952,
+   "ci": [
+    0.5262,
+    1.2228
+   ],
+   "perScale": {
+    "100M": {
+     "mean": 0.4728,
+     "positive": 14,
+     "total": 24
+    },
+    "200M": {
+     "mean": 0.9009,
+     "positive": 19,
+     "total": 24
+    },
+    "600M": {
+     "mean": 1.0347,
+     "positive": 18,
+     "total": 24
+    },
+    "1.6B": {
+     "mean": 1.1725,
+     "positive": 17,
+     "total": 24
+    }
+   }
+  },
+  {
+   "key": "mmlu",
+   "label": "MMLU",
+   "scale": 100.0,
+   "unit": "pp",
+   "sign": 1.0,
+   "fit": {
+    "direction": "decreasing",
+    "a": 0.2952885203,
+    "b": 0.2501535428,
+    "alpha": 15.1640068475,
+    "tau": 1.8215265222
+   },
+   "r2": 0.9111,
+   "mean": 1.2674,
+   "ci": [
+    0.3501,
+    2.1614
+   ],
+   "perScale": {
+    "100M": {
+     "mean": 0.2997,
+     "positive": 9,
+     "total": 24
+    },
+    "200M": {
+     "mean": 0.9681,
+     "positive": 10,
+     "total": 24
+    },
+    "600M": {
+     "mean": 2.23,
+     "positive": 19,
+     "total": 24
+    },
+    "1.6B": {
+     "mean": 1.5719,
+     "positive": 17,
+     "total": 24
+    }
+   }
+  }
+ ]
+}

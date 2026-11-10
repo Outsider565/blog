@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480.00pt" height="386.00pt" viewBox="0 0 480.00 386.00">
+  <defs>
+  <marker id="flow" viewBox="0 0 4.0 4.0" refX="4.00" refY="2.00" markerWidth="4.00" markerHeight="4.00" orient="auto-start-reverse"><path d="M 0 0 L 4.00 2.00 L 0 4.00 z" fill="#273142"/></marker>
+  <marker id="res" viewBox="0 0 3.0 3.0" refX="3.00" refY="1.50" markerWidth="3.00" markerHeight="3.00" orient="auto-start-reverse"><path d="M 0 0 L 3.00 1.50 L 0 3.00 z" fill="#C9D2E0"/></marker>
+  <marker id="hot" viewBox="0 0 4.0 4.0" refX="4.00" refY="2.00" markerWidth="4.00" markerHeight="4.00" orient="auto-start-reverse"><path d="M 0 0 L 4.00 2.00 L 0 4.00 z" fill="#F06C5B"/></marker>
+  </defs>
+  <rect width="480.00" height="386.00" fill="#FFFFFF"/>
+  <rect x="68.00" y="325.50" width="86.00" height="18.00" rx="2.00" fill="none" stroke="#F06C5B" stroke-width="0.55" stroke-dasharray="2.0 1.6"/>
+  <path d="M 138.95 325.50 H 70.00 Q 68.00 325.50 68.00 327.50 V 341.50 Q 68.00 343.50 70.00 343.50 H 138.95" stroke="#0053D6" stroke-width="0.60" fill="#DDE8FA" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="68.00" y="300.30" width="86.00" height="18.00" rx="2.00" fill="none" stroke="#F06C5B" stroke-width="0.55" stroke-dasharray="2.0 1.6"/>
+  <path d="M 138.95 300.30 H 70.00 Q 68.00 300.30 68.00 302.30 V 316.30 Q 68.00 318.30 70.00 318.30 H 138.95" stroke="#0053D6" stroke-width="0.60" fill="#DDE8FA" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="68.00" y="275.10" width="86.00" height="18.00" rx="2.00" fill="none" stroke="#F06C5B" stroke-width="0.55" stroke-dasharray="2.0 1.6"/>
+  <path d="M 138.95 275.10 H 70.00 Q 68.00 275.10 68.00 277.10 V 291.10 Q 68.00 293.10 70.00 293.10 H 138.95" stroke="#0053D6" stroke-width="0.60" fill="#DDE8FA" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="68.00" y="249.90" width="86.00" height="18.00" rx="2.00" fill="none" stroke="#F06C5B" stroke-width="0.55" stroke-dasharray="2.0 1.6"/>
+  <path d="M 138.95 249.90 H 70.00 Q 68.00 249.90 68.00 251.90 V 265.90 Q 68.00 267.90 70.00 267.90 H 138.95" stroke="#F06C5B" stroke-width="0.60" fill="#FCE0DB" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="68.00" y="224.70" width="86.00" height="18.00" rx="2.00" fill="none" stroke="#F06C5B" stroke-width="0.55" stroke-dasharray="2.0 1.6"/>
+  <path d="M 138.95 224.70 H 70.00 Q 68.00 224.70 68.00 226.70 V 240.70 Q 68.00 242.70 70.00 242.70 H 138.95" stroke="#F06C5B" stroke-width="0.60" fill="#FCE0DB" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="68.00" y="199.50" width="86.00" height="18.00" rx="2.00" fill="none" stroke="#F06C5B" stroke-width="0.55" stroke-dasharray="2.0 1.6"/>
+  <path d="M 138.95 199.50 H 70.00 Q 68.00 199.50 68.00 201.50 V 215.50 Q 68.00 217.50 70.00 217.50 H 138.95" stroke="#F06C5B" stroke-width="0.60" fill="#FCE0DB" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="68.00" y="174.30" width="86.00" height="18.00" rx="2.00" fill="none" stroke="#F06C5B" stroke-width="0.55" stroke-dasharray="2.0 1.6"/>
+  <path d="M 138.95 174.30 H 70.00 Q 68.00 174.30 68.00 176.30 V 190.30 Q 68.00 192.30 70.00 192.30 H 138.95" stroke="#F06C5B" stroke-width="0.60" fill="#FCE0DB" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="68.00" y="149.10" width="86.00" height="18.00" rx="2.00" fill="none" stroke="#F06C5B" stroke-width="0.55" stroke-dasharray="2.0 1.6"/>
+  <path d="M 138.95 149.10 H 70.00 Q 68.00 149.10 68.00 151.10 V 165.10 Q 68.00 167.10 70.00 167.10 H 138.95" stroke="#F06C5B" stroke-width="0.60" fill="#FCE0DB" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="68.00" y="123.90" width="86.00" height="18.00" rx="2.00" fill="none" stroke="#F06C5B" stroke-width="0.55" stroke-dasharray="2.0 1.6"/>
+  <path d="M 138.95 123.90 H 70.00 Q 68.00 123.90 68.00 125.90 V 139.90 Q 68.00 141.90 70.00 141.90 H 138.95" stroke="#F06C5B" stroke-width="0.60" fill="#FCE0DB" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="68.00" y="98.70" width="86.00" height="18.00" rx="2.00" fill="none" stroke="#F06C5B" stroke-width="0.55" stroke-dasharray="2.0 1.6"/>
+  <path d="M 138.95 98.70 H 70.00 Q 68.00 98.70 68.00 100.70 V 114.70 Q 68.00 116.70 70.00 116.70 H 138.95" stroke="#0053D6" stroke-width="0.60" fill="#DDE8FA" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="68.00" y="73.50" width="86.00" height="18.00" rx="2.00" fill="none" stroke="#F06C5B" stroke-width="0.55" stroke-dasharray="2.0 1.6"/>
+  <path d="M 138.95 73.50 H 70.00 Q 68.00 73.50 68.00 75.50 V 89.50 Q 68.00 91.50 70.00 91.50 H 138.95" stroke="#0053D6" stroke-width="0.60" fill="#DDE8FA" stroke-linejoin="round" stroke-linecap="round"/>
+  <rect x="68.00" y="48.30" width="86.00" height="18.00" rx="2.00" fill="none" stroke="#F06C5B" stroke-width="0.55" stroke-dasharray="2.0 1.6"/>
+  <path d="M 138.95 48.30 H 70.00 Q 68.00 48.30 68.00 50.30 V 64.30 Q 68.00 66.30 70.00 66.30 H 138.95" stroke="#0053D6" stroke-width="0.60" fill="#DDE8FA" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M 65.00 126.90 H 56.00 Q 52.00 126.90 52.00 130.90 V 260.90 Q 52.00 264.90 56.00 264.90 H 63.50" stroke="#F06C5B" stroke-width="1.00" fill="none" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#hot)"/>
+  <text x="3.00" y="189.90" font-family="Helvetica, Arial, 'DejaVu Sans', sans-serif" font-size="18.50" fill="#F06C5B" text-anchor="start" font-weight="bold">Loop</text>
+  <text x="3.00" y="209.90" font-family="Helvetica, Arial, 'DejaVu Sans', sans-serif" font-size="18.50" fill="#F06C5B" text-anchor="start" font-weight="bold">× 2</text>
+  <rect x="67.30" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="78.50" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="89.70" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="100.90" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="112.10" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="123.30" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="134.50" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="145.70" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <line x1="111.00" y1="359.50" x2="111.00" y2="345.00" stroke="#273142" stroke-width="0.60" stroke-linecap="round" fill="none" marker-end="url(#flow)"/>
+  <line x1="111.00" y1="48.30" x2="111.00" y2="34.00" stroke="#273142" stroke-width="0.60" stroke-linecap="round" fill="none" marker-end="url(#flow)"/>
+  <rect x="67.30" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#F3F5F9" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="78.50" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#F3F5F9" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="89.70" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#F3F5F9" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="100.90" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#F3F5F9" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="112.10" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#F3F5F9" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="123.30" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#F3F5F9" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="134.50" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#F3F5F9" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="145.70" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#F3F5F9" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="164.00" y="12.00" width="304.00" height="363.00" rx="4.00" fill="#F7F9FC" stroke="#C9D2E0" stroke-width="0.60"/>
+  <line x1="155.50" y1="174.30" x2="163.00" y2="147.00" stroke="#C9D2E0" stroke-width="0.55" stroke-linecap="round" fill="none" stroke-dasharray="2.2 1.8"/>
+  <line x1="155.50" y1="192.30" x2="163.00" y2="219.60" stroke="#C9D2E0" stroke-width="0.55" stroke-linecap="round" fill="none" stroke-dasharray="2.2 1.8"/>
+  <rect x="266.70" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="277.90" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="289.10" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="300.30" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="311.50" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="322.70" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="333.90" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="345.10" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="356.30" y="359.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="221.00" y="324.00" width="190.00" height="28.00" rx="2.50" fill="#EFF2F7" stroke="#C9D2E0" stroke-width="0.60"/>
+  <text x="316.00" y="344.30" font-family="Helvetica, Arial, 'DejaVu Sans', sans-serif" font-size="18.00" fill="#273142" text-anchor="middle">RMSNorm</text>
+  <rect x="221.00" y="287.00" width="190.00" height="28.00" rx="2.50" fill="#DDE8FA" stroke="#0053D6" stroke-width="0.60"/>
+  <text x="316.00" y="307.30" font-family="Helvetica, Arial, 'DejaVu Sans', sans-serif" font-size="18.00" fill="#273142" text-anchor="middle">Attention (GQA)</text>
+  <circle cx="316.00" cy="272.00" r="6.40" fill="#FFFFFF" stroke="#F06C5B" stroke-width="0.85"/>
+  <line x1="312.48" y1="268.48" x2="319.52" y2="275.52" stroke="#F06C5B" stroke-width="0.85" stroke-linecap="butt" fill="none"/>
+  <line x1="312.48" y1="275.52" x2="319.52" y2="268.48" stroke="#F06C5B" stroke-width="0.85" stroke-linecap="butt" fill="none"/>
+  <text x="328.40" y="278.40" font-family="Helvetica, Arial, 'DejaVu Sans', sans-serif" font-size="20.00" fill="#F06C5B" text-anchor="start" font-weight="bold">1<tspan dx="0.60">/</tspan><tspan dx="2.20">2</tspan></text>
+  <circle cx="316.00" cy="252.00" r="6.00" fill="#FFFFFF" stroke="#273142" stroke-width="0.60"/>
+  <line x1="312.70" y1="252.00" x2="319.30" y2="252.00" stroke="#273142" stroke-width="0.60" stroke-linecap="butt" fill="none"/>
+  <line x1="316.00" y1="248.70" x2="316.00" y2="255.30" stroke="#273142" stroke-width="0.60" stroke-linecap="butt" fill="none"/>
+  <rect x="221.00" y="208.00" width="190.00" height="28.00" rx="2.50" fill="#EFF2F7" stroke="#C9D2E0" stroke-width="0.60"/>
+  <text x="316.00" y="228.30" font-family="Helvetica, Arial, 'DejaVu Sans', sans-serif" font-size="18.00" fill="#273142" text-anchor="middle">RMSNorm</text>
+  <rect x="192.00" y="86.00" width="248.00" height="116.00" rx="3.00" fill="#FFFFFF" stroke="#C9D2E0" stroke-width="0.55"/>
+  <text x="199.00" y="101.00" font-family="Helvetica, Arial, 'DejaVu Sans', sans-serif" font-size="17.00" fill="#7C8798" text-anchor="start" font-style="italic">MoE FFN</text>
+  <rect x="279.00" y="166.00" width="74.00" height="26.00" rx="2.50" fill="#FFFFFF" stroke="#273142" stroke-width="0.60"/>
+  <text x="316.00" y="185.12" font-family="Helvetica, Arial, 'DejaVu Sans', sans-serif" font-size="17.50" fill="#273142" text-anchor="middle">Router</text>
+  <text x="358.00" y="185.00" font-family="Helvetica, Arial, 'DejaVu Sans', sans-serif" font-size="17.00" fill="#7C8798" text-anchor="start">top-k</text>
+  <rect x="207.60" y="118.00" width="20.00" height="28.00" rx="1.80" fill="#DDE8FA" stroke="#0053D6" stroke-width="0.60"/>
+  <line x1="316.00" y1="167.50" x2="217.60" y2="147.60" stroke="#C9D2E0" stroke-width="0.55" stroke-linecap="round" fill="none" stroke-dasharray="1.5 1.4"/>
+  <rect x="232.20" y="118.00" width="20.00" height="28.00" rx="1.80" fill="#DDE8FA" stroke="#0053D6" stroke-width="0.60"/>
+  <line x1="316.00" y1="167.50" x2="242.20" y2="147.60" stroke="#0053D6" stroke-width="0.55" stroke-linecap="round" fill="none"/>
+  <line x1="242.20" y1="117.00" x2="316.00" y2="106.20" stroke="#0053D6" stroke-width="0.55" stroke-linecap="round" fill="none"/>
+  <rect x="256.80" y="118.00" width="20.00" height="28.00" rx="1.80" fill="#DDE8FA" stroke="#0053D6" stroke-width="0.60"/>
+  <line x1="316.00" y1="167.50" x2="266.80" y2="147.60" stroke="#C9D2E0" stroke-width="0.55" stroke-linecap="round" fill="none" stroke-dasharray="1.5 1.4"/>
+  <rect x="281.40" y="118.00" width="20.00" height="28.00" rx="1.80" fill="#DDE8FA" stroke="#0053D6" stroke-width="0.60"/>
+  <line x1="316.00" y1="167.50" x2="291.40" y2="147.60" stroke="#C9D2E0" stroke-width="0.55" stroke-linecap="round" fill="none" stroke-dasharray="1.5 1.4"/>
+  <rect x="306.00" y="118.00" width="20.00" height="28.00" rx="1.80" fill="#DDE8FA" stroke="#0053D6" stroke-width="0.60"/>
+  <line x1="316.00" y1="167.50" x2="316.00" y2="147.60" stroke="#0053D6" stroke-width="0.55" stroke-linecap="round" fill="none"/>
+  <line x1="316.00" y1="117.00" x2="316.00" y2="106.20" stroke="#0053D6" stroke-width="0.55" stroke-linecap="round" fill="none"/>
+  <rect x="330.60" y="118.00" width="20.00" height="28.00" rx="1.80" fill="#DDE8FA" stroke="#0053D6" stroke-width="0.60"/>
+  <line x1="316.00" y1="167.50" x2="340.60" y2="147.60" stroke="#C9D2E0" stroke-width="0.55" stroke-linecap="round" fill="none" stroke-dasharray="1.5 1.4"/>
+  <rect x="355.20" y="118.00" width="20.00" height="28.00" rx="1.80" fill="#FCE0DB" stroke="#F06C5B" stroke-width="0.60"/>
+  <line x1="316.00" y1="167.50" x2="365.20" y2="147.60" stroke="#C9D2E0" stroke-width="0.55" stroke-linecap="round" fill="none" stroke-dasharray="1.5 1.4"/>
+  <rect x="379.80" y="118.00" width="20.00" height="28.00" rx="1.80" fill="#FCE0DB" stroke="#F06C5B" stroke-width="0.60"/>
+  <line x1="316.00" y1="167.50" x2="389.80" y2="147.60" stroke="#F06C5B" stroke-width="0.55" stroke-linecap="round" fill="none"/>
+  <line x1="389.80" y1="117.00" x2="316.00" y2="106.20" stroke="#F06C5B" stroke-width="0.55" stroke-linecap="round" fill="none"/>
+  <rect x="404.40" y="118.00" width="20.00" height="28.00" rx="1.80" fill="#FCE0DB" stroke="#F06C5B" stroke-width="0.60"/>
+  <line x1="316.00" y1="167.50" x2="414.40" y2="147.60" stroke="#C9D2E0" stroke-width="0.55" stroke-linecap="round" fill="none" stroke-dasharray="1.5 1.4"/>
+  <line x1="352.90" y1="114.50" x2="352.90" y2="149.50" stroke="#F06C5B" stroke-width="0.50" stroke-linecap="round" fill="none" stroke-dasharray="1.4 1.4"/>
+  <circle cx="316.00" cy="100.00" r="6.00" fill="#FFFFFF" stroke="#273142" stroke-width="0.60"/>
+  <line x1="312.70" y1="100.00" x2="319.30" y2="100.00" stroke="#273142" stroke-width="0.60" stroke-linecap="butt" fill="none"/>
+  <line x1="316.00" y1="96.70" x2="316.00" y2="103.30" stroke="#273142" stroke-width="0.60" stroke-linecap="butt" fill="none"/>
+  <circle cx="316.00" cy="70.00" r="6.40" fill="#FFFFFF" stroke="#F06C5B" stroke-width="0.85"/>
+  <line x1="312.48" y1="66.48" x2="319.52" y2="73.52" stroke="#F06C5B" stroke-width="0.85" stroke-linecap="butt" fill="none"/>
+  <line x1="312.48" y1="73.52" x2="319.52" y2="66.48" stroke="#F06C5B" stroke-width="0.85" stroke-linecap="butt" fill="none"/>
+  <text x="328.40" y="76.40" font-family="Helvetica, Arial, 'DejaVu Sans', sans-serif" font-size="20.00" fill="#F06C5B" text-anchor="start" font-weight="bold">1<tspan dx="0.60">/</tspan><tspan dx="2.20">2</tspan></text>
+  <circle cx="316.00" cy="48.00" r="6.00" fill="#FFFFFF" stroke="#273142" stroke-width="0.60"/>
+  <line x1="312.70" y1="48.00" x2="319.30" y2="48.00" stroke="#273142" stroke-width="0.60" stroke-linecap="butt" fill="none"/>
+  <line x1="316.00" y1="44.70" x2="316.00" y2="51.30" stroke="#273142" stroke-width="0.60" stroke-linecap="butt" fill="none"/>
+  <rect x="266.70" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="277.90" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="289.10" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="300.30" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="311.50" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="322.70" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="333.90" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="345.10" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <rect x="356.30" y="19.50" width="9.00" height="13.00" rx="1.00" fill="#FFFFFF" stroke="#7C8798" stroke-width="0.50"/>
+  <line x1="316.00" y1="359.50" x2="316.00" y2="353.50" stroke="#273142" stroke-width="0.60" stroke-linecap="round" fill="none" marker-end="url(#flow)"/>
+  <line x1="316.00" y1="324.00" x2="316.00" y2="316.50" stroke="#273142" stroke-width="0.60" stroke-linecap="round" fill="none" marker-end="url(#flow)"/>
+  <line x1="316.00" y1="287.00" x2="316.00" y2="279.20" stroke="#273142" stroke-width="0.60" stroke-linecap="round" fill="none" marker-end="url(#flow)"/>
+  <line x1="316.00" y1="266.40" x2="316.00" y2="258.70" stroke="#273142" stroke-width="0.60" stroke-linecap="round" fill="none" marker-end="url(#flow)"/>
+  <line x1="316.00" y1="246.90" x2="316.00" y2="237.50" stroke="#273142" stroke-width="0.60" stroke-linecap="round" fill="none" marker-end="url(#flow)"/>
+  <line x1="316.00" y1="208.00" x2="316.00" y2="192.00" stroke="#273142" stroke-width="0.60" stroke-linecap="round" fill="none" marker-end="url(#flow)"/>
+  <line x1="316.00" y1="94.90" x2="316.00" y2="77.20" stroke="#273142" stroke-width="0.60" stroke-linecap="round" fill="none" marker-end="url(#flow)"/>
+  <line x1="316.00" y1="64.40" x2="316.00" y2="54.70" stroke="#273142" stroke-width="0.60" stroke-linecap="round" fill="none" marker-end="url(#flow)"/>
+  <line x1="316.00" y1="42.90" x2="316.00" y2="34.00" stroke="#273142" stroke-width="0.60" stroke-linecap="round" fill="none" marker-end="url(#flow)"/>
+  <circle cx="316.00" cy="355.00" r="1.30" fill="#273142"/>
+  <path d="M 316.00 355.00 H 179.00 Q 176.00 355.00 176.00 352.00 V 255.00 Q 176.00 252.00 179.00 252.00 H 309.30" stroke="#C9D2E0" stroke-width="0.60" fill="none" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2.4 1.8" marker-end="url(#res)"/>
+  <circle cx="316.00" cy="243.00" r="1.30" fill="#273142"/>
+  <path d="M 316.00 243.00 H 179.00 Q 176.00 243.00 176.00 240.00 V 51.00 Q 176.00 48.00 179.00 48.00 H 309.30" stroke="#C9D2E0" stroke-width="0.60" fill="none" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2.4 1.8" marker-end="url(#res)"/>
+</svg>

@@ -9,7 +9,7 @@ import loopBib from '../../data/loop-mup/citation.bib?raw';
 import smeltAuthors from '../../data/smelt/authors.json';
 import smeltBib from '../../data/smelt/citation.bib?raw';
 import { slides, type Part, type Slide, type Text } from '../../data/loop-science/slides';
-import { bibReference, clock, paragraphs, plainText, rich } from '../../lib/loop-science/rich';
+import { bibReference, paragraphs, plainText, rich } from '../../lib/loop-science/rich';
 import { blogPath, type Language } from '../../lib/site';
 import DeckFigure from './DeckFigure.astro';
 import '../../styles/deck.css';
@@ -29,41 +29,37 @@ const deckUrl = new URL(blogPath(language, 'loop-science'), Astro.site).href;
 
 const starts = slides.reduce<number[]>((list, _, index) => [...list, index ? list[index - 1]! + slides[index - 1]!.minutes : 0], []);
 const totalMinutes = starts.at(-1)! + slides.at(-1)!.minutes;
-const partMinutes = (part: Part) => slides.filter(slide => slide.part === part).reduce((sum, slide) => sum + slide.minutes, 0);
 const partStages = (part: Part) => {
-  const order: { name: string; minutes: number }[] = [];
+  const order: string[] = [];
   for (const slide of slides.filter(item => item.part === part && item.stage)) {
     const name = t(slide.stage!);
-    const found = order.find(entry => entry.name === name);
-    if (found) found.minutes += slide.minutes; else order.push({ name, minutes: slide.minutes });
+    if (!order.includes(name)) order.push(name);
   }
   return order;
 };
-const partName: Record<Part, string> = { intro: zh ? '开场' : 'Opening', loop: 'Loop-μP', smelt: 'SMELT' };
+const partName: Record<Part, string> = { intro: zh ? '开场' : 'Opening', loop: 'Loop-μP', smelt: 'SMELT', closing: zh ? '总结' : 'Summary' };
 const partNumber: Partial<Record<Part, string>> = { loop: '01', smelt: '02' };
-const about = (minutes: number) => zh ? `约 ${Math.round(minutes)} 分` : `≈ ${Math.round(minutes)} min`;
-const minutesShort = (minutes: number) => zh ? `${minutes.toFixed(1)} 分` : `${minutes.toFixed(1)} min`;
 
 const ui = zh ? {
-  deck: '幻灯片', prev: '上一页', next: '下一页', notes: '备注', presenter: "备注窗口", overview: '目录', fullscreen: '全屏', exitFullscreen: '退出全屏', help: '按键说明',
-  language: 'EN', languageLabel: '切换到英文版', toolbar: '幻灯片控制', source: '来源：', todo: '待补充', page: '页',
+  deck: '幻灯片', prev: '上一页', next: '下一页', notes: '备注', presenter: '备注窗口', overview: '目录', fullscreen: '全屏', exitFullscreen: '退出全屏', help: '按键说明',
+  language: 'EN', languageLabel: '切换到英文版', toolbar: '幻灯片控制', page: '页',
   elapsed: '已用', planned: '计划', reset: '重置', upNext: '下一页', noNext: '最后一页', notesTitle: '演讲备注', close: '关闭', jump: '跳到第',
-  overviewTitle: '页面目录', helpTitle: "按键说明",
+  overviewTitle: '页面目录', helpTitle: '按键说明',
   keys: [
     ['→ ↓ PageDown 空格', '下一页'], ['← ↑ PageUp', '上一页'], ['Home / End', '第一页 / 最后一页'], ['数字 + Enter', '跳到指定页'],
-    ['F', '全屏'], ['S', '备注面板'], ["P", "备注窗口（新窗口，与本页同步翻页）"], ['O', '页面目录'], ["L", "切换语言"], ['?', '按键说明'], ['Esc', '关闭面板；焦点在图内时退出图'],
+    ['F', '全屏'], ['S', '备注面板'], ['P', '备注窗口（新窗口，与本页同步翻页）'], ['O', '页面目录'], ['L', '切换语言'], ['R', '重播本页动画'], ['?', '按键说明'], ['Esc', '关闭面板；焦点在图内时退出图'],
   ],
-  keyNote: '焦点在交互图内时，方向键交给图使用；按 Esc 退出后即可继续翻页。',
+  keyNote: '翻到带交互图的页面时，图会自动演示各个选项；点一下图即可接管。焦点在交互图内时，方向键交给图使用；按 Esc 退出后即可继续翻页。',
 } : {
   deck: 'slide', prev: 'Previous slide', next: 'Next slide', notes: 'Notes', presenter: 'Presenter view', overview: 'Slides', fullscreen: 'Full screen', exitFullscreen: 'Exit full screen', help: 'Keys',
-  language: '中文', languageLabel: 'Switch to the Chinese version', toolbar: 'Slide controls', source: 'Source: ', todo: 'To be added', page: 'Slide',
+  language: '中文', languageLabel: 'Switch to the Chinese version', toolbar: 'Slide controls', page: 'Slide',
   elapsed: 'Elapsed', planned: 'Planned', reset: 'Reset', upNext: 'Next', noNext: 'Last slide', notesTitle: 'Speaker notes', close: 'Close', jump: 'Go to slide',
   overviewTitle: 'All slides', helpTitle: 'Keyboard shortcuts',
   keys: [
     ['→ ↓ PageDown Space', 'Next slide'], ['← ↑ PageUp', 'Previous slide'], ['Home / End', 'First / last slide'], ['Number + Enter', 'Go to that slide'],
-    ['F', 'Full screen'], ['S', 'Notes panel'], ['P', 'Presenter view (new window, pages in sync)'], ['O', 'Slide list'], ['L', 'Switch language'], ['?', 'This help'], ['Esc', 'Close panels; leave a focused figure'],
+    ['F', 'Full screen'], ['S', 'Notes panel'], ['P', 'Presenter view (new window, pages in sync)'], ['O', 'Slide list'], ['L', 'Switch language'], ['R', 'Replay this slide’s animation'], ['?', 'This help'], ['Esc', 'Close panels; leave a focused figure'],
   ],
-  keyNote: 'While a figure has focus, the arrow keys belong to the figure; press Esc to leave it and keep paging.',
+  keyNote: 'Interactive figures walk through their options when their slide opens; click a figure to take over. While a figure has focus, the arrow keys belong to the figure; press Esc to leave it and keep paging.',
 };
 const otherLanguage = blogPath(zh ? 'en' : 'zh', 'loop-science');
 const kicker = (slide: Slide) => [partName[slide.part], slide.stage && t(slide.stage)].filter(Boolean) as string[];
@@ -95,10 +91,9 @@ const kicker = (slide: Slide) => [partName[slide.part], slide.stage && t(slide.s
                 <span class="agenda-number">{partNumber[key]}</span>
                 <span class="agenda-name">{partName[key]}</span>
                 <span class="agenda-subtitle">{articles[key].subtitle}</span>
-                <span class="agenda-time">{about(partMinutes(key))}</span>
               </li>)}
             </ol>
-            {slide.todo && <p class="cover-todo">{slide.todo.map(item => <span class="todo-tag">{t(item)}{zh ? "：" : ": "}{ui.todo}</span>)}</p>}
+            {slide.presenter && <p class="cover-presenter" set:html={rich(t(slide.presenter))} />}
           </div>}
 
           {slide.layout === 'section' && (part === 'loop' || part === 'smelt') && <div class="section-slide">
@@ -108,17 +103,20 @@ const kicker = (slide: Slide) => [partName[slide.part], slide.stage && t(slide.s
               {slide.lead && <p class="section-lead" set:html={rich(t(slide.lead))} />}
               <p class="section-authors">{authors[part].names.map(author => <span>{author.name}<sup>{author.markers}</sup></span>)}</p>
               <p class="section-affiliations">{authors[part].affiliations.map(affiliation => <span><sup>{affiliation.marker}</sup>{affiliation.name}</span>)}{authors[part].roles.map(role => <span>{role}</span>)}</p>
-              <p class="section-meta">
-                {articles[part].paper && <a href={articles[part].paper} target="_blank" rel="noopener noreferrer">arXiv:{references[part === 'loop' ? 0 : 1]!.eprint} ↗</a>}
-                <a href={blogPath(language, part === 'loop' ? 'loop-mup' : 'smelt')} target="_blank" rel="noopener">{zh ? '博文' : 'Article'} ↗</a>
-                <span>{about(partMinutes(part))}</span>
-              </p>
-              <ol class="section-arc">{partStages(part).map(stage => <li><span>{stage.name}</span><small>{minutesShort(stage.minutes)}</small></li>)}</ol>
+              {articles[part].paper && <p class="section-meta"><a href={articles[part].paper} target="_blank" rel="noopener noreferrer">arXiv:{references[part === 'loop' ? 0 : 1]!.eprint}</a></p>}
+              <ol class="section-arc">{partStages(part).map(stage => <li><span>{stage}</span></li>)}</ol>
             </div>
           </div>}
 
           {slide.layout === 'end' && <div class="end-slide">
             <h2 class="end-title" set:html={rich(title)} />
+            {slide.cards && <div class="end-summary">
+              {slide.cards.map(card => <article class="end-card">
+                {card.tag && <p class="card-tag" set:html={rich(t(card.tag))} />}
+                <h3 class="end-card-title" set:html={rich(t(card.title))} />
+                <p class="end-card-body" set:html={rich(t(card.body))} />
+              </article>)}
+            </div>}
             <ol class="end-references">
               {references.map((reference, position) => <li>
                 <span class="reference-authors">{reference.authors.join(', ')}.</span>
@@ -127,7 +125,7 @@ const kicker = (slide: Slide) => [partName[slide.part], slide.stage && t(slide.s
                 <span class="reference-links"><a href={reference.url} target="_blank" rel="noopener noreferrer">{reference.url.replace(/^https?:\/\//, '')}</a> · <a href={articleUrl(position ? 'smelt' : 'loop-mup')} target="_blank" rel="noopener">{articleUrl(position ? 'smelt' : 'loop-mup').replace(/^https?:\/\//, '')}</a></span>
               </li>)}
             </ol>
-            <p class="end-deck">{zh ? '在线版本：' : 'These slides: '}<a href={deckUrl}>{deckUrl.replace(/^https?:\/\//, '')}</a></p>
+            <p class="end-deck">{zh ? '在线幻灯片：' : 'Interactive slides: '}<a href={deckUrl}>{deckUrl.replace(/^https?:\/\//, '')}</a></p>
           </div>}
 
           {!['cover', 'section', 'end'].includes(slide.layout) && <>
@@ -153,7 +151,8 @@ const kicker = (slide: Slide) => [partName[slide.part], slide.stage && t(slide.s
                 </div>)}
               </div>}
 
-              {(slide.layout === 'split' || slide.layout === 'stack') && <>
+              {(slide.layout === 'split' || slide.layout === 'derivation' || slide.layout === 'stack') && <>
+                {slide.equations && <div class="slide-equations">{slide.equations.map(name => <DeckFigure figure={{ kind: 'math', name, width: 1120 }} language={language} />)}</div>}
                 {(slide.stats || slide.points || slide.callout || slide.foot) && <div class="slide-text">
                   {slide.stats && <div class="slide-stats" style={`--stats:${slide.stats.length}`}>{slide.stats.map(stat => <div class="slide-stat">
                     <span class:list={['stat-value', stat.tone && `is-${stat.tone}`]} set:html={rich(stat.value)} />
@@ -192,9 +191,9 @@ const kicker = (slide: Slide) => [partName[slide.part], slide.stage && t(slide.s
             </div>
           </>}
 
+          {slide.references && <ol class="slide-references">{slide.references.map(reference => <li>{reference}</li>)}</ol>}
           <footer class="slide-foot">
             <span class="foot-part">{partName[part]}</span>
-            {slide.source && <span class="foot-source">{ui.source}{t(slide.source)}</span>}
             <span class="foot-page">{number} / {total}</span>
           </footer>
           <div class="slide-progress" aria-hidden="true" style={`--progress:${(number / total * 100).toFixed(2)}%`}></div>
@@ -230,13 +229,12 @@ const kicker = (slide: Slide) => [partName[slide.part], slide.stage && t(slide.s
 
   <div class="deck-overlay" data-deck-panel="overview" role="dialog" aria-modal="true" aria-labelledby="deck-overview-title" hidden>
     <div class="overlay-box is-overview">
-      <header><h2 id="deck-overview-title">{ui.overviewTitle}</h2><span>{zh ? `共 ${total} 页 · ${about(totalMinutes)}` : `${total} slides · ${about(totalMinutes)}`}</span><button type="button" data-deck-close aria-label={ui.close}>×</button></header>
+      <header><h2 id="deck-overview-title">{ui.overviewTitle}</h2><span>{zh ? `共 ${total} 页` : `${total} slides`}</span><button type="button" data-deck-close aria-label={ui.close}>×</button></header>
       <ol class="overview-list">
         {slides.map((slide, index) => <li class:list={[`part-${slide.part}`]}>
           <button type="button" data-deck-goto={index}>
             <span class="overview-number">{index + 1}</span>
             <span class="overview-text"><span class="overview-meta">{kicker(slide).join(' · ')}</span><span class="overview-title">{plainText(t(slide.title))}</span></span>
-            <span class="overview-time">{clock(starts[index]!)}</span>
           </button>
         </li>)}
       </ol>

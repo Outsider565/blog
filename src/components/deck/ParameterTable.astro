@@ -1,0 +1,113 @@
+---
+import type { Language } from '../../lib/site';
+import { html } from '../../lib/loop-mup/markup';
+interface Props { language: Language; mode: 'prior' | 'loop' }
+const { language, mode } = Astro.props;
+const zh=language==='zh';
+const selected=mode==='prior'?'mup':'loop';
+const recipes=[
+ {id:'mup',label:'μP',zh:'宽度缩放：隐藏层学习率与初始化方差按宽度倍率的倒数缩放。',en:'Width scaling: hidden learning rates and initialization variances scale inversely with width.'},
+ {id:'depth',label:'Depth-μP',zh:'深度缩放：残差分支、隐藏层学习率均乘以深度倍率的 −1/2 次方。',en:'Depth scaling: residual branches and hidden learning rates both scale with inverse square root depth.'},
+ {id:'complete',label:'CompleteP',zh:'深度缩放：残差分支乘以深度倍率的倒数，隐藏层学习率不随深度变化。',en:'Depth scaling: residual branches scale inversely with depth; hidden learning rates stay constant across depth.'},
+ {id:'loop',label:'Loop-μP',zh:'宽度沿用 μP，物理深度沿用 Depth-μP；循环方向只给注意力与 MLP 残差分支再乘 1/$N$。',en:'μP for width, Depth-μP for physical depth; along loops, only the attention and MLP branches gain an extra 1/$N$.'}
+].filter(r=>mode==='loop'||r.id!=='loop');
+const row=(zh:string,en:string,base:string,width=0,depth:'none'|'lr'|'branch'='none',loop=false)=>({name:language==='zh'?zh:en,base,width,depth,loop});
+const rows=[
+ row('嵌入层初始化方差','Embedding init. variance','$σ$^2'),
+ row('嵌入层学习率','Embedding learning rate','$η$'),
+ row('Pre-LN 初始化方差','Pre-LN init. variance','$σ$^2'),
+ row('Pre-LN 学习率','Pre-LN learning rate','$η$',0,'lr'),
+ row('隐藏层初始化方差','Hidden init. variance','$σ$^2',-1),
+ row('隐藏层学习率','Hidden learning rate','$η$',-1,'lr'),
+ row('隐藏层偏置学习率','Hidden bias learning rate','$η$',0,'lr'),
+ row('隐藏层 weight decay','Hidden weight decay','$ω$',1),
+ row('注意力残差分支','Attention residual branch','MHA(LN($X$))',0,'branch',true),
+ row('MLP 残差分支','MLP residual branch','MLP(LN($Z$))',0,'branch',true),
+ row('最终 LN 初始化方差','Final-LN init. variance','$σ$^2'),
+ row('最终 LN 学习率','Final-LN learning rate','$η$'),
+ row('输出层初始化方差','Unembedding init. variance','$σ$^2'),
+ row('输出层学习率','Unembedding learning rate','$η$'),
+ row('输出层前向','Unembedding forward','$X$$W$_{unemb}^{⊤}',-1),
+ row('AdamW ε（残差块）','AdamW ε (residual blocks)','$ε$',-1,'branch'),
+ row('AdamW ε（嵌入与输出层）','AdamW ε (embedding / output)','$ε$',-1)
+];
+const exponent=(v:number)=>String(v).replace('-','−');
+---
+<div class="parameter-table" data-parameter-table data-recipe={selected}>
+  <div class="pt-toolbar">
+    <div class="pt-choices" role="group" aria-label={zh?'选择参数化方案':'Choose a parameterization'}>
+      {recipes.map(r=><button type="button" data-recipe-choice={r.id} aria-pressed={r.id===selected?'true':'false'}>{r.label}</button>)}
+    </div>
+    <span class="pt-change-key">{zh?'黄色底：与上一个配方不同':'Yellow: differs from the previous recipe'}</span>
+  </div>
+  <div class="pt-description" aria-live="polite">{recipes.map(r=><p data-recipe-description={r.id} hidden={r.id!==selected} set:html={html(r[language])} />)}</div>
+  <table>
+    <colgroup><col style="width:29%"/><col style="width:26%"/><col style="width:15%"/><col style="width:15%"/><col style="width:15%"/></colgroup>
+    <thead><tr><th scope="col">{zh?'规则':'Rule'}</th><th scope="col">{zh?'基础项':'Base term'}</th><th scope="col" class="pt-width">{zh?'× 宽度因子':'× Width factor'}</th><th scope="col" class="pt-depth">{zh?'× 深度因子':'× Depth factor'}</th><th scope="col" class="pt-loop">{zh?'× 循环因子':'× Loop factor'}</th></tr></thead>
+    <tbody>{rows.map((r,i)=><tr class:list={[r.loop&&'pt-residual',[2,4,8,10,12,15].includes(i)&&'pt-group']}>
+      <th scope="row">{r.name}</th><td class="pt-base" set:html={html(r.base)}/>
+      {[{axis:'width',value:exponent(r.width),key:''},{axis:'depth',value:r.depth==='none'||selected==='mup'?'0':'−1/2',key:r.depth},{axis:'loop',value:selected==='loop'&&r.loop?'−1':'0',key:r.loop?'branch':'none'}].map(f=><td class={`pt-${f.axis}`}><span class:list={['pt-factor',f.value==='0'&&'is-unit']} data-factor-axis={f.axis} data-factor-key={f.key}>
+        <span class="pt-symbol"><var>{f.axis==='loop'?'N':'m'}</var>{f.axis!=='loop'&&<sub><var>{f.axis==='width'?'n':'L'}</var></sub>}</span><sup data-factor-exponent>{f.value}</sup>
+      </span></td>)}
+    </tr>)}</tbody>
+  </table>
+  <div class="pt-legend"><span set:html={html('$m$_{$n$} = $n$/$n$_{base}')} /><span set:html={html('$m$_{$L$} = $L$/$L$_{base}')} /><span set:html={html(zh?'$N$ = 循环次数':'$N$ = loop count')} /></div>
+</div>
+<script>
+  document.querySelectorAll<HTMLElement>('[data-parameter-table]').forEach(table=>{
+    table.querySelectorAll<HTMLButtonElement>('[data-recipe-choice]').forEach(button=>{
+      button.addEventListener('click',()=>{
+        const choice=button.dataset.recipeChoice!;
+        if(table.dataset.recipe===choice)return;
+        table.dataset.recipe=choice;
+        table.querySelectorAll<HTMLButtonElement>('[data-recipe-choice]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+        table.querySelectorAll<HTMLElement>('[data-recipe-description]').forEach(p=>p.hidden=p.dataset.recipeDescription!==choice);
+        table.querySelectorAll<HTMLElement>('[data-factor-axis]').forEach(factor=>{
+          const axis=factor.dataset.factorAxis,key=factor.dataset.factorKey;
+          const exp=factor.querySelector<HTMLElement>('[data-factor-exponent]')!;
+          let next=exp.textContent!;
+          if(axis==='depth')next=choice==='mup'||key==='none'?'0':choice==='complete'?(key==='branch'?'−1':'0'):'−1/2';
+          if(axis==='loop')next=choice==='loop'&&key==='branch'?'−1':'0';
+          factor.classList.toggle('is-changed',next!==exp.textContent);
+          factor.classList.toggle('is-unit',next==='0');
+          exp.textContent=next;
+        });
+      });
+    });
+    // A deck's guided tour presses the recipe buttons; its first step is silent.
+    table.addEventListener('tour:set',event=>{
+      const {key,value,instant}=(event as CustomEvent<{key:string;value:string;instant?:boolean}>).detail;
+      if(key!=='recipe')return;
+      table.querySelector<HTMLButtonElement>(`[data-recipe-choice="${value}"]`)?.click();
+      if(instant)table.querySelectorAll('.is-changed').forEach(factor=>factor.classList.remove('is-changed'));
+    });
+  });
+</script>
+<style>
+.parameter-table {font-family:var(--sans);font-size:14px;line-height:1.2}
+.pt-toolbar {display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:7px}
+.pt-choices {display:flex;gap:4px;padding:3px;background:#f0f2ec;border-radius:7px}
+.pt-choices button {font:600 15px/1.2 var(--sans);padding:7px 15px;border:0;border-radius:5px;background:transparent;color:var(--muted);cursor:pointer}
+.pt-choices button[aria-pressed="true"] {background:var(--accent);color:white}
+.pt-choices button:focus-visible {outline:2px solid var(--accent);outline-offset:3px}
+.pt-change-key {font-size:12px;color:var(--muted)}
+.pt-description {height:28px;display:flex;align-items:center}
+.pt-description p {margin:0;font-size:14px;line-height:1.4;color:var(--ink)}
+.parameter-table table {table-layout:fixed;width:100%;border-collapse:collapse}
+.parameter-table th,.parameter-table td {height:23px;padding:2px 12px;text-align:left;vertical-align:middle;border-bottom:1px solid #edf0e9;box-sizing:border-box}
+.parameter-table thead th {height:30px;font-size:13px;border-bottom:1px solid #bdc9b4}
+.parameter-table tbody th {font-size:13px;font-weight:400}
+.parameter-table .pt-group>* {border-top:1px solid #cdd6c5}
+.pt-base {font-size:16px}
+.pt-width {color:#43824b}.pt-depth {color:#367ba0}.pt-loop {color:#b56432}
+.pt-factor {display:inline-grid;grid-template-columns:auto 42px;column-gap:1px;align-items:start;position:relative;font-size:17px;line-height:19px;border-radius:3px;padding:0 4px}
+.pt-factor .pt-symbol {text-align:left;white-space:nowrap}
+.pt-factor sub {font-size:12px!important;position:relative;left:1px}
+.pt-factor var {font-family:var(--serif);font-style:italic}
+.pt-description var,.pt-legend var {font-family:var(--serif);font-style:italic}
+.pt-factor sup {position:static;font:12px/13px var(--sans)!important;text-align:left;min-width:36px}
+.pt-factor.is-unit {opacity:.36}
+.pt-factor.is-changed {background:#fff0c3;box-shadow:0 0 0 1px #efd591;opacity:1}
+.pt-residual .pt-base,.pt-residual th {font-weight:600}
+.pt-legend {display:flex;justify-content:space-between;gap:12px;margin-top:10px;color:var(--muted);font-size:12px}
+</style>

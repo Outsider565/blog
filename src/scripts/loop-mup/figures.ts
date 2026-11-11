@@ -63,7 +63,22 @@ function setup(root: HTMLElement) {
     update(module.parse(key, value, state), focused ? `button[data-lm-key="${key}"][data-lm-value="${value}"]` : undefined);
   });
 
+  // A deck's guided tour sets controls (and the phase-plane point) directly.
+  root.addEventListener('tour:set', event => {
+    const { key, value } = (event as CustomEvent<{ key: string; value: string }>).detail;
+    update(module.parse(key, value, state));
+  });
+
   if (id === 'phase') {
+    // A deck builds this SVG while its slide is hidden. Redraw after it gains
+    // a layout box so SVG text uses the visible chart's font metrics.
+    let previousWidth = 0;
+    const phaseResize = new ResizeObserver(([entry]) => {
+      const width = entry?.contentRect.width ?? 0;
+      if (width > 0 && width !== previousWidth) render();
+      previousWidth = width;
+    });
+    phaseResize.observe(root);
     // The plane keeps its on-screen box across re-renders, so a drag keeps
     // working while the rectangle under the pointer is replaced.
     let plane: DOMRect | null = null;

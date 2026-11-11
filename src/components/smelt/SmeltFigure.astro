@@ -17,19 +17,21 @@ import RecipeSearch from './RecipeSearch.astro';
 import ResidualFlow from './ResidualFlow.astro';
 import ScalingFit from './ScalingFit.astro';
 import '../../styles/smelt.css';
-interface Props { id: keyof typeof figures; language: Language }
-const { id, language } = Astro.props;
+interface Props { id: keyof typeof figures; language: Language; uid?: string }
+const { id, language, uid } = Astro.props;
+type ChartComponent = (_props: { language: Language; mode?: string; metric?: string; uid?: string; children?: unknown }) => unknown;
 const components = { AttentionSink, AttentionStages, BeyondLoss, BudgetMatch, ComputeFrontier, DomainGain, DownstreamPairs, DyckAttention, ExpertReuse, IclGain, LengthGain, LossCompute, RecipeSearch, ResidualFlow, ScalingFit };
 const figure = figures[id];
-const Chart = components[figure.component as keyof typeof components];
+const Chart = components[figure.component as keyof typeof components] as unknown as ChartComponent;
 const caption = figure.captions[language];
 const prefix = language === 'zh' ? `图 ${figure.number}｜` : `Figure ${figure.number} | `;
 const title = `${prefix}${caption.title || figures[id].captions.zh.title}`;
 const original = figure.file ? assetPath(figure.file, 'smelt') : undefined;
+const figureDomId = uid ? `figure-${id}-${uid}` : `figure-${id}`;
 ---
-<figure class:list={['research-figure', 'smelt-figure', `figure-${id}`]} id={`figure-${id}`} data-figure={id} data-figure-number={figure.number}>
+<figure class:list={['research-figure', 'smelt-figure', `figure-${id}`]} id={figureDomId} data-figure={id} data-figure-number={figure.number}>
   <div class="smelt-figure-body">
-    <Chart language={language} {...figure.props}>
+    <Chart language={language} uid={uid} {...figure.props}>
       {original && figure.dimensions && <a class="figure-image-link" href={original} target="_blank" rel="noopener noreferrer" data-enlarge aria-label={`${language === 'zh' ? '放大查看' : 'Enlarge'}: ${title}`}>
         <img src={original} width={figure.dimensions[0]} height={figure.dimensions[1]} alt={title} loading="lazy" decoding="async" />
       </a>}

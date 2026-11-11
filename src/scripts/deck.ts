@@ -4,6 +4,8 @@
 // The article figures run their own scripts; their reveal animations start
 // when a slide first becomes visible, exactly as they do on scroll.
 
+import { startTours, stopTours } from './deck-tour';
+
 const STAGE_WIDTH = 1280;
 const STAGE_HEIGHT = 720;
 const CHANNEL = 'loop-science-deck';
@@ -71,6 +73,8 @@ function setup(deck: HTMLElement) {
     const stacked = body.classList.contains('is-stack');
     let height = body.clientHeight - Number.parseFloat(bodyStyle.paddingTop) - Number.parseFloat(bodyStyle.paddingBottom);
     const text = body.querySelector<HTMLElement>('.slide-text');
+    const equations = body.querySelector<HTMLElement>('.slide-equations');
+    if (equations) height -= equations.offsetHeight + (Number.parseFloat(bodyStyle.rowGap) || 0);
     if (stacked && text) height -= text.offsetHeight + (Number.parseFloat(bodyStyle.rowGap) || 0);
     if (!stacked) for (const other of visual.children) if (!other.hasAttribute('data-deck-figure')) height -= (other as HTMLElement).offsetHeight;
     const width = visual.clientWidth;
@@ -79,7 +83,7 @@ function setup(deck: HTMLElement) {
     const heights = items.map(item => item.inner!.offsetHeight * item.scale);
     const widths = items.map(item => item.width * item.scale);
     const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
-    const factor = Math.max(0.6, Math.min(1,
+    const factor = Math.max(0.05, Math.min(1,
       stacked ? height / Math.max(...heights) : (height - gaps) / sum(heights),
       stacked ? (width - gaps) / sum(widths) : width / Math.max(...widths),
     ));
@@ -133,6 +137,30 @@ function setup(deck: HTMLElement) {
   const channel = 'BroadcastChannel' in window ? new BroadcastChannel(CHANNEL) : null;
   const overviewButtons = [...deck.querySelectorAll<HTMLButtonElement>('[data-deck-goto]')];
 
+  // SVG text on a hidden slide can keep the metrics of a fallback font: the
+  // CJK web font arrives later and the text is never laid out again, so
+  // anchored labels drift and CJK runs go missing. Re-lay out the SVGs of a
+  // slide whenever it is shown, and every slide's once the fonts are in.
+  const relayoutSvgText = (slide: HTMLElement) => {
+    for (const svg of slide.querySelectorAll<SVGSVGElement>('svg')) {
+      if (!svg.querySelector('text')) continue;
+      const display = svg.style.display;
+      svg.style.display = 'none';
+      void svg.getBoundingClientRect();
+      svg.style.display = display;
+    }
+  };
+  document.fonts?.ready.then(() => relayoutSvgText(slides[index]!));
+  document.fonts?.addEventListener('loadingdone', () => relayoutSvgText(slides[index]!));
+
+  // Figures with a guided tour play it whenever their slide opens. On first
+  // load the figure scripts may not be listening yet, so wait for them.
+  let scriptsReady = document.readyState === 'complete';
+  const ready = () => { if (scriptsReady) return; scriptsReady = true; tour(); };
+  document.addEventListener('DOMContentLoaded', ready, { once: true });
+  window.addEventListener('load', ready, { once: true });
+  const tour = () => { if (scriptsReady) startTours(slides[index]!); else stopTours(); };
+
   const show = (target: number, options: { broadcast?: boolean } = {}) => {
     const wanted = Math.max(0, Math.min(total - 1, Math.trunc(target)));
     const changed = wanted !== index || !slides[wanted]!.classList.contains('is-active');
@@ -143,6 +171,8 @@ function setup(deck: HTMLElement) {
       index = wanted;
       slides[index]!.classList.add('is-active');
       for (const tooltip of document.querySelectorAll<HTMLElement>('.chart-tooltip')) tooltip.hidden = true;
+      tour();
+      relayoutSvgText(slides[index]!);
     }
     fitSlide(slides[index]!);
     deck.dataset.index = String(index);
@@ -240,10 +270,9 @@ function setup(deck: HTMLElement) {
   document.addEventListener('keydown', event => {
     if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
     const target = event.target instanceof Element ? event.target : null;
-    if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
     const key = event.key;
-    // Chart marks with their own keyboard handling (tabindex or SVG) keep the arrows.
-    const inFigure = Boolean(target?.closest('.slide') && (target.closest('svg') || target.hasAttribute('tabindex')));
+    // All figure controls keep navigation keys, including ordinary buttons.
+    const inFigure = Boolean(target?.closest('.deck-figure'));
     if (key === 'Escape') {
       if (overlayOpen()) closeOverlays();
       else if (digits) { digits = ''; showDigits(); }
@@ -252,6 +281,7 @@ function setup(deck: HTMLElement) {
       event.preventDefault();
       return;
     }
+    if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
     if (overlayOpen()) {
       if (key === 'o' || key === 'O') { setPanel('overview'); event.preventDefault(); }
       else if (key === '?') { setPanel('help'); event.preventDefault(); }
@@ -287,6 +317,7 @@ function setup(deck: HTMLElement) {
       case 'o': case 'O': setPanel('overview'); break;
       case '?': setPanel('help'); break;
       case 'l': case 'L': languageLink?.click(); break;
+      case 'r': case 'R': startTours(slides[index]!); break;
       default: return;
     }
     event.preventDefault();

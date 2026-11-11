@@ -1,0 +1,62 @@
+---
+import { svgText } from '../../lib/loop-mup/markup';
+import type { Language } from '../../lib/site';
+interface Props { language: Language }
+const { language } = Astro.props;
+const zh = language === 'zh';
+const colors = ['#286c78', '#467846', '#af6335'];
+const fills = ['#e8f3f4', '#edf4e8', '#fbefe5'];
+const weight = (i: number) => svgText(`$W$_{${i + 1}}`);
+---
+<svg class="loop-definition" viewBox="0 0 1120 432" role="img" aria-label={zh ? '循环 Transformer：3 层共享权重的网络执行 3 次，共执行 9 层。相同颜色和编号表示同一层参数。' : 'A looped Transformer with 3 shared layers executed 3 times: 9 layer executions, 3 layers of parameters. Matching colors and labels indicate the same weights.'}>
+  <defs>
+    <marker id="loop-definition-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#697266" stroke-width="1.6" /></marker>
+    <marker id="loop-definition-return" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#af6335" stroke-width="1.6" /></marker>
+  </defs>
+  <text x="0" y="24" class="ld-heading">{zh ? '存储的网络' : 'Stored network'}</text>
+  <text x="1120" y="24" text-anchor="end" class="ld-meta" set:html={svgText(zh ? '例：$L$ = 3 层，$N$ = 3 次循环' : 'Example: $L$ = 3 layers, $N$ = 3 loops')} />
+  <rect x="306" y="86" width="508" height="106" rx="12" fill="#fafbf7" stroke="#d6ddcf" />
+  <path d="M830 134 H860 V58 H270 V134 H304" fill="none" stroke="#af6335" stroke-width="2" marker-end="url(#loop-definition-return)" />
+  <rect x="393" y="42" width="334" height="29" fill="white" />
+  <text x="560" y="62" text-anchor="middle" class="ld-loop" set:html={svgText(zh ? '输出送回同一组层，共执行 $N$ 次' : 'Feed the output back: $N$ passes in total')} />
+  <rect x="38" y="108" width="150" height="52" rx="7" fill="#f2f3ef" stroke="#cbd1c6" />
+  <text x="113" y="140" text-anchor="middle">Embedding</text>
+  <path d="M188 134 H330" class="ld-arrow" />
+  <text x="238" y="159" text-anchor="middle" class="ld-state" set:html={svgText('$x$^{0}')} />
+  {[0,1,2].map(i => <>
+    <rect x={334+i*159} y="110" width="133" height="48" rx="7" fill={fills[i]} stroke={colors[i]} stroke-width="1.5" />
+    <text x={400.5+i*159} y="141" text-anchor="middle" fill={colors[i]} set:html={`Layer ${i+1} · ${weight(i)}`} />
+    {i<2 && <path d={`M${467+i*159} 134 H${490+i*159}`} class="ld-arrow" />}
+  </>)}
+  <path d="M786 134 H929" class="ld-arrow" />
+  <text x="887" y="159" text-anchor="middle" class="ld-state" set:html={svgText('$x$^{$N$}')} />
+  <rect x="932" y="108" width="150" height="52" rx="7" fill="#f2f3ef" stroke="#cbd1c6" />
+  <text x="1007" y="140" text-anchor="middle">Output head</text>
+  <text x="560" y="181" text-anchor="middle" class="ld-meta">{zh ? '每层包含 Attention + MLP 残差分支' : 'Each layer contains Attention + MLP residual branches'}</text>
+  <line x1="0" y1="218" x2="1120" y2="218" stroke="#dce1d6" />
+  <text x="0" y="249" class="ld-heading">{zh ? '展开的计算' : 'Unrolled computation'}</text>
+  <text x="1120" y="249" text-anchor="end" class="ld-meta">{zh ? '同色、同编号 = 同一份权重' : 'Same color and label = same weights'}</text>
+  {[0,1,2].map(pass => <>
+    <text x={220+pass*340} y="287" text-anchor="middle" class="ld-meta">{zh ? `第 ${pass+1} 次循环` : `Pass ${pass+1}`}</text>
+    <rect x={66+pass*340} y="299" width="308" height="63" rx="10" fill="#fafbf7" stroke="#d6ddcf" />
+    {[0,1,2].map(i => <>
+      <rect x={78+pass*340+i*100} y="311" width="84" height="38" rx="5" fill={fills[i]} stroke={colors[i]} />
+      <text x={120+pass*340+i*100} y="337" text-anchor="middle" fill={colors[i]} set:html={weight(i)} />
+      {i<2 && <path d={`M${162+pass*340+i*100} 330 H${176+pass*340+i*100}`} class="ld-arrow" />}
+    </>)}
+    {pass<2 && <path d={`M${374+pass*340} 330 H${403+pass*340}`} class="ld-arrow" />}
+  </>)}
+  <path d="M16 330 H64 M1055 330 H1104" class="ld-arrow" />
+  <text x="560" y="415" text-anchor="middle" class="ld-summary" set:html={svgText(zh ? '参数：$L$ 层　·　执行深度：$N$ × $L$ 层' : 'Parameters: $L$ layers  ·  Executed depth: $N$ × $L$ layers')} />
+</svg>
+<style>
+.loop-definition { display: block; width:100%; font: 18px var(--sans); fill:var(--ink); }
+.ld-arrow { fill:none; stroke:#697266; stroke-width:1.6; marker-end:url(#loop-definition-arrow); }
+.ld-heading { font-weight:700; font-size:19px; }
+.ld-meta { fill:var(--muted); font-size:15px; }
+.ld-loop { fill:#af6335; font-size:17px; }
+.ld-state { fill:var(--muted); font-size:19px; }
+.loop-definition :global(.lm-var) { font-family:var(--serif); font-style:italic; }
+.loop-definition :global(.lm-script) { font-size:.72em; }
+.ld-summary { font-size:24px; }
+</style>

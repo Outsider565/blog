@@ -6,15 +6,15 @@
 import { cells, copy, defaultSelection, distLayout, dist, meanLabels, meanLabelText, expertsOf, fmt, fmtRatio, k, maxExperts, poolStates, poolStyle, randomMean, ratioRange, sizeColor, sizes, sparsity, sparsityLabel, trackPercent } from '../../lib/smelt/expert-reuse';
 import type { Language } from '../../lib/site';
 import '../../styles/smelt/expert-reuse.css';
-interface Props { language: Language; mode?: string; metric?: string }
-const { language } = Astro.props;
+interface Props { language: Language; mode?: string; metric?: string; uid?: string }
+const { language, uid: uidSuffix } = Astro.props;
 const text = copy[language];
 const { es, size } = defaultSelection;
 const experts = expertsOf(es);
 const layout = distLayout(es, size);
 const pool = poolStates(es, size);
 const cell = cells[es][size];
-const uid = `er-${language}`;
+const uid = uidSuffix ? `er-${language}-${uidSuffix}` : `er-${language}`;
 const lanes = sizes.length;
 const meanText = meanLabelText(text, es, layout.mean);
 const randomText = text.randomLabel(layout.randomMean);

@@ -5,8 +5,8 @@
 import { html } from '../../lib/loop-mup/markup';
 import type { Language } from '../../lib/site';
 import '../../styles/loop-mup.css';
-interface Props { language: Language }
-const { language } = Astro.props;
+interface Props { language: Language; expanded?: boolean }
+const { language, expanded = false } = Astro.props;
 const zh = language === 'zh';
 const depth = '[d:$m$_{$L$}^{−1/2}]';
 const columns = [
@@ -43,14 +43,14 @@ const rows = [
 const summary = zh ? '完整配方（Loop-μP 取 $α$_{$L$} = 1/2）' : 'Full recipe (Loop-μP uses $α$_{$L$} = 1/2)';
 ---
 <div class="lm-recipe">
-  <div class="lm-recipe-columns">
+  {!expanded && <div class="lm-recipe-columns">
     {columns.map(column => <div class="lm-recipe-column">
       <h3 set:html={html(column.title)} />
       {column.rules.map(rule => <p class="lm-recipe-rule"><span class="lm-recipe-name" set:html={html(rule.name)} /><Fragment set:html={html(rule.formula)} /></p>)}
     </div>)}
-  </div>
-  <p class="lm-recipe-key"><span class="lm-width" set:html={html(zh ? '绿：宽度 $m$_{$n$} = $n$/$n$_{base}' : 'Green: width $m$_{$n$} = $n$/$n$_{base}')} /><span class="lm-depth" set:html={html(zh ? '蓝：深度 $m$_{$L$} = $L$/$L$_{base}' : 'Blue: depth $m$_{$L$} = $L$/$L$_{base}')} /><span class="lm-loop" set:html={html(zh ? '橙：循环次数 $N$' : 'Orange: loop count $N$')} /></p>
-  <details class="disclosure smelt-data lm-data">
+  </div>}
+  <p class="lm-recipe-key">{expanded && <span set:html={html('Loop-μP: $α$_{$L$} = 1/2')} />}<span class="lm-width" set:html={html(zh ? '绿：宽度 $m$_{$n$} = $n$/$n$_{base}' : 'Green: width $m$_{$n$} = $n$/$n$_{base}')} /><span class="lm-depth" set:html={html(zh ? '蓝：深度 $m$_{$L$} = $L$/$L$_{base}' : 'Blue: depth $m$_{$L$} = $L$/$L$_{base}')} /><span class="lm-loop" set:html={html(zh ? '橙：循环次数 $N$' : 'Orange: loop count $N$')} /></p>
+  <details class="disclosure smelt-data lm-data" open={expanded}>
     <summary><span set:html={html(summary)} /><span class="disclosure-plus" aria-hidden="true">+</span></summary>
     <div class="disclosure-body">
       <div class="data-scroll" tabindex="0" role="region" aria-label={summary.replaceAll('$', '').replace('_{', '').replace('}', '')}>

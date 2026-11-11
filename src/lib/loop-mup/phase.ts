@@ -53,7 +53,7 @@ const copy = {
       if (alpha === 1) return 'CompleteP：可行区间的右端点，学习率与 $L$ 无关。';
       return '可行：位于 Depth-μP 与 CompleteP 之间，输出的变化与 $L$ 无关。';
     },
-    meters: (mode: Mode) => ['初始化时的残差增量', mode === 'loop' ? '一步更新后，第一次循环的变化' : '一步更新后，单层的变化', '一步更新后，输出的变化'],
+    meters: (mode: Mode) => ['初始化时的残差增量', mode === 'loop' ? '首轮预激活的更新' : '单层预激活的更新', '一步更新后，输出的变化'],
     status: (mode: Mode) => ({ grow: `随 $${symbol(mode)}$ 增长`, flat: `与 $${symbol(mode)}$ 无关`, fade: `随 $${symbol(mode)}$ 趋于 0` }),
     axes: (mode: Mode) => [`分支系数指数 $α$_{$${symbol(mode)}$}`, `学习率指数 $γ$_{$${symbol(mode)}$}`],
     aria: (mode: Mode, alpha: string, gamma: string, verdict: string) => `相图（${mode === 'loop' ? '共享权重的循环' : '独立权重的层'}）：横轴 α_${symbol(mode)}，纵轴 γ_${symbol(mode)}。当前点 (${alpha}, ${gamma})，${verdict}`,
@@ -73,7 +73,7 @@ const copy = {
       if (alpha === 1) return 'CompleteP: the right end of the feasible interval; the learning rate is independent of $L$.';
       return 'Feasible: between Depth-μP and CompleteP; the output change is independent of $L$.';
     },
-    meters: (mode: Mode) => ['Residual increment at initialization', mode === 'loop' ? 'Change of the first loop after one step' : 'Change of one layer after one step', 'Change of the output after one step'],
+    meters: (mode: Mode) => ['Residual increment at initialization', mode === 'loop' ? 'First-loop preactivation update' : 'Single-layer preactivation update', 'Change of the output after one step'],
     status: (mode: Mode) => ({ grow: `grows with $${symbol(mode)}$`, flat: `independent of $${symbol(mode)}$`, fade: `goes to 0 with $${symbol(mode)}$` }),
     axes: (mode: Mode) => [`Branch exponent $α$_{$${symbol(mode)}$}`, `Learning-rate exponent $γ$_{$${symbol(mode)}$}`],
     aria: (mode: Mode, alpha: string, gamma: string, verdict: string) => `Phase diagram (${mode === 'loop' ? 'shared loops' : 'independent layers'}): α_${symbol(mode)} on the horizontal axis, γ_${symbol(mode)} on the vertical axis. Current point (${alpha}, ${gamma}): ${verdict}`,

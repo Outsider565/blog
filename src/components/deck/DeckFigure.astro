@@ -6,6 +6,9 @@
 // less room (a longer title, say) and sets the frame to the scaled size.
 import type { FigureRef } from '../../data/loop-science/slides';
 import type { Language } from '../../lib/site';
+import LoopDefinition from './LoopDefinition.astro';
+import LoopProblem from './LoopProblem.astro';
+import ParameterTable from './ParameterTable.astro';
 import LoopFigure from '../loop-mup/LoopFigure.astro';
 import LoopMath from '../loop-mup/LoopMath.astro';
 import LoopRecipe from '../loop-mup/LoopRecipe.astro';
@@ -17,13 +20,16 @@ const { figure, language } = Astro.props;
 const width = figure.width ?? 760;
 const scale = figure.scale ?? 1;
 ---
-<div class:list={['deck-figure', `is-${figure.kind}`]} data-deck-figure data-width={width} data-scale={scale} style={`--fig-w:${width}px;--fig-s:${scale}`}>
+<div class:list={['deck-figure', `is-${figure.kind}`]} data-deck-figure data-panel={figure.panel} data-width={width} data-scale={scale} data-tour={figure.tour ? JSON.stringify(figure.tour) : undefined} style={`--fig-w:${width}px;--fig-s:${scale}`}>
   <div class="deck-figure-inner" data-deck-figure-inner>
+    {figure.kind === 'loop-definition' && <LoopDefinition language={language} />}
+    {figure.kind === 'loop-problem' && <LoopProblem view={figure.view} language={language} />}
+    {figure.kind === 'parametrization' && <ParameterTable mode={figure.mode} language={language} />}
     {figure.kind === 'loop' && <LoopFigure id={figure.id} language={language} />}
-    {figure.kind === 'smelt' && <SmeltFigure id={figure.id} language={language} />}
+    {figure.kind === 'smelt' && <SmeltFigure id={figure.id} language={language} uid={figure.panel} />}
     {figure.kind === 'hero' && <SmeltHero language={language} />}
     {figure.kind === 'formula' && <SmeltFormula language={language} />}
     {figure.kind === 'math' && <LoopMath name={figure.name} language={language} />}
-    {figure.kind === 'recipe' && <LoopRecipe language={language} />}
+    {figure.kind === 'recipe' && <LoopRecipe language={language} expanded />}
   </div>
 </div>

@@ -1,0 +1,108 @@
+---
+// Loop-μP problem setup slides: prior depth recipes as one feasible interval,
+// the shared-loop model and its two exponents, the three conditions, and the
+// conversion of those conditions into exponent inequalities. Display math is
+// MathML in the same math face as the article; prose variables use the label
+// notation so they match the rest of the deck.
+import { html } from '../../lib/loop-mup/markup';
+import type { Language } from '../../lib/site';
+interface Props { language: Language; view: 'question' | 'variables' | 'criteria' | 'exponents' }
+const { language, view } = Astro.props;
+const zh = language === 'zh';
+const sub=(a:string,b:string)=>`<msub><mi>${a}</mi><mi>${b}</mi></msub>`;
+const power=(a:string,b:string)=>`<msup><mi>${a}</mi><mrow>${b}</mrow></msup>`;
+const index=(v:string)=>/^\d+$/.test(v)?`<mn>${v}</mn>`:`<mi>${v}</mi>`;
+const state=(v:string,r:string,t='0')=>`<msubsup><mi>${v}</mi>${index(t)}<mrow>${r}</mrow></msubsup>`;
+const alpha=sub('α','N'), gamma=sub('γ','N'), cn=sub('c','N'), sn=sub('s','N');
+const alphaL=sub('α','L'), gammaL=sub('γ','L');
+const bar=(c:string)=>`<mo stretchy="false" lspace="0" rspace="0">${c}</mo>`;
+const norm=(a:string)=>`<msub><mrow>${bar('‖')}${a}${bar('‖')}</mrow><mtext>rms</mtext></msub>`;
+const order=(s:string)=>`<mi mathvariant="normal">${s}</mi><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo>`;
+const delta='<mi mathvariant="normal">Δ</mi>';
+const f0='<msub><mi>f</mi><mn>0</mn></msub>';
+const absolute=(a:string)=>`<mrow>${bar('|')}${a}${bar('|')}</mrow>`;
+const minus='<mo>−</mo>';
+const half='<mn>1/2</mn>';
+const paren=(a:string)=>`<mo stretchy="false">(</mo>${a}<mo stretchy="false">)</mo>`;
+const uniform=(update=false)=>`<munder><mo>max</mo><mrow><mn>1</mn><mo>≤</mo><mi>r</mi><mo>≤</mo><mi>N</mi></mrow></munder><mo stretchy="false">{</mo>${norm((update?delta:'')+state('x','<mi>r</mi>'))}<mo>,</mo>${norm((update?delta:'')+state('h','<mi>r</mi>'))}<mo>,</mo>${absolute((update?delta:'')+f0)}<mo stretchy="false">}</mo><mo>=</mo>${order('O')}`;
+const recipes=[
+ {name:'Depth-μP',pair:`${paren(`${alphaL}<mo>,</mo>${gammaL}`)}<mo>=</mo>${paren(`${half}<mo>,</mo>${half}`)}`,note:zh?'可行区间的左端点':'Left end of the feasible interval'},
+ {name:'CompleteP',pair:`${paren(`${alphaL}<mo>,</mo>${gammaL}`)}<mo>=</mo>${paren('<mn>1</mn><mo>,</mo><mn>0</mn>')}`,note:zh?'可行区间的右端点':'Right end of the feasible interval'},
+];
+const criteria=[
+ {title:zh?'初始化：前向值不发散':'Initialization: no divergence',formula:uniform(),detail:zh?'每一轮的残差流 $x$ 与预激活 $h$，以及最终输出 $f$。':'Every residual state $x$ and preactivation $h$, and the final output $f$.'},
+ {title:zh?'训练：一步更新有上界':'Training: bounded updates',formula:uniform(true),detail:zh?'只限制上界，更新趋于 0 也满足。':'An upper bound only; a vanishing update also passes.'},
+ {title:zh?'输出：一步更新不消失':'Output: nonvanishing update',formula:`${absolute(delta+f0)}<mo>=</mo>${order('Θ')}`,detail:zh?'输入与损失梯度非零时，输出变化保持常数量级。':'For nonzero input and loss gradient, the output change stays of order one.'}
+];
+const exponents=[
+ {quantity:zh?'初始化时的残差累积':'Residual accumulation at initialization',formula:`${norm(state('x','<mi>N</mi>')+minus+state('x','<mn>0</mn>'))}<mo>∝</mo><mi>N</mi>${cn}<mo>∝</mo>${power('N',`<mn>1</mn>${minus}${alpha}`)}`,condition:`${alpha}<mo>≥</mo><mn>1</mn>`,source:zh?'条件 1':'Condition 1'},
+ {quantity:zh?'首轮预激活的更新':'First preactivation update',formula:`${norm(delta+state('h','<mn>1</mn>'))}<mo>∝</mo>${sn}<mo>=</mo>${power('N',`${minus}${gamma}`)}`,condition:`${gamma}<mo>≥</mo><mn>0</mn>`,source:zh?'条件 2':'Condition 2'},
+ {quantity:zh?'输出的更新':'Output update',formula:`${absolute(delta+f0)}<mo>∝</mo><mi>N</mi>${cn}${sn}<mo>∝</mo>${power('N',`<mn>1</mn>${minus}${alpha}${minus}${gamma}`)}`,condition:`${alpha}<mo>+</mo>${gamma}<mo>=</mo><mn>1</mn>`,source:zh?'条件 2（≥）+ 条件 3（≤）':'Condition 2 (≥) + condition 3 (≤)'},
+];
+---
+<div class:list={['loop-problem',`lp-${view}`]}>
+  {view==='question' && <>
+    <p class="lp-label" set:html={html(zh?'独立层（$L$ 层各有权重）：':'Independent layers ($L$ layers, separate weights):')} />
+    <div class="lp-comparison">
+      {recipes.map(r=><section><h3>{r.name}</h3><math set:html={r.pair} /><p>{r.note}</p></section>)}
+    </div>
+    <p class="lp-interval"><math set:html={`<mfrac><mn>1</mn><mn>2</mn></mfrac><mo>≤</mo>${alphaL}<mo>≤</mo><mn>1</mn><mo>,</mo><mspace width="0.6em"/>${gammaL}<mo>=</mo><mn>1</mn>${minus}${alphaL}`} /><span>{zh?'整段区间都可行，两种配方是它的两端。':'The whole interval is feasible; the two recipes are its ends.'}</span></p>
+    <p class="lp-question" set:html={html(zh?'把 $L$ 层换成同一组权重循环 $N$ 次，这段区间还剩多少？':'Replace the $L$ layers by one shared block looped $N$ times: how much of this interval survives?')} />
+  </>}
+  {view==='variables' && <>
+    <div class="lp-definitions">
+      <section><h3 set:html={html(zh?'分支预激活 $h$':'Branch preactivation $h$')} /><math set:html={`${state('h','<mi>r</mi>','t')}<mo>=</mo>${sub('W','t')}${state('x','<mi>r</mi><mo>−</mo><mn>1</mn>','t')}`} /><p>{zh?'乘共享权重，尚未乘分支系数。':'Shared weights applied, before the branch coefficient.'}</p></section>
+      <section><h3 set:html={html(zh?'残差流 $x$':'Residual state $x$')} /><math set:html={`${state('x','<mi>r</mi>','t')}<mo>=</mo>${state('x','<mi>r</mi><mo>−</mo><mn>1</mn>','t')}<mo>+</mo>${cn}<mi>φ</mi><mo stretchy="false">(</mo>${state('h','<mi>r</mi>','t')}<mo stretchy="false">)</mo>`} /><p>{zh?'分支乘系数后加回残差流。':'The scaled branch is added to the residual stream.'}</p></section>
+      <section><h3 set:html={html(zh?'输出 $f$':'Output $f$')} /><math set:html={`${sub('f','t')}<mo>=</mo><msup><mi>V</mi><mo>⊤</mo></msup>${state('x','<mi>N</mi>','t')}`} /><p>{zh?'最后一次循环之后读出。':'Read out after the last loop.'}</p></section>
+    </div>
+    <p class="lp-index" set:html={html(zh?'$r$：循环序号；$t$：训练步。':'$r$: loop index; $t$: training step.')} />
+    <div class="lp-comparison">
+      <section><h3>{zh?'分支系数：每次写回多少':'Branch coefficient: how much each loop writes'}</h3><math set:html={`${cn}<mo>=</mo><mi>a</mi>${power('N',`${minus}${alpha}`)}`} /><p set:html={html(zh?'$α$_{$N$} 越大，每次写回随 $N$ 缩小得越快。':'A larger $α$_{$N$} shrinks each write faster with $N$.')} /></section>
+      <section><h3>{zh?'更新尺度：权重每步改多少':'Update scale: how far each step moves the weights'}</h3><math set:html={`${sn}<mo>=</mo>${power('N',`${minus}${gamma}`)}`} /><p set:html={html(zh?'$γ$_{$N$} = 0 时，基础学习率不随 $N$ 调整。':'At $γ$_{$N$} = 0 the base learning rate needs no change with $N$.')} /></section>
+    </div>
+  </>}
+  {view==='criteria' && <>
+    <div class="lp-criteria">{criteria.map((c,i)=><section><div class="lp-criterion-text"><h3><span class="lp-number">{i+1}</span>{c.title}</h3><p set:html={html(c.detail)} /></div><math set:html={c.formula} /></section>)}</div>
+  </>}
+  {view==='exponents' && <>
+    <table class="lp-exponents">
+      <thead><tr><th>{zh?'量':'Quantity'}</th><th>{zh?'随 N 的量级':'Scaling with N'}</th><th>{zh?'约束':'Constraint'}</th></tr></thead>
+      <tbody>{exponents.map(e=><tr><th>{e.quantity}</th><td><math set:html={e.formula} /></td><td><math set:html={e.condition} /><small>{e.source}</small></td></tr>)}</tbody>
+    </table>
+    <p class="lp-note" set:html={html(zh?'预激活 $h$ 在乘 $c$_{$N$} 之前，所以只看 $s$_{$N$}；输出累加 $N$ 次循环，每次都乘 $c$_{$N$}。':'The preactivation $h$ comes before $c$_{$N$}, so it sees only $s$_{$N$}; the output adds up $N$ loops, each scaled by $c$_{$N$}.')} />
+  </>}
+</div>
+<style>
+.loop-problem {padding:14px 0;color:var(--ink)}
+.loop-problem math {font-family:"STIX Two Math","Cambria Math","Latin Modern Math",math;font-size:30px}
+.loop-problem h3 {font:700 20px/1.5 var(--sans);margin:0 0 16px}
+.loop-problem p {font:18px/1.6 var(--sans);color:var(--muted);margin:16px 0 0}
+.loop-problem :global(var) {font-family:var(--serif);font-style:italic}
+.loop-problem :global(sub) {font-size:.7em;line-height:0}
+.lp-comparison {display:grid;grid-template-columns:1fr 1fr;gap:32px}
+.lp-comparison section {min-width:0;padding:22px 0 0;border-top:2px solid var(--accent)}
+.loop-problem .lp-label {margin:0 0 16px;color:var(--ink);font-size:19px;font-weight:700}
+.loop-problem .lp-interval {display:flex;align-items:center;gap:28px;margin-top:30px;padding:16px 22px;background:var(--highlight);color:var(--ink)}
+.lp-interval math {font-size:27px}
+.loop-problem .lp-question {margin-top:40px;color:var(--ink);font-size:25px}
+.lp-definitions {display:grid;grid-template-columns:1fr 1.35fr .8fr;gap:30px}
+.lp-definitions h3 {font-size:18px;margin-bottom:12px}
+.lp-definitions math {font-size:27px}
+.lp-definitions p {font-size:16px;margin:12px 0 0}
+.loop-problem .lp-index {font-size:16px;margin:22px 0 28px}
+.lp-variables .lp-comparison p {font-size:17px}
+.lp-criteria {display:grid;gap:10px}
+.lp-criteria section {display:grid;grid-template-columns:420px 1fr;gap:28px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line)}
+.lp-criteria h3 {margin:0 0 6px;font-size:20px;display:flex;align-items:baseline;gap:14px}
+.loop-problem .lp-criteria p {font-size:16px;margin:0 0 0 34px}
+.lp-criteria math {font-size:25px}
+.lp-number {display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font:700 13px/1 var(--sans);transform:translateY(-2px)}
+.lp-exponents {width:100%;border-collapse:collapse;font:17px/1.5 var(--sans)}
+.lp-exponents th,.lp-exponents td {text-align:left;padding:18px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+.lp-exponents thead th {padding-top:0;font-size:15px;color:var(--muted);font-weight:400}
+.lp-exponents tbody th {font-weight:700;width:24%}
+.lp-exponents math {font-size:27px}
+.lp-exponents td:last-child {width:30%}
+.lp-exponents small {display:block;margin-top:4px;font-size:13px;color:var(--muted)}
+.loop-problem .lp-note {margin-top:24px;font-size:17px}
+</style>

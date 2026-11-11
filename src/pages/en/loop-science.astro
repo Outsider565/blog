@@ -1,0 +1,13 @@
+---
+import LoopScienceDeck from '../../components/deck/LoopScienceDeck.astro';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+---
+<SiteLayout
+  title="Two Studies of Looped Transformers: Loop-μP and SMELT (talk slides)"
+  description="Slides for a 30-minute talk on the Loop-μP and SMELT articles: a 16:9 web deck that reuses the articles’ interactive figures and animations, with speaker notes."
+  language="en"
+  slug="loop-science"
+>
+  <script is:inline slot="head">document.documentElement.classList.add('deck-js');</script>
+  <LoopScienceDeck language="en" />
+</SiteLayout>

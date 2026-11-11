@@ -1,0 +1,29 @@
+---
+// One existing article figure on a slide. The figure is laid out at its own
+// width (the blog column is 760) and scaled uniformly, so charts, controls and
+// their container-query layouts look exactly as in the article. data-scale is
+// the preferred scale; the deck script shrinks it further when the slide has
+// less room (a longer title, say) and sets the frame to the scaled size.
+import type { FigureRef } from '../../data/loop-science/slides';
+import type { Language } from '../../lib/site';
+import LoopFigure from '../loop-mup/LoopFigure.astro';
+import LoopMath from '../loop-mup/LoopMath.astro';
+import LoopRecipe from '../loop-mup/LoopRecipe.astro';
+import SmeltFigure from '../smelt/SmeltFigure.astro';
+import SmeltFormula from '../smelt/SmeltFormula.astro';
+import SmeltHero from '../smelt/SmeltHero.astro';
+interface Props { figure: FigureRef; language: Language }
+const { figure, language } = Astro.props;
+const width = figure.width ?? 760;
+const scale = figure.scale ?? 1;
+---
+<div class:list={['deck-figure', `is-${figure.kind}`]} data-deck-figure data-width={width} data-scale={scale} style={`--fig-w:${width}px;--fig-s:${scale}`}>
+  <div class="deck-figure-inner" data-deck-figure-inner>
+    {figure.kind === 'loop' && <LoopFigure id={figure.id} language={language} />}
+    {figure.kind === 'smelt' && <SmeltFigure id={figure.id} language={language} />}
+    {figure.kind === 'hero' && <SmeltHero language={language} />}
+    {figure.kind === 'formula' && <SmeltFormula language={language} />}
+    {figure.kind === 'math' && <LoopMath name={figure.name} language={language} />}
+    {figure.kind === 'recipe' && <LoopRecipe language={language} />}
+  </div>
+</div>

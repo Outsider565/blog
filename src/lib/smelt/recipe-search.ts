@@ -110,84 +110,84 @@ const spanRange = (looped: number) => {
 
 export const copy: Record<Language, Copy> = {
   zh: {
-    base: '基线', loop: 'Looped Transformer', loopShort: 'Looped', yLabel: '验证损失 ↓', lowest: '最低', optimum: '最优',
-    ref: value => `基线 ${value}`, refBest: value => `基线最优 ${value}`, refShort: '基线最优',
-    control: { span: '循环层数', aspect: '执行深度', count: '循环次数' }, sparsity: '稀疏度',
-    xTitle: { span: '循环层数（共 12 层）', aspect: '执行深度（层）· FLOPs 相同，越深越窄 →', count: '循环段执行次数' },
-    xTitleNarrow: { span: '循环层数（共 12 层）', aspect: '执行深度 · 同 FLOPs 下越深越窄', count: '循环段执行次数' },
+    base: 'Baseline', loop: 'Looped Transformer', loopShort: 'Looped', yLabel: 'validation loss ↓', lowest: '最低', optimum: '最优',
+    ref: value => `Baseline ${value}`, refBest: value => `Baseline 最优 ${value}`, refShort: 'Baseline 最优',
+    control: { span: '循环层数', aspect: '执行深度', count: '循环轮数' }, sparsity: '稀疏度',
+    xTitle: { span: '循环层数（物理总深 12 层）', aspect: '执行深度（层）· 等 FLOPs 下越深越窄 →', count: '循环块执行轮数' },
+    xTitleNarrow: { span: '循环层数（共 12 层）', aspect: '执行深度 · 同 FLOPs 下越深越窄', count: '循环块执行轮数' },
     physicalExecuted: '标注：物理层数 / 执行层数', layers: count => `${count} 层`, notRun: '未训练',
     stat: {
-      span: () => ['验证损失', '相对基线', '每个 token 执行的层数'],
+      span: () => ['validation loss', '相对 Baseline', '单 token 执行层数'],
       aspect: state => {
         const loop = runs('aspect').find(run => run.series === 'loop' && run.key === state.key);
-        return [loop ? `Looped ${loop.physical}/${loop.executed}` : 'Looped', `基线（${state.key} 层）`, 'Looped 相对基线最优'];
+        return [loop ? `Looped ${loop.physical}/${loop.executed}` : 'Looped', `Baseline（${state.key} 层）`, 'Looped 相对 Baseline 最优'];
       },
-      count: () => ['验证损失', '相对基线', '执行层数'],
+      count: () => ['validation loss', '相对 Baseline', '执行层数'],
     },
     readout: state => {
       const run = focusRun(state.mode, state.key, state.sparsity);
       const [best] = bestRuns(state.mode, state.sparsity).slice(-1);
       const gap = run && best ? delta4(run.loss - best.loss).replace('+', '') : '';
       if (state.mode === 'span') {
-        if (!run || run.looped === 0) return '不循环：标准的 12 层基线，作为对照。';
+        if (!run || run.looped === 0) return '不循环：标准 12 层 Baseline 对照模型。';
         const [start, end] = spanRange(run.looped);
         const where = run.looped === 12 ? '全部 12 层' : `第 ${start}–${end} 层（中间 ${run.pct}%）`;
-        return `${where}执行两次，每个 token 共经过 ${run.executed} 层。${run.id === best?.id ? '本组验证损失最低。' : `比循环中间 50% 高 ${gap}。`}`;
+        return `${where}循环执行 2 轮，单 token 等效经过 ${run.executed} 层。${run.id === best?.id ? '取得本组最低 validation loss。' : `loss 比循环中间 50% 高 ${gap}。`}`;
       }
       if (state.mode === 'aspect') {
         const base = runs('aspect').find(item => item.series === 'base' && item.key === state.key);
-        if (!run) return `执行 ${state.key} 层：只有基线跑了这一档（${state.key} 个独立层），比基线最优高 ${delta4((base?.loss ?? 0) - reference('85')).replace('+', '')}。`;
-        const loopText = `Looped 只有 ${run.physical} 个物理层，中间 ${run.looped} 层执行两次`;
-        if (!base) return `执行 ${state.key} 层：只有 Looped 跑了这一档（物理 ${run.physical} 层，中间 ${run.looped} 层执行两次），已越过它的最优点。`;
-        if (run.id === best?.id) return `执行 ${state.key} 层：基线需要 ${state.key} 个独立层，已越过它的最优点；${loopText}，在这里达到最优。`;
-        if (state.key === 12) return `执行 12 层：这是基线的最优深度；${loopText}，此时反而落后。`;
-        return `执行 ${state.key} 层：基线是 ${state.key} 个独立层；${loopText}。`;
+        if (!run) return `执行 ${state.key} 层：该档仅训练了 Baseline（${state.key} 层独立参数），loss 比 Baseline 最优值高 ${delta4((base?.loss ?? 0) - reference('85')).replace('+', '')}。`;
+        const loopText = `Looped 仅含 ${run.physical} 层物理参数、中间 ${run.looped} 层循环 2 轮`;
+        if (!base) return `执行 ${state.key} 层：该档仅训练了 Looped（物理 ${run.physical} 层，中间 ${run.looped} 层循环 2 轮），已越过其最优深度。`;
+        if (run.id === best?.id) return `执行 ${state.key} 层：Baseline 需堆叠 ${state.key} 层独立参数且已过最优点；${loopText}，在此处取得全局最优。`;
+        if (state.key === 12) return `执行 12 层：Baseline 的最优深度；${loopText}，因宽度缩减过多而落后于 Baseline。`;
+        return `执行 ${state.key} 层：Baseline 含 ${state.key} 层独立参数；${loopText}。`;
       }
-      if (!run || run.visits === 1) return '执行一次即基线：12 层，宽度 H = 1280。';
-      if (run.id === best?.id) return '中间 6 层执行两次，共 18 层；宽度从 1280 缩到 1056，使每 token FLOPs 基本不变（相差约 2%）。本组最低。';
-      return `中间 6 层执行 ${run.visits} 次，共 ${run.executed} 层；为了匹配 FLOPs，模型要更窄。损失比两次高 ${gap}，但仍低于基线。`;
+      if (!run || run.visits === 1) return '执行 1 轮即为 Baseline：12 层，隐藏维度 H = 1280。';
+      if (run.id === best?.id) return '中间 6 层循环 2 轮（执行 18 层）；宽度由 1280 缩减至 1056 以对齐单 token FLOPs（偏差约 2%），取得本组最低 loss。';
+      return `中间 6 层循环 ${run.visits} 轮（执行 ${run.executed} 层）；为维持等 FLOPs 需进一步缩窄模型，loss 比循环 2 轮高 ${gap}，但仍优于 Baseline。`;
     },
     tip: (mode, run, sparsity) => {
-      const rows = [`验证损失 ${loss4(run.loss)}`];
+      const rows = [`validation loss ${loss4(run.loss)}`];
       const isRef = run.series === 'base' && run.loss === reference(sparsity);
-      if (!isRef && (run.series === 'loop' || mode === 'aspect')) rows.push(`相对基线${mode === 'aspect' ? '最优' : ''} ${delta4(run.loss - reference(sparsity))}`);
+      if (!isRef && (run.series === 'loop' || mode === 'aspect')) rows.push(`相对 Baseline${mode === 'aspect' ? ' 最优' : ''} ${delta4(run.loss - reference(sparsity))}`);
       rows.push(`DCLM Core ${run.core.toFixed(2)} ± ${run.coreSe.toFixed(2)}`);
-      if (mode === 'span') return [run.looped ? `循环 ${run.looped} / 12 层（${run.pct}%）· 执行 ${run.executed} 层` : '基线：不循环 · 12 层', ...rows].join('\n');
-      if (mode === 'aspect') return [run.series === 'base' ? `基线 · ${run.executed} 层${isRef ? '（最优）' : ''}` : `Looped · 物理 ${run.physical} 层，执行 ${run.executed} 层`, ...rows].join('\n');
-      return [run.visits === 1 ? '基线 · 执行一次，12 层' : `执行 ${run.visits} 次 · 共 ${run.executed} 层`, ...rows].join('\n');
+      if (mode === 'span') return [run.looped ? `循环 ${run.looped} / 12 层（${run.pct}%）· 执行 ${run.executed} 层` : 'Baseline：不循环 · 12 层', ...rows].join('\n');
+      if (mode === 'aspect') return [run.series === 'base' ? `Baseline · ${run.executed} 层${isRef ? '（最优）' : ''}` : `Looped · 物理 ${run.physical} 层，执行 ${run.executed} 层`, ...rows].join('\n');
+      return [run.visits === 1 ? 'Baseline · 执行 1 轮，12 层' : `循环 ${run.visits} 轮 · 执行 ${run.executed} 层`, ...rows].join('\n');
     },
-    pointLabel: (mode, run) => mode === 'span' ? (run.looped ? `循环 ${run.looped} / 12 层` : '基线') : mode === 'aspect' ? `${run.series === 'base' ? '基线' : 'Looped'} ${run.physical}/${run.executed}` : `${run.visits}×`,
+    pointLabel: (mode, run) => mode === 'span' ? (run.looped ? `循环 ${run.looped} / 12 层` : 'Baseline') : mode === 'aspect' ? `${run.series === 'base' ? 'Baseline' : 'Looped'} ${run.physical}/${run.executed}` : `${run.visits}×`,
     schematicCaption: state => {
       if (state.mode === 'span') return state.key === 0 ? '不循环 · 执行 12 层' : `执行 ${12 + state.key} 层`;
-      if (state.mode === 'count') return state.key === 1 ? '基线 · 执行 12 层' : `执行 ${12 + 6 * (state.key - 1)} 层`;
+      if (state.mode === 'count') return state.key === 1 ? 'Baseline · 执行 12 层' : `执行 ${12 + 6 * (state.key - 1)} 层`;
       return `执行 ${state.key} 层`;
     },
     schematicNote: {
-      span: '高亮的层执行两次，参数共享。',
-      aspect: '虚线：各自最优的形状。',
-      count: '虚线：基线宽度。',
+      span: '高亮层循环执行 2 轮，共享参数。',
+      aspect: '虚线框：各自最优深宽形态。',
+      count: '虚线框：Baseline 宽度。',
     },
-    noLoopNote: '不循环：每层只执行一次。',
-    schematicLabel: { span: '12 层模型的示意图', aspect: '基线与 Looped Transformer 的执行深度与宽度示意图', count: '循环段重复执行的示意图' },
-    visit: index => `第 ${index} 次`,
+    noLoopNote: '不循环：每层仅执行 1 轮。',
+    schematicLabel: { span: '12 层模型的循环区间示意图', aspect: 'Baseline 与 Looped Transformer 的执行深度与宽度对比示意图', count: '循环块多轮执行的示意图' },
+    visit: index => `第 ${index} 轮`,
     physicalLine: count => `物理 ${count} 层`, executedLine: count => `执行 ${count} 层`,
     shift: '最优执行深度 12 → 18',
     table: {
-      summary: '数据表：验证损失与 DCLM 指标', group85: 'S ≈ 85%', group95: 'S ≈ 95%',
-      loss: '验证损失 ↓', core: 'DCLM Core ↑', completion: 'DCLM Completion ↓', looped: '循环层数', span: '比例', executed: '执行层数', physical: '物理层数', model: '模型',
+      summary: '数据表：validation loss 与 DCLM 指标', group85: 'S ≈ 85%', group95: 'S ≈ 95%',
+      loss: 'validation loss ↓', core: 'DCLM Core ↑', completion: 'DCLM Completion ↓', looped: '循环层数', span: '比例', executed: '执行层数', physical: '物理层数', model: '模型',
       note: {
-        span: '200M，物理深度 12，循环两次；加粗为同一稀疏度内的最优值。DCLM Core 的 ± 为 10 个评测 seed 的标准误。',
-        aspect: '200M，S ≈ 85%，循环中间 50% 的层两次；加粗为同一架构内的最优值。',
-        count: '200M，S ≈ 85%，循环中间 50% 的层，物理深度与基线相同；执行一次即基线。加粗为最优值。',
+        span: '200M 规模，物理深度 12，循环 2 轮；加粗为同稀疏度内最优值。DCLM Core 的 ± 为 10 个评测随机种子的标准误。',
+        aspect: '200M 规模，S ≈ 85%，循环中间 50% 物理层 2 轮；加粗为同架构内最优值。',
+        count: '200M 规模，S ≈ 85%，循环中间 50% 物理层，物理深度与 Baseline 相同；执行 1 轮即为 Baseline。加粗为最优值。',
       },
     },
-    countModel: visits => visits === 1 ? '基线（1×）' : `Looped ${visits}×`,
+    countModel: visits => visits === 1 ? 'Baseline（1×）' : `Looped ${visits}×`,
     chartLabel: {
-      span: '循环层数与验证损失：两种稀疏度下都在循环中间 6 层（50%）时最低。',
-      aspect: '执行深度与验证损失：基线在 12 层最优，Looped Transformer 在执行 18 层（物理 12 层）最优。',
-      count: '循环次数与验证损失：两次最低，三次和四次退步，但仍低于基线。',
+      span: '循环层数与 validation loss：两档稀疏度均在循环中间 6 层（50%）时取得最低 loss。',
+      aspect: '执行深度与 validation loss：Baseline 在 12 层最优，Looped Transformer 在等效执行 18 层（物理 12 层）时最优。',
+      count: '循环轮数与 validation loss：循环 2 轮最优；3 轮与 4 轮有所回退，但仍优于 Baseline。',
     },
-    bracketBase: '基线',
+    bracketBase: 'Baseline',
   },
   en: {
     base: 'Baseline', loop: 'Looped Transformer', loopShort: 'Looped', yLabel: 'Validation loss ↓', lowest: 'lowest', optimum: 'optimum',

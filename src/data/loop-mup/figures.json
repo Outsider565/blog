@@ -1,41 +1,41 @@
 {
   "vector-sum": { "number": 1, "captions": {
-    "zh": "独立的层像随机游走，总增量按 √$L$ 增长；共享权重的循环同向累加，总增量按 $N$ 增长。",
+    "zh": "独立层近似正交随机游走，总残差增量按 √$L$ 增长；共享权重循环同向线性累加，总残差增量按 $N$ 增长。",
     "en": "Independent layers add up like a random walk and grow as √$L$; a shared block adds along one direction and grows as $N$." } },
   "init-norm": { "number": 2, "captions": {
-    "zh": "初始化时，非循环模型只需 $m$_{$L$}^{−1/2} 就能让残差流保持有界，循环模型则需要 $N$^{−1}。",
+    "zh": "初始化阶段，非循环深层模型仅需 $m$_{$L$}^{−1/2} 即可保持残差流有界，而循环模型必须乘以 $N$^{−1}。",
     "en": "At initialization, $m$_{$L$}^{−1/2} keeps the untied residual stream bounded, while the looped model needs $N$^{−1}." } },
   "init-cosine": { "number": 3, "captions": {
-    "zh": "初始化时，64 个独立块的增量两两近似正交，同一个块循环 64 次的增量两两正相关。",
+    "zh": "初始化阶段，64 个独立块的残差增量两两近似正交，而同一循环块执行 64 轮的增量两两正相关。",
     "en": "At initialization, the increments of 64 independent stacks are nearly orthogonal, while those of one stack looped 64 times are all positively correlated." } },
   "ledger": { "number": 4, "captions": {
-    "zh": "三行账本：每个量都是“份数 × 每份的大小”。只有 $c$_{$N$} = 1/$N$、学习率不随 $N$ 变化时，三个量都与 $N$ 无关。",
+    "zh": "三项核心尺度关系：唯有取 $c$_{$N$} = 1/$N$ 且基础学习率与 $N$ 无关时，前向激活、特征更新与输出更新才能同时保持与 $N$ 无关。",
     "en": "The three-line ledger: each quantity is a number of pieces times the size of one piece. Only with $c$_{$N$} = 1/$N$ and one learning rate for every $N$ are all three independent of $N$." } },
   "orthogonal": { "number": 5, "captions": {
-    "zh": "宽度越大，$WU$ 越接近与 $U$ 正交、长度越接近不变；继续乘 $W$ 得到的 $W$^{2}$U$、$W$^{3}$U$ 也与前面的向量近似正交。",
+    "zh": "网络越宽，$WU$ 越接近与 $U$ 正交且保持等范数；继续左乘 $W$ 得到的 $W$^{2}$U$、$W$^{3}$U$ 与前序向量同样近似正交。",
     "en": "The wider the network, the closer $WU$ is to orthogonal to $U$ with the same length; $W$^{2}$U$ and $W$^{3}$U$ are again nearly orthogonal to the vectors before them." } },
   "paths": { "number": 6, "captions": {
-    "zh": "展开 ($I$ + $cW$)^{$N$}$U$，就是列出每次循环走主干还是走残差分支的全部选法。走 $m$ 次分支的选法，在共享权重时给出同一个向量，在独立权重时给出互相正交的向量。",
+    "zh": "展开 ($I$ + $cW$)^{$N$}$U$ 对应枚举每轮走残差主干或分支的全部路径：经过 $m$ 次分支的路径在共享权重下输出完全相同的向量，而在独立权重下彼此正交。",
     "en": "Expanding ($I$ + $cW$)^{$N$}$U$ lists every way of choosing trunk or branch in each loop. The paths that take the branch $m$ times give one and the same vector with shared weights, and mutually orthogonal vectors with independent weights." } },
   "binomial": { "number": 7, "captions": {
-    "zh": "展开 ($I$ + $cW$)^{$N$}$U$：共享权重时，同一阶的项指向同一方向、按长度相加；独立权重时按平方相加。",
+    "zh": "展开 ($I$ + $cW$)^{$N$}$U$：共享权重下同阶路径同向共线、按模长线性相加；独立权重下各路径彼此正交、按平方和合成。",
     "en": "Expanding ($I$ + $cW$)^{$N$}$U$: with shared weights the terms of each order point the same way and add in length; with independent weights they add in quadrature." } },
   "gradient-cosine": { "number": 8, "captions": {
-    "zh": "共享权重的梯度是 $N$ 次循环各自贡献之和。在线性模型里，任意两次循环的梯度贡献都正相关，$N$ 项相加后的长度接近单项的 $N$ 倍。",
+    "zh": "共享权重的总梯度为 $N$ 轮循环各自贡献之和：在线性残差模型中，任意两轮的梯度贡献均正相关，$N$ 项合成范数接近单项的 $N$ 倍。",
     "en": "The gradient of the shared weights is the sum of the contributions of the $N$ loops. In the linear model the contributions of any two loops are positively correlated, so the sum of the $N$ terms is close to $N$ times as long as a single term." } },
   "phase": { "number": 9, "captions": {
-    "zh": "共享权重时，只有 $α$_{$N$} = 1、$γ$_{$N$} = 0 让初始化和训练都稳定，同时一步更新对输出的影响不随 $N$ 消失；换成独立的层，可行的取法是一段区间。",
+    "zh": "共享权重下，可行域收缩为唯一解 ($α$_{$N$}, $γ$_{$N$}) = (1, 0)，兼顾初始化稳定、更新有界与输出不退化；而独立层深层模型则拥有整段可行区间。",
     "en": "With shared weights, only $α$_{$N$} = 1, $γ$_{$N$} = 0 keeps initialization and training stable while one step still changes the output by an amount independent of $N$; with independent layers a whole interval is feasible." } },
   "one-step": { "number": 10, "captions": {
-    "zh": "学习率不随 $N$ 变化时，只有 $N$^{−1} 让一步更新后残差流的变化既不随 $N$ 增长，也不消失。",
+    "zh": "固定基础学习率不变时，唯有 $N$^{−1} 残差缩放能使单步更新后的残差流变化既不随 $N$ 发散，也不随 $N$ 退化。",
     "en": "With one learning rate for every $N$, only $N$^{−1} gives a one-step change that neither grows nor vanishes with $N$." } },
   "lr-transfer": { "number": 11, "captions": {
-    "zh": "只有 Loop-μP 让同一个基础学习率在所有循环次数和深度下都最优，而且 loss 最低。",
+    "zh": "唯有 Loop-μP 能让同一基础学习率跨所有循环次数与物理深度同步达到最优，并取得最低 validation loss。",
     "en": "Only Loop-μP keeps one base learning rate best across loop counts and depths, and it reaches the lowest loss." } },
   "trained-cosine": { "number": 12, "captions": {
-    "zh": "训练后，循环模型各次循环的增量仍然同向（最后一次除外），非循环模型的层增量主要只与相邻层相关。",
+    "zh": "训练完成后，循环模型前 $N$−1 轮残差增量依然保持高度同向，而非循环深层模型的层增量仅在相邻层间微弱相关。",
     "en": "After training, the pass increments of looped models stay aligned except for the final pass, while the layer increments of an untied model align mainly with nearby layers." } },
   "pass-norm": { "number": 13, "captions": {
-    "zh": "Loop-μP 下，不同循环次数的模型训练后，最终残差流范数相近。",
+    "zh": "在 Loop-μP 参数化下，不同循环次数 $N$ 的模型训练后收敛到一致的最终残差流范数。",
     "en": "Under Loop-μP, trained models with different loop counts end at a similar residual-stream norm." } }
 }

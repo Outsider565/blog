@@ -11,11 +11,11 @@ const zh = language === 'zh';
 const depth = '[d:$m$_{$L$}^{−1/2}]';
 const columns = [
   { title: zh ? '非循环：$L$ 层' : 'Untied: $L$ layers', rules: [
-    { name: zh ? '注意力与 MLP 残差' : 'Attention and MLP residuals', formula: `$X$ ← $X$ + ${depth} · Block(LN($X$))` },
+    { name: zh ? 'Attention 与 MLP 残差分支' : 'Attention and MLP residuals', formula: `$X$ ← $X$ + ${depth} · Block(LN($X$))` },
     { name: zh ? '隐藏层 Adam 学习率' : 'Hidden-layer Adam learning rate', formula: `$η$ · [w:$m$_{$n$}^{−1}] · ${depth}` },
   ] },
-  { title: zh ? '循环：$L$ 层 × $N$ 次' : 'Looped: $L$ layers × $N$ loops', rules: [
-    { name: zh ? '注意力与 MLP 残差' : 'Attention and MLP residuals', formula: `$X$ ← $X$ + [l:$N$^{−1}] · ${depth} · Block(LN($X$))` },
+  { title: zh ? '循环：$L$ 层 × $N$ 轮' : 'Looped: $L$ layers × $N$ loops', rules: [
+    { name: zh ? 'Attention 与 MLP 残差分支' : 'Attention and MLP residuals', formula: `$X$ ← $X$ + [l:$N$^{−1}] · ${depth} · Block(LN($X$))` },
     { name: zh ? '隐藏层 Adam 学习率（与 $N$ 无关）' : 'Hidden-layer Adam learning rate (independent of $N$)', formula: `$η$ · [w:$m$_{$n$}^{−1}] · ${depth}` },
   ] },
 ];
@@ -40,7 +40,7 @@ const rows = [
   row(zh ? 'AdamW $ε$（残差块）' : 'AdamW $ε$ (residual blocks)', `$ε$ [w:$m$_{$n$}^{−1}] [d:$m$_{$L$}^{−${a}}]`),
   row(zh ? 'AdamW $ε$（嵌入与输出层）' : 'AdamW $ε$ (embedding and unembedding)', '$ε$ [w:$m$_{$n$}^{−1}]'),
 ];
-const summary = zh ? '完整配方（Loop-μP 取 $α$_{$L$} = 1/2）' : 'Full recipe (Loop-μP uses $α$_{$L$} = 1/2)';
+const summary = zh ? '完整参数化表（Loop-μP 取 $α$_{$L$} = 1/2）' : 'Full recipe (Loop-μP uses $α$_{$L$} = 1/2)';
 ---
 <div class="lm-recipe">
   {!expanded && <div class="lm-recipe-columns">

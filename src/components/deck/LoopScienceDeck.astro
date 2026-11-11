@@ -46,10 +46,10 @@ const ui = zh ? {
   elapsed: '已用', planned: '计划', reset: '重置', upNext: '下一页', noNext: '最后一页', notesTitle: '演讲备注', close: '关闭', jump: '跳到第',
   overviewTitle: '页面目录', helpTitle: '按键说明',
   keys: [
-    ['→ ↓ PageDown 空格', '下一页'], ['← ↑ PageUp', '上一页'], ['Home / End', '第一页 / 最后一页'], ['数字 + Enter', '跳到指定页'],
-    ['F', '全屏'], ['S', '备注面板'], ['P', '备注窗口（新窗口，与本页同步翻页）'], ['O', '页面目录'], ['L', '切换语言'], ['R', '重播本页动画'], ['?', '按键说明'], ['Esc', '关闭面板；焦点在图内时退出图'],
+    ['→ ↓ PageDown 空格', '下一页'], ['← ↑ PageUp', '上一页'], ['Home / End', '首页 / 末页'], ['数字 + Enter', '跳转到指定页'],
+    ['F', '全屏'], ['S', '备注面板'], ['P', '演讲者窗口（独立窗口同步翻页）'], ['O', '页面总览'], ['L', '切换中英文'], ['R', '重播当前页动画'], ['?', '快捷键说明'], ['Esc', '关闭面板或退出图表交互'],
   ],
-  keyNote: '翻到带交互图的页面时，图会自动演示各个选项；点一下图即可接管。焦点在交互图内时，方向键交给图使用；按 Esc 退出后即可继续翻页。',
+  keyNote: '进入含交互图表的页面时会自动轮播演示；点击图表即可手动接管。焦点位于图表内时，方向键用于控制图表，按 Esc 退出后恢复翻页。',
 } : {
   deck: 'slide', prev: 'Previous slide', next: 'Next slide', notes: 'Notes', presenter: 'Presenter view', overview: 'Slides', fullscreen: 'Full screen', exitFullscreen: 'Exit full screen', help: 'Keys',
   language: '中文', languageLabel: 'Switch to the Chinese version', toolbar: 'Slide controls', page: 'Slide',

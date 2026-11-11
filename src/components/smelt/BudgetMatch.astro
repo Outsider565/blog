@@ -33,25 +33,25 @@ const routedNow = routedAt(step);
 const routeTag = (index: number) => `${routedBase.has(index) ? 'a' : ''}${routedMore.has(index) ? 'b' : ''}` || undefined;
 // Config table rows: label, Baseline, SMELT, and the SMELT change on its own line.
 const rows: [string, string, string, string?][] = [
-  [zh ? '物理层 / 执行层' : 'Unique / executed layers', `${baseline.physical} / ${baseline.executed}`, `${smelt.physical} / ${smelt.executed}`],
-  [zh ? '循环范围' : 'Looped span', '—', zh ? `第 ${loopFrom}–${loopTo} 层 ×2` : `layers ${loopFrom}–${loopTo}, ×2`],
+  [zh ? '物理层数 / 执行层数' : 'Unique / executed layers', `${baseline.physical} / ${baseline.executed}`, `${smelt.physical} / ${smelt.executed}`],
+  [zh ? '循环区间' : 'Looped span', '—', zh ? `第 ${loopFrom}–${loopTo} 层 ×2` : `layers ${loopFrom}–${loopTo}, ×2`],
   [zh ? '隐藏维度' : 'Hidden size', String(baseline.hidden), String(smelt.hidden)],
-  [zh ? '专家 FFN 宽度' : 'Expert FFN width', String(baseline.ffn), String(smelt.ffn)],
-  [zh ? '每层专家 / 激活' : 'Experts per layer / active', `${baseline.experts} / ${baseline.topk}`, `${smelt.experts} / ${smelt.topk}`],
+  [zh ? '单专家 FFN 维度' : 'Expert FFN width', String(baseline.ffn), String(smelt.ffn)],
+  [zh ? '每层专家总数 / 激活数' : 'Experts per layer / active', `${baseline.experts} / ${baseline.topk}`, `${smelt.experts} / ${smelt.topk}`],
   [zh ? 'Q 头 / KV 头 / head dim' : 'Query / KV heads / head dim', `${baseline.heads} / ${baseline.kvHeads} / ${baseline.headDim}`, `${smelt.heads} / ${smelt.kvHeads} / ${smelt.headDim}`],
-  [zh ? '激活参数（一次物理遍历）' : 'Active parameters (one traversal)', `${(paper.activeBase / 1e9).toFixed(3)}B`, `${(paper.activeSmelt / 1e9).toFixed(3)}B`],
-  [zh ? '总参数（不含 embedding）' : 'Total parameters (excl. embeddings)', `${(paper.paramsBase / 1e9).toFixed(2)}B`, `${(paper.paramsSmelt / 1e9).toFixed(2)}B`, '+0.4%'],
-  [zh ? '每 token 训练 FLOPs' : 'Per-token training FLOPs', absoluteLabel(0, 'flops'), absoluteLabel(finalStep, 'flops'), '+2.9%'],
-  [zh ? '每 token 缓存的 K/V 数' : 'K/V entries cached per token', groupDigits(steps[0]!.absolute.kvValues), groupDigits(steps[finalStep]!.absolute.kvValues), formatRatio(ratioOf(finalStep, 'kv'), finalStep, 'kv')],
+  [zh ? '激活参数量（单遍物理层）' : 'Active parameters (one traversal)', `${(paper.activeBase / 1e9).toFixed(3)}B`, `${(paper.activeSmelt / 1e9).toFixed(3)}B`],
+  [zh ? '总参数量（不含 embedding）' : 'Total parameters (excl. embeddings)', `${(paper.paramsBase / 1e9).toFixed(2)}B`, `${(paper.paramsSmelt / 1e9).toFixed(2)}B`, '+0.4%'],
+  [zh ? '单 token 训练 FLOPs' : 'Per-token training FLOPs', absoluteLabel(0, 'flops'), absoluteLabel(finalStep, 'flops'), '+2.9%'],
+  [zh ? '单 token 缓存 K/V 元素数' : 'K/V entries cached per token', groupDigits(steps[0]!.absolute.kvValues), groupDigits(steps[finalStep]!.absolute.kvValues), formatRatio(ratioOf(finalStep, 'kv'), finalStep, 'kv')],
   [zh ? '稀疏度 S' : 'Sparsity S', `${(paper.sparsityBase * 100).toFixed(1)}%`, `${(paper.sparsitySmelt * 100).toFixed(1)}%`],
 ];
 // Math in the notes is set with <i>/<sub> (no raw underscores); the strings are constants.
 const v = (name: string, sub?: string) => `<i>${name}</i>${sub ? `<sub>${sub}</sub>` : ''}`;
 const H = v('H'), dh = v('d', 'head'), nq = v('n', 'q'), nkv = v('n', 'kv'), E = v('E'), dffn = v('d', 'ffn'), Lx = v('L', 'exec'), F = v('F'), k = v('k');
 const formulas = zh ? [
-  `参数量：每层 = 注意力 ${H}${dh}(2${nq} + 2${nkv}) + 路由 ${H}${E} + ${E} 个专家 × 3${H}${dffn}（SwiGLU），乘以 12 个物理层。`,
-  `FLOPs：${F} ≈ 6 ×（每个执行层的激活参数）× ${Lx} + ${k} × ${nq}${dh} × ${Lx}。第二项是随文档长度增长的注意力打分开销，系数 ${k} 按基线的 1.33×10⁹ 标定。`,
-  `KV cache：每 token 缓存 2${nkv}${dh}${Lx} 个值（循环层的每次执行各自缓存）。`,
+  `参数量：每层 = Attention ${H}${dh}(2${nq} + 2${nkv}) + 路由器 ${H}${E} + ${E} 个专家 × 3${H}${dffn}（SwiGLU），再乘以 12 个物理层。`,
+  `FLOPs：${F} ≈ 6 ×（单执行层激活参数量）× ${Lx} + ${k} × ${nq}${dh} × ${Lx}。第二项为随上下文长度增长的注意力计算开销，系数 ${k} 按 Baseline 的 1.33×10⁹ 标定。`,
+  `KV cache：单 token 缓存 2${nkv}${dh}${Lx} 个元素（循环层每轮执行均保留独立缓存）。`,
 ] : [
   `Parameters: per layer, attention ${H}${dh}(2${nq} + 2${nkv}) + router ${H}${E} + ${E} experts × 3${H}${dffn} (SwiGLU), times 12 physical layers.`,
   `FLOPs: ${F} ≈ 6 × (active parameters per executed layer) × ${Lx} + ${k} × ${nq}${dh} × ${Lx}. The second term is the attention-score cost that grows with document length; ${k} is calibrated so the Baseline gives 1.33×10⁹.`,

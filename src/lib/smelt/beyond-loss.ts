@@ -116,22 +116,22 @@ export const benchText = (key: BenchKey, language: Language) => benchCopy[key][l
 
 export const copy = {
   zh: {
-    benchmark: '基准', scale: '规模', all: '全部',
-    scatterTitle: '分数与验证损失', residualTitle: '相同损失下的额外收益',
-    residualAxis: (key: BenchKey) => `SMELT 拟合残差（${key === 'comp' ? 'mnat，已翻转符号，越高越好' : 'pp'}）`,
-    loss: '验证损失', base: '基线', loop: 'SMELT', fit: '基线拟合曲线', stickUp: 'SMELT 优于基线曲线', stickDown: 'SMELT 不及基线曲线',
-    baseTick: '同规模基线的平均拟合残差', chance: '随机水平 25%',
-    mean: '平均拟合残差', ci: '95% 置信区间', baseMean: '同规模基线', sameScaleGap: '与同规模基线之差',
+    benchmark: '评测基准', scale: '规模', all: '全部',
+    scatterTitle: '下游得分 vs. validation loss', residualTitle: '同 loss 下的额外下游收益',
+    residualAxis: (key: BenchKey) => `SMELT 拟合残差（${key === 'comp' ? 'mnat，已翻转符号使正值代表更优' : 'pp'}）`,
+    loss: 'validation loss', base: 'Baseline', loop: 'SMELT', fit: 'Baseline 拟合曲线', stickUp: 'SMELT 优于拟合曲线', stickDown: 'SMELT 低于拟合曲线',
+    baseTick: '同规模 Baseline 平均残差', chance: '随机水平 25%',
+    mean: '平均拟合残差', ci: '95% 置信区间', baseMean: '同规模 Baseline', sameScaleGap: '相对同规模 Baseline 差值',
     statMean: (key: BenchKey) => `平均拟合残差（${key === 'comp' ? 'mnat' : 'pp'}）；95% CI`,
-    statMeanScale: (key: BenchKey, scale: string) => `${scale} 的平均拟合残差（${key === 'comp' ? 'mnat' : 'pp'}）；同规模基线`,
-    statScales: '个规模的平均拟合残差为正',
-    statPoints: '个 SMELT 端点优于基线曲线',
-    statPointsScale: (scale: string) => `个 ${scale} 的 SMELT 端点优于基线曲线`,
-    table: '数据表：各规模的平均拟合残差', endpoints: '数据表：全部 96 组端点', positive: '优于曲线',
-    pooled: '全部（合并）', pooledBase: '基线合并后的平均拟合残差为 0（曲线由基线拟合）',
-    branch: '分支（步）', lossCol: '验证损失 基线 / SMELT', scoreCol: '分数 基线 / SMELT', fitCol: 'SMELT 损失处的拟合值',
-    loopResidual: 'SMELT 拟合残差', baseResidual: '基线拟合残差',
-    scatterKeys: '方向键逐点浏览',
+    statMeanScale: (key: BenchKey, scale: string) => `${scale} 平均拟合残差（${key === 'comp' ? 'mnat' : 'pp'}）；同规模 Baseline`,
+    statScales: '个模型规模的平均残差为正',
+    statPoints: '个 SMELT 评测点优于 Baseline 拟合曲线',
+    statPointsScale: (scale: string) => `个 ${scale} 的 SMELT 评测点优于 Baseline 拟合曲线`,
+    table: '数据表：各规模平均拟合残差', endpoints: '数据表：全部 96 组配对评测点', positive: '优于拟合曲线',
+    pooled: '全部（合并）', pooledBase: 'Baseline 合并拟合残差均值为 0（曲线由 Baseline 拟合）',
+    branch: '训练检查点（步）', lossCol: 'validation loss（Baseline / SMELT）', scoreCol: '得分（Baseline / SMELT）', fitCol: '同 loss 处拟合值',
+    loopResidual: 'SMELT 拟合残差', baseResidual: 'Baseline 拟合残差',
+    scatterKeys: '可用方向键逐点浏览',
   },
   en: {
     benchmark: 'Benchmark', scale: 'Scale', all: 'All',
@@ -189,7 +189,7 @@ export function readout(key: BenchKey, scale: ScaleKey, language: Language) {
   if (scale !== 'all') {
     const own = scaleSummary(key, scale);
     return zh
-      ? `${scale}：${own.total} 个 SMELT 端点中有 ${own.positive} 个优于基线曲线，平均拟合残差 ${signed(own.mean, d)} ${u}。`
+      ? `${scale}：${own.total} 个 SMELT 评测点中有 ${own.positive} 个优于 Baseline 拟合曲线，平均拟合残差 ${signed(own.mean, d)} ${u}。`
       : `${scale}: ${own.positive} of ${own.total} SMELT endpoints beat the Baseline curve, mean residual ${signed(own.mean, d)} ${u}.`;
   }
   const means = sizes.map(size => scaleSummary(key, size).mean);
@@ -197,10 +197,10 @@ export function readout(key: BenchKey, scale: ScaleKey, language: Language) {
   const last = means[means.length - 1] ?? 0;
   return monotone(key)
     ? (zh
-      ? `相对于四个规模合并拟合的基线曲线，SMELT 在 ${name} 上的平均拟合残差从 100M 的 ${signed(first, d)} ${u} 逐级升至 1.6B 的 ${signed(last, d)} ${u}。`
+      ? `相对四档规模合并拟合的 Baseline 曲线，SMELT 在 ${name} 上的平均残差从 100M 的 ${signed(first, d)} ${u} 单调增至 1.6B 的 ${signed(last, d)} ${u}。`
       : `Against the Baseline curve pooled over all four scales, SMELT's mean ${name} residual rises at every step, from ${signed(first, d)} ${u} at 100M to ${signed(last, d)} ${u} at 1.6B.`)
     : (zh
-      ? `相对于合并拟合的基线曲线，SMELT 在 ${name} 上两个较大规模的平均拟合残差高于两个较小规模（${sizes.map((size, index) => `${size} ${signed(means[index] ?? 0, d)}`).join('、')} ${u}），但并非逐级增大。`
+      ? `相对合并拟合的 Baseline 曲线，SMELT 在 ${name} 上两档较大规模的平均残差高于较小规模（${sizes.map((size, index) => `${size} ${signed(means[index] ?? 0, d)}`).join('、')} ${u}），但未严格单调递增。`
       : `Against the pooled Baseline curve, SMELT's mean ${name} residual is higher at the two larger scales than at the two smaller ones (${sizes.map((size, index) => `${size} ${signed(means[index] ?? 0, d)}`).join(', ')} ${u}), though not at every step.`);
 }
 
@@ -211,8 +211,8 @@ export function note(key: BenchKey, scale: ScaleKey, language: Language) {
   const value = scale === 'all' ? pooled(key).mean : scaleSummary(key, scale).mean;
   const amount = key === 'comp' ? `${Math.abs(value).toFixed(d)} mnat` : `${signed(value, d)} pp`;
   const lines = key === 'comp'
-    ? (zh ? ['相同验证损失下', `${scale === 'all' ? '' : `${scale} `}SMELT 平均低 ${amount}`, '差距太小，此图难以看清，见 b'] : ['At equal validation loss', `${scale === 'all' ? '' : `${scale} `}SMELT is ${amount} lower:`, 'too small to see here; see b'])
-    : (zh ? ['相同验证损失下', `${scale === 'all' ? '' : `${scale} `}SMELT 平均 ${amount}`, '高于基线曲线'] : ['At equal validation loss', `${scale === 'all' ? '' : `${scale} `}SMELT averages ${amount}`, 'above the Baseline curve']);
+    ? (zh ? ['相同 validation loss 下', `${scale === 'all' ? '' : `${scale} `}SMELT 平均低 ${amount}`, '差值较小，放大残差见右图 b'] : ['At equal validation loss', `${scale === 'all' ? '' : `${scale} `}SMELT is ${amount} lower:`, 'too small to see here; see b'])
+    : (zh ? ['相同 validation loss 下', `${scale === 'all' ? '' : `${scale} `}SMELT 平均 ${amount}`, '高于 Baseline 曲线'] : ['At equal validation loss', `${scale === 'all' ? '' : `${scale} `}SMELT averages ${amount}`, 'above the Baseline curve']);
   const left = key === 'comp';
   return { lines, x: left ? scatterBox.x0 + 10 : scatterBox.x1 - 6, anchor: left ? 'start' : 'end', y: scatterBox.y0 + 24 };
 }

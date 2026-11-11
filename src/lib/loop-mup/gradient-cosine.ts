@@ -53,12 +53,12 @@ const fixed = (value: number) => value.toFixed(2);
 const copy = {
   zh: {
     n: '循环次数 $N$',
-    title: (n: number) => `循环 ${n} 次：各次循环的梯度贡献`, axis: '第几次循环',
-    tip: (i: number, j: number, value: number, inputs: number, backward: number) => `第 ${i} 次与第 ${j} 次循环的梯度贡献：余弦 ${fixed(value)}\n输入的余弦 ${fixed(inputs)} × 反向信号的余弦 ${fixed(backward)}`,
-    sum: '$N$ 项相加后的长度', unit: '以单项的平均长度为单位',
-    rows: ['若 $N$ 项完全同向', '实际', '若 $N$ 项互相正交'],
-    mean: '各次循环的梯度贡献两两的平均余弦', least: (n: number) => `最小的余弦：第 1 次与第 ${n} 次循环`, ratio: '相加后的长度是单项平均长度的多少倍',
-    aria: (n: number, mean: string, ratio: string, root: string) => `热力图与条形图：循环 ${n} 次时，各次循环对共享权重梯度的贡献两两之间的余弦相似度全部为正，平均 ${mean}；${n} 项相加后的长度是单项平均长度的 ${ratio} 倍，完全同向时为 ${n} 倍，互相正交时为 ${root} 倍。`,
+    title: (n: number) => `循环 ${n} 轮：各轮循环的梯度贡献`, axis: '循环轮次',
+    tip: (i: number, j: number, value: number, inputs: number, backward: number) => `第 ${i} 轮与第 ${j} 轮循环的梯度贡献：余弦 ${fixed(value)}\n输入余弦 ${fixed(inputs)} × 反向信号余弦 ${fixed(backward)}`,
+    sum: '$N$ 项合成范数', unit: '以单项平均范数为单位',
+    rows: ['若 $N$ 项完全同向', '实际合成', '若 $N$ 项互相正交'],
+    mean: '各轮梯度贡献两两平均余弦', least: (n: number) => `最小余弦：第 1 轮与第 ${n} 轮`, ratio: '合成范数相对单项平均范数的倍数',
+    aria: (n: number, mean: string, ratio: string, root: string) => `热力图与条形图：循环 ${n} 轮时，各轮对共享权重梯度贡献的两两余弦相似度均为正（均值 ${mean}）；${n} 项合成范数为单项平均范数的 ${ratio} 倍（完全同向为 ${n} 倍，互相正交为 ${root} 倍）。`,
   },
   en: {
     n: 'Loop count $N$',

@@ -117,13 +117,13 @@ export function visitEvents(layout: HeroLayout, kind: RowKind, returnPitches: nu
 
 export const copy = {
   zh: {
-    standard: '标准 Transformer', standardNote: '每层执行一次',
-    looped: 'Looped Transformer', loopedNote: '中间 50% 的层执行两次',
+    standard: '标准 Transformer', standardNote: '每层顺序执行 1 轮',
+    looped: 'Looped Transformer', loopedNote: '中间 50% 层循环执行 2 轮',
     unique: ['物理层数'], executed: ['执行层数'], uniqueShort: '物理', executedShort: '执行',
-    visit1: '第一次', visit2: '第二次', input: '输入', output: '输出', twice: '×2',
-    caption: '同样 12 层参数：Looped Transformer 把第 4–9 层再执行一遍，共执行 18 层。',
+    visit1: '第 1 轮', visit2: '第 2 轮', input: '输入', output: '输出', twice: '×2',
+    caption: '同为 12 层物理参数：Looped Transformer 将第 4–9 层循环执行 2 轮，等效执行深度达 18 层。',
     replay: '重播', replayLabel: '重播动画',
-    aria: '动画示意：标准 Transformer 的 12 层各执行一次；Looped Transformer 同样只有 12 层参数，但中间第 4–9 层执行两次，共执行 18 层。',
+    aria: '动画示意：标准 Transformer 的 12 层各执行 1 轮；Looped Transformer 同样只有 12 层物理参数，但将中间第 4–9 层循环执行 2 轮，共执行 18 层。',
   },
   en: {
     standard: 'Standard Transformer', standardNote: 'each layer runs once',

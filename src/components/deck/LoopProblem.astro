@@ -30,35 +30,35 @@ const recipes=[
  {name:'CompleteP',pair:`${paren(`${alphaL}<mo>,</mo>${gammaL}`)}<mo>=</mo>${paren('<mn>1</mn><mo>,</mo><mn>0</mn>')}`,note:zh?'可行区间的右端点':'Right end of the feasible interval'},
 ];
 const criteria=[
- {title:zh?'初始化：前向值不发散':'Initialization: no divergence',formula:uniform(),detail:zh?'每一轮的残差流 $x$ 与预激活 $h$，以及最终输出 $f$。':'Every residual state $x$ and preactivation $h$, and the final output $f$.'},
- {title:zh?'训练：一步更新有上界':'Training: bounded updates',formula:uniform(true),detail:zh?'只限制上界，更新趋于 0 也满足。':'An upper bound only; a vanishing update also passes.'},
- {title:zh?'输出：一步更新不消失':'Output: nonvanishing update',formula:`${absolute(delta+f0)}<mo>=</mo>${order('Θ')}`,detail:zh?'输入与损失梯度非零时，输出变化保持常数量级。':'For nonzero input and loss gradient, the output change stays of order one.'}
+ {title:zh?'初始化：前向激活有界':'Initialization: no divergence',formula:uniform(),detail:zh?'各轮残差状态 $x$、预激活 $h$ 与最终输出 $f$ 均保持有界。':'Every residual state $x$ and preactivation $h$, and the final output $f$.'},
+ {title:zh?'训练：单步更新有上界':'Training: bounded updates',formula:uniform(true),detail:zh?'仅约束上界；即使更新趋于 0 亦满足该条件。':'An upper bound only; a vanishing update also passes.'},
+ {title:zh?'输出：单步更新不退化':'Output: nonvanishing update',formula:`${absolute(delta+f0)}<mo>=</mo>${order('Θ')}`,detail:zh?'输入与损失梯度非零时，输出单步变化保持常数量级。':'For nonzero input and loss gradient, the output change stays of order one.'}
 ];
 const exponents=[
- {quantity:zh?'初始化时的残差累积':'Residual accumulation at initialization',formula:`${norm(state('x','<mi>N</mi>')+minus+state('x','<mn>0</mn>'))}<mo>∝</mo><mi>N</mi>${cn}<mo>∝</mo>${power('N',`<mn>1</mn>${minus}${alpha}`)}`,condition:`${alpha}<mo>≥</mo><mn>1</mn>`,source:zh?'条件 1':'Condition 1'},
- {quantity:zh?'首轮预激活的更新':'First preactivation update',formula:`${norm(delta+state('h','<mn>1</mn>'))}<mo>∝</mo>${sn}<mo>=</mo>${power('N',`${minus}${gamma}`)}`,condition:`${gamma}<mo>≥</mo><mn>0</mn>`,source:zh?'条件 2':'Condition 2'},
- {quantity:zh?'输出的更新':'Output update',formula:`${absolute(delta+f0)}<mo>∝</mo><mi>N</mi>${cn}${sn}<mo>∝</mo>${power('N',`<mn>1</mn>${minus}${alpha}${minus}${gamma}`)}`,condition:`${alpha}<mo>+</mo>${gamma}<mo>=</mo><mn>1</mn>`,source:zh?'条件 2（≥）+ 条件 3（≤）':'Condition 2 (≥) + condition 3 (≤)'},
+ {quantity:zh?'初始化残差累积':'Residual accumulation at initialization',formula:`${norm(state('x','<mi>N</mi>')+minus+state('x','<mn>0</mn>'))}<mo>∝</mo><mi>N</mi>${cn}<mo>∝</mo>${power('N',`<mn>1</mn>${minus}${alpha}`)}`,condition:`${alpha}<mo>≥</mo><mn>1</mn>`,source:zh?'条件 1':'Condition 1'},
+ {quantity:zh?'首轮预激活更新':'First preactivation update',formula:`${norm(delta+state('h','<mn>1</mn>'))}<mo>∝</mo>${sn}<mo>=</mo>${power('N',`${minus}${gamma}`)}`,condition:`${gamma}<mo>≥</mo><mn>0</mn>`,source:zh?'条件 2':'Condition 2'},
+ {quantity:zh?'模型输出更新':'Output update',formula:`${absolute(delta+f0)}<mo>∝</mo><mi>N</mi>${cn}${sn}<mo>∝</mo>${power('N',`<mn>1</mn>${minus}${alpha}${minus}${gamma}`)}`,condition:`${alpha}<mo>+</mo>${gamma}<mo>=</mo><mn>1</mn>`,source:zh?'条件 2（≥）+ 条件 3（≤）':'Condition 2 (≥) + condition 3 (≤)'},
 ];
 ---
 <div class:list={['loop-problem',`lp-${view}`]}>
   {view==='question' && <>
-    <p class="lp-label" set:html={html(zh?'独立层（$L$ 层各有权重）：':'Independent layers ($L$ layers, separate weights):')} />
+    <p class="lp-label" set:html={html(zh?'非共享深层网络（$L$ 层权重各自独立）：':'Independent layers ($L$ layers, separate weights):')} />
     <div class="lp-comparison">
       {recipes.map(r=><section><h3>{r.name}</h3><math set:html={r.pair} /><p>{r.note}</p></section>)}
     </div>
-    <p class="lp-interval"><math set:html={`<mfrac><mn>1</mn><mn>2</mn></mfrac><mo>≤</mo>${alphaL}<mo>≤</mo><mn>1</mn><mo>,</mo><mspace width="0.6em"/>${gammaL}<mo>=</mo><mn>1</mn>${minus}${alphaL}`} /><span>{zh?'整段区间都可行，两种配方是它的两端。':'The whole interval is feasible; the two recipes are its ends.'}</span></p>
-    <p class="lp-question" set:html={html(zh?'把 $L$ 层换成同一组权重循环 $N$ 次，这段区间还剩多少？':'Replace the $L$ layers by one shared block looped $N$ times: how much of this interval survives?')} />
+    <p class="lp-interval"><math set:html={`<mfrac><mn>1</mn><mn>2</mn></mfrac><mo>≤</mo>${alphaL}<mo>≤</mo><mn>1</mn><mo>,</mo><mspace width="0.6em"/>${gammaL}<mo>=</mo><mn>1</mn>${minus}${alphaL}`} /><span>{zh?'整段连续区间均可行，Depth-μP 与 CompleteP 分别是其左右端点。':'The whole interval is feasible; the two recipes are its ends.'}</span></p>
+    <p class="lp-question" set:html={html(zh?'若改为同一组共享权重循环执行 $N$ 轮，可行区间还剩多少？':'Replace the $L$ layers by one shared block looped $N$ times: how much of this interval survives?')} />
   </>}
   {view==='variables' && <>
     <div class="lp-definitions">
-      <section><h3 set:html={html(zh?'分支预激活 $h$':'Branch preactivation $h$')} /><math set:html={`${state('h','<mi>r</mi>','t')}<mo>=</mo>${sub('W','t')}${state('x','<mi>r</mi><mo>−</mo><mn>1</mn>','t')}`} /><p>{zh?'乘共享权重，尚未乘分支系数。':'Shared weights applied, before the branch coefficient.'}</p></section>
-      <section><h3 set:html={html(zh?'残差流 $x$':'Residual state $x$')} /><math set:html={`${state('x','<mi>r</mi>','t')}<mo>=</mo>${state('x','<mi>r</mi><mo>−</mo><mn>1</mn>','t')}<mo>+</mo>${cn}<mi>φ</mi><mo stretchy="false">(</mo>${state('h','<mi>r</mi>','t')}<mo stretchy="false">)</mo>`} /><p>{zh?'分支乘系数后加回残差流。':'The scaled branch is added to the residual stream.'}</p></section>
-      <section><h3 set:html={html(zh?'输出 $f$':'Output $f$')} /><math set:html={`${sub('f','t')}<mo>=</mo><msup><mi>V</mi><mo>⊤</mo></msup>${state('x','<mi>N</mi>','t')}`} /><p>{zh?'最后一次循环之后读出。':'Read out after the last loop.'}</p></section>
+      <section><h3 set:html={html(zh?'分支预激活 $h$':'Branch preactivation $h$')} /><math set:html={`${state('h','<mi>r</mi>','t')}<mo>=</mo>${sub('W','t')}${state('x','<mi>r</mi><mo>−</mo><mn>1</mn>','t')}`} /><p>{zh?'经共享权重线性变换，尚未乘残差分支系数。':'Shared weights applied, before the branch coefficient.'}</p></section>
+      <section><h3 set:html={html(zh?'残差状态 $x$':'Residual state $x$')} /><math set:html={`${state('x','<mi>r</mi>','t')}<mo>=</mo>${state('x','<mi>r</mi><mo>−</mo><mn>1</mn>','t')}<mo>+</mo>${cn}<mi>φ</mi><mo stretchy="false">(</mo>${state('h','<mi>r</mi>','t')}<mo stretchy="false">)</mo>`} /><p>{zh?'非线性变换后乘分支系数并累加回残差流。':'The scaled branch is added to the residual stream.'}</p></section>
+      <section><h3 set:html={html(zh?'模型输出 $f$':'Output $f$')} /><math set:html={`${sub('f','t')}<mo>=</mo><msup><mi>V</mi><mo>⊤</mo></msup>${state('x','<mi>N</mi>','t')}`} /><p>{zh?'全部循环结束后由输出头线性读出。':'Read out after the last loop.'}</p></section>
     </div>
-    <p class="lp-index" set:html={html(zh?'$r$：循环序号；$t$：训练步。':'$r$: loop index; $t$: training step.')} />
+    <p class="lp-index" set:html={html(zh?'$r$：循环轮次；$t$：训练步数。':'$r$: loop index; $t$: training step.')} />
     <div class="lp-comparison">
-      <section><h3>{zh?'分支系数：每次写回多少':'Branch coefficient: how much each loop writes'}</h3><math set:html={`${cn}<mo>=</mo><mi>a</mi>${power('N',`${minus}${alpha}`)}`} /><p set:html={html(zh?'$α$_{$N$} 越大，每次写回随 $N$ 缩小得越快。':'A larger $α$_{$N$} shrinks each write faster with $N$.')} /></section>
-      <section><h3>{zh?'更新尺度：权重每步改多少':'Update scale: how far each step moves the weights'}</h3><math set:html={`${sn}<mo>=</mo>${power('N',`${minus}${gamma}`)}`} /><p set:html={html(zh?'$γ$_{$N$} = 0 时，基础学习率不随 $N$ 调整。':'At $γ$_{$N$} = 0 the base learning rate needs no change with $N$.')} /></section>
+      <section><h3>{zh?'残差分支系数：控制单轮写回幅度':'Branch coefficient: how much each loop writes'}</h3><math set:html={`${cn}<mo>=</mo><mi>a</mi>${power('N',`${minus}${alpha}`)}`} /><p set:html={html(zh?'$α$_{$N$} 越大，单轮残差写回幅度随 $N$ 衰减越快。':'A larger $α$_{$N$} shrinks each write faster with $N$.')} /></section>
+      <section><h3>{zh?'参数更新尺度：控制单步权重步长':'Update scale: how far each step moves the weights'}</h3><math set:html={`${sn}<mo>=</mo>${power('N',`${minus}${gamma}`)}`} /><p set:html={html(zh?'$γ$_{$N$} = 0 表示基础学习率无需随循环次数 $N$ 缩放。':'At $γ$_{$N$} = 0 the base learning rate needs no change with $N$.')} /></section>
     </div>
   </>}
   {view==='criteria' && <>
@@ -66,10 +66,10 @@ const exponents=[
   </>}
   {view==='exponents' && <>
     <table class="lp-exponents">
-      <thead><tr><th>{zh?'量':'Quantity'}</th><th>{zh?'随 N 的量级':'Scaling with N'}</th><th>{zh?'约束':'Constraint'}</th></tr></thead>
+      <thead><tr><th>{zh?'考察量':'Quantity'}</th><th>{zh?'随 N 的缩放阶':'Scaling with N'}</th><th>{zh?'导出约束':'Constraint'}</th></tr></thead>
       <tbody>{exponents.map(e=><tr><th>{e.quantity}</th><td><math set:html={e.formula} /></td><td><math set:html={e.condition} /><small>{e.source}</small></td></tr>)}</tbody>
     </table>
-    <p class="lp-note" set:html={html(zh?'预激活 $h$ 在乘 $c$_{$N$} 之前，所以只看 $s$_{$N$}；输出累加 $N$ 次循环，每次都乘 $c$_{$N$}。':'The preactivation $h$ comes before $c$_{$N$}, so it sees only $s$_{$N$}; the output adds up $N$ loops, each scaled by $c$_{$N$}.')} />
+    <p class="lp-note" set:html={html(zh?'预激活 $h$ 位于乘 $c$_{$N$} 之前，其更新仅受 $s$_{$N$} 控制；模型输出累加 $N$ 轮循环，每轮均带系数 $c$_{$N$}。':'The preactivation $h$ comes before $c$_{$N$}, so it sees only $s$_{$N$}; the output adds up $N$ loops, each scaled by $c$_{$N$}.')} />
   </>}
 </div>
 <style>

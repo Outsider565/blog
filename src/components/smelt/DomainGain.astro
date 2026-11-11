@@ -84,24 +84,24 @@ const sLabel = sparsityLabels[sparsity] ?? '';
     </svg>;
   })}
   <p class="smelt-readout dg-definition">{language === 'zh'
-    ? <>CE Gain = 1 − C<sub>SMELT</sub> / C<sub>基线</sub>（C = 10²¹ FLOPs）；虚线为整体 CE Gain。</>
+    ? <>CE Gain = 1 − C<sub>SMELT</sub> / C<sub>Baseline</sub>（C = 10²¹ FLOPs）；虚线表示整体验证集的 CE Gain。</>
     : <>CE Gain = 1 − C<sub>SMELT</sub> / C<sub>Baseline</sub> (C = 10²¹ FLOPs); the dashed line is the overall CE Gain.</>}</p>
   <details class="disclosure smelt-data">
-    <summary>{language === 'zh' ? `查看全部 ${summary.total} 个验证数据源的数值` : `Values for all ${summary.total} validation sources`}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <summary>{language === 'zh' ? `查看全部 ${summary.total} 个验证子集的数值` : `Values for all ${summary.total} validation sources`}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
     <div class="disclosure-body">
       <div class="data-scroll" tabindex="0" role="region" aria-label={text.aria}>
         <table class="data-table">
-          <thead><tr><th scope="col">{language === 'zh' ? '领域 · 数据源' : 'Domain · source'}</th>{sparsityLabels.map(label => <th scope="col">S≈{label}</th>)}<th scope="col">{language === 'zh' ? '95% 置信区间（S≈95%）' : '95% CI (S ≈ 95%)'}</th></tr></thead>
+          <thead><tr><th scope="col">{language === 'zh' ? '领域 · 验证子集' : 'Domain · source'}</th>{sparsityLabels.map(label => <th scope="col">S≈{label}</th>)}<th scope="col">{language === 'zh' ? '95% 置信区间（S≈95%）' : '95% CI (S ≈ 95%)'}</th></tr></thead>
           <tbody>
             {data.families.map(family => <>
-              <tr data-highlight><th scope="row"><strong>{family.label}</strong> · {language === 'zh' ? '平均' : 'mean'}</th>{sparsityLabels.map((_, s) => <td><strong>{pct(familyMean(family, s))}</strong></td>)}<td></td></tr>
+              <tr data-highlight><th scope="row"><strong>{family.label}</strong> · {language === 'zh' ? '均值' : 'mean'}</th>{sparsityLabels.map((_, s) => <td><strong>{pct(familyMean(family, s))}</strong></td>)}<td></td></tr>
               {family.sources.map((source, index) => <tr><th scope="row">{family.label} · {index + 1}</th>{source.gain.map(value => <td>{pct(value)}</td>)}<td>{pct(source.ci[0] ?? 0)}–{pct(source.ci[1] ?? 0)}</td></tr>)}
             </>)}
           </tbody>
         </table>
       </div>
       <p>{language === 'zh'
-        ? '数据源按领域内 CE Gain 排名编号。'
+        ? '各验证子集按领域内 CE Gain 由高到低编号。'
         : 'Sources are numbered by their rank within the domain.'}</p>
     </div>
   </details>

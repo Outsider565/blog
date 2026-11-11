@@ -25,7 +25,7 @@ export function maps(state: State, language: Lang): Map[] {
   ];
   return [
     { kind: 'untied', matrix: trainedData.untied, title: pick(language, '非循环模型，$L$ = 48 层', 'Untied model, $L$ = 48 layers'), short: pick(language, '非循环 $L$ = 48', 'Untied $L$ = 48'), axis: pick(language, '层', 'Layer'), tip: (i, j, value) => pick(language, `第 ${i} 层与第 ${j} 层：${fixed(value)}`, `Layers ${i} and ${j}: ${fixed(value)}`) },
-    { kind: 'loop', matrix: trainedData.loop[state.layers], title: pick(language, `循环模型，$L$ = ${state.layers}，$N$ = 8`, `Looped model, $L$ = ${state.layers}, $N$ = 8`), short: pick(language, `循环 $L$ = ${state.layers}`, `Looped $L$ = ${state.layers}`), axis: pick(language, '第几次循环', 'Pass'), tip: (i, j, value) => pick(language, `第 ${i} 次与第 ${j} 次循环：${fixed(value)}`, `Passes ${i} and ${j}: ${fixed(value)}`) },
+    { kind: 'loop', matrix: trainedData.loop[state.layers], title: pick(language, `循环模型，$L$ = ${state.layers}，$N$ = 8`, `Looped model, $L$ = ${state.layers}, $N$ = 8`), short: pick(language, `循环 $L$ = ${state.layers}`, `Looped $L$ = ${state.layers}`), axis: pick(language, '循环轮次', 'Pass'), tip: (i, j, value) => pick(language, `第 ${i} 轮与第 ${j} 轮循环：${fixed(value)}`, `Passes ${i} and ${j}: ${fixed(value)}`) },
   ];
 }
 

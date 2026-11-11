@@ -1,7 +1,7 @@
 ---
 title: "Loop-μP：Looped Transformer 的残差缩放与超参数迁移"
-subtitle: "循环不等于加深：残差分支乘以 1/N，学习率就能跨循环次数迁移"
-description: "Looped Transformer 增加循环次数后，为什么要重调学习率？共享权重让各次循环的残差增量同向累加；残差分支乘以 1/N 后，最小模型上调好的学习率在循环 8 次、执行 384 层时依然最优。"
+subtitle: "循环不等于加深：残差分支乘以 1/N，学习率即可跨循环次数迁移"
+description: "Looped Transformer 增加循环次数后，为什么往往需要重调学习率？共享权重会使各轮循环的残差增量同向累加；将残差分支乘以 1/N 后，最小模型上调好的学习率在循环 8 次、有效深度 384 层时依然保持最优。"
 language: "zh"
 urlSlug: "loop-mup"
 published: "2026-11-09"
@@ -9,7 +9,7 @@ category: "训练理论"
 tags: ["Loop-μP", "Looped Transformer", "μP", "超参数迁移", "残差缩放"]
 author: "王少文 等"
 paper: "https://arxiv.org/abs/2606.18524"
-sections: [{"id":"loops-vs-depth","title":"循环不等于加深"},{"id":"derivation","title":"为什么恰好是 1/N"},{"id":"recipe","title":"Loop-μP 配方"},{"id":"experiments","title":"一个学习率，适用于所有循环次数"},{"id":"after-training","title":"训练之后"},{"id":"conclusion","title":"小结"}]
+sections: [{"id":"loops-vs-depth","title":"循环不等于加深"},{"id":"derivation","title":"为什么恰好是 1/N"},{"id":"recipe","title":"Loop-μP 参数化方案"},{"id":"experiments","title":"跨循环次数的学习率迁移"},{"id":"after-training","title":"训练后的残差流性质"},{"id":"conclusion","title":"总结与展望"}]
 ---
 
 import LoopDetails from '../../../components/loop-mup/LoopDetails.astro';
@@ -17,23 +17,23 @@ import LoopFigure from '../../../components/loop-mup/LoopFigure.astro';
 import LoopMath from '../../../components/loop-mup/LoopMath.astro';
 import LoopRecipe from '../../../components/loop-mup/LoopRecipe.astro';
 
-Looped Transformer 把同一组 <var>L</var> 层重复执行 <var>N</var> 次：参数只有 <var>L</var> 层，执行深度却有 <var>N</var>×<var>L</var> 层。已有研究发现，循环能帮助模型完成多步推理；在语言建模中，下游准确率也随循环次数 <var>N</var> 上升，在推理类任务上尤为明显。因此，增加 <var>N</var> 是扩展循环模型的一个自然方向。
+Looped Transformer 把同一组 <var>L</var> 层重复执行 <var>N</var> 次：参数只有 <var>L</var> 层，有效执行深度却达到 <var>N</var>×<var>L</var> 层。已有研究发现，循环结构有助于提升模型的多步推理能力；在语言建模中，下游任务准确率也随循环次数 <var>N</var> 提升，在推理类任务上尤为显著。因此，增大循环次数 <var>N</var> 是扩展循环模型的一个自然方向。
 
-但 <var>N</var> 一变大，训练就容易不稳定，最优学习率也会跟着移动，每换一个 <var>N</var> 都要重新搜索。例如，Ouro 在训练中观察到 loss spike 后减少了循环次数，又因为算力不允许做学习率扫描，只能采用保守的学习率。
+但随着 <var>N</var> 增大，训练往往容易失稳，最优学习率也会随之漂移，每换一个 <var>N</var> 都需要重新搜索超参数。例如，Ouro 在训练中遇到 loss spike 后被迫减少循环次数，又因算力受限无法做学习率扫描，只能退而采用保守的学习率。
 
-在宽度和深度上，这个问题已经有了答案。μP 和 Depth-μP 选择合适的参数化，让最优超参数在模型变宽或变深时保持不变，于是可以在小模型上调好超参数，直接用到大模型上。我们想知道，<strong>循环次数 <var>N</var> 能否同样做到？</strong>
+在模型宽度和深度维度上，这一问题已有成熟解答。μP 与 Depth-μP 通过设计恰当的参数化缩放规则，使最优超参数在模型加宽或加深时保持不变，从而在小模型上调好超参数后即可直接迁移到大模型。我们关心的是：<strong>循环次数 <var>N</var> 维度能否同样做到？</strong>
 
-我们的答案是 <strong>Loop-μP</strong>：在原有深度缩放的基础上，把每个残差分支再乘以 1/<var>N</var>，学习率不随 <var>N</var> 改变。在语言模型实验中，最小模型上调好的基础学习率，在循环次数到 8、执行深度到 384 层时始终最优。关键在于，<strong>循环不能简单地当作加深</strong>：各次循环共享同一组权重，写进残差流的增量会同向累加。
+为此我们提出 <strong>Loop-μP</strong>：在原有深度缩放的基础上，将每个残差分支再额外乘以 1/<var>N</var>，而学习率保持与 <var>N</var> 无关。在语言模型预训练实验中，最小规模模型上调优的基础学习率，在循环次数增至 8、有效执行深度达 384 层时始终保持最优。其核心原因在于，<strong>循环不能简单视作加深</strong>：各轮循环共享同一组权重，写入残差流的增量会沿相近方向同向累加。
 
 <h2 id="loops-vs-depth">循环不等于加深</h2>
 
-残差网络的每个分支按 <var>x</var> ← <var>x</var> + <var>c</var>·<var>f</var>(<var>x</var>) 更新残差流，<var>c</var> 是分支系数。网络越深，累加的增量越多，所以深度参数化会随层数 <var>L</var> 缩小 <var>c</var>：Depth-μP 取 <var>c</var> ∝ <var>L</var><sup>−1/2</sup>，CompleteP 取 <var>c</var> ∝ <var>L</var><sup>−1</sup>，两者都能让学习率跨深度迁移。
+残差网络的每个分支按 <var>x</var> ← <var>x</var> + <var>c</var>·<var>f</var>(<var>x</var>) 更新残差流，其中 <var>c</var> 为残差分支系数。网络越深，累加的增量越多，因此深度参数化会随层数 <var>L</var> 缩小 <var>c</var>：Depth-μP 取 <var>c</var> ∝ <var>L</var><sup>−1/2</sup>，CompleteP 取 <var>c</var> ∝ <var>L</var><sup>−1</sup>，两者都能实现学习率跨深度迁移。
 
-循环 <var>N</var> 次的 <var>L</var> 层模型共执行 <var>N</var>×<var>L</var> 层。把循环当作额外的深度似乎很自然，这样分支系数就该再乘 <var>N</var><sup>−1/2</sup>。问题出在权重共享上。初始化时，<var>L</var> 个独立层写入的增量方向几乎互不相关，像随机游走一样，总和只按 √<var>L</var> 增长；同一个块循环 <var>N</var> 次时，每次用的都是同一组权重，增量彼此正相关，总和按 <var>N</var> 线性增长。
+循环 <var>N</var> 次的 <var>L</var> 层模型共前向执行 <var>N</var>×<var>L</var> 层。若直接把循环当作额外的深度，残差分支系数似乎应当再乘 <var>N</var><sup>−1/2</sup>。然而问题出在权重共享上：初始化时，<var>L</var> 个独立层写入的增量方向近似互不相关，如同随机游走，总和仅按 √<var>L</var> 增长；而同一个模块循环执行 <var>N</var> 次时，每轮使用的是同一组权重，各轮增量彼此正相关，总和按 <var>N</var> 线性增长。
 
 <LoopFigure id="vector-sum" language="zh" />
 
-真实的 Transformer 也是如此。我们把一个 12 层的 pre-norm Transformer 块循环 <var>N</var> 次，与串联 <var>m</var><sub><var>L</var></sub> 个独立 12 层块的非循环模型（深度倍数为 <var>m</var><sub><var>L</var></sub> = <var>L</var>/12）对比，在初始化时测量残差流的范数。不加缩放时，循环模型的范数随 <var>N</var> 线性增长，非循环模型只按 √<var>m</var><sub><var>L</var></sub> 增长。对非循环模型，<var>m</var><sub><var>L</var></sub><sup>−1/2</sup> 已经能让范数保持在常数量级；对循环模型，<var>N</var><sup>−1/2</sup> 仍压不住，只有 <var>N</var><sup>−1</sup> 才行。<var>N</var><sup>−3/2</sup> 虽然也能让范数有界，却会把循环模型推向恒等映射。
+真实的 Transformer 同样遵循这一规律。我们将一个 12 层的 Pre-LN Transformer 模块循环 <var>N</var> 次，与串联 <var>m</var><sub><var>L</var></sub> 个独立 12 层模块的非循环模型（深度倍数为 <var>m</var><sub><var>L</var></sub> = <var>L</var>/12）对比，在初始化时测量最终残差流的范数。不加额外缩放时，循环模型的范数随 <var>N</var> 线性增长，而非循环模型仅按 √<var>m</var><sub><var>L</var></sub> 增长。对非循环模型，<var>m</var><sub><var>L</var></sub><sup>−1/2</sup> 已足以将范数控制在常数量级；而对循环模型，<var>N</var><sup>−1/2</sup> 仍无法抑制范数发散，必须缩放到 <var>N</var><sup>−1</sup> 才能保持常数量级。<var>N</var><sup>−3/2</sup> 虽然也能使范数有界，却会把循环分支过度压缩，使整个循环块退化为恒等映射。
 
 <LoopFigure id="init-norm" language="zh" />
 
@@ -205,60 +205,60 @@ Looped Transformer 把同一组 <var>L</var> 层重复执行 <var>N</var> 次：
 
 </LoopDetails>
 
-论文附录把这一结论推广为对所有 (<var>α</var><sub><var>N</var></sub>, <var>γ</var><sub><var>N</var></sub>) 的完整分类，覆盖任意有限的训练步数，并扩展到含多个矩阵的残差分支（例如多层 MLP 块）；Transformer 中注意力块的配方由此类推。严格证明针对用 SGD 训练的线性网络；对非线性激活和 Adam，我们在额外假设下给出了论证。
+论文附录把这一结论推广为对所有 (<var>α</var><sub><var>N</var></sub>, <var>γ</var><sub><var>N</var></sub>) 的完整分类，覆盖任意有限的训练步数，并扩展到含多个矩阵的残差分支（例如多层 MLP 块）；Transformer 中 Attention 模块的参数化规则由此类推。严格证明针对用 SGD 训练的线性网络；对非线性激活和 Adam，我们在额外假设下给出了推导论证。
 
-真实 Transformer 中的一步更新也符合这一预测。我们在初始化处对所有 <var>N</var> 使用同一个学习率（即 <var>γ</var><sub><var>N</var></sub> = 0）做一步 AdamW 更新，测量最终残差流的变化。按上面的推导，此时变化量正比于 <var>N</var><sup>1−<var>α</var><sub><var>N</var></sub></sup>：只有 <var>α</var><sub><var>N</var></sub> = 1 时与 <var>N</var> 无关，<var>α</var><sub><var>N</var></sub> 更小时随 <var>N</var> 增长，更大时随 <var>N</var> 缩小。实测结果完全一致：<var>α</var><sub><var>N</var></sub> = 0 和 1/2 时变化随 <var>N</var> 增长，<var>α</var><sub><var>N</var></sub> = 3/2 时随 <var>N</var> 缩小；只有 <var>α</var><sub><var>N</var></sub> = 1 时，<var>N</var> 从 1 增大到 64，第一步的变化始终稳定在 0.08 到 0.19 之间。前十步也是同样的规律。
+真实 Transformer 中的一步更新同样吻合这一理论预测。我们在初始化处对所有 <var>N</var> 使用同一个学习率（即 <var>γ</var><sub><var>N</var></sub> = 0）做一步 AdamW 更新，测量最终残差流的变化量。按上面的推导，此时变化量正比于 <var>N</var><sup>1−<var>α</var><sub><var>N</var></sub></sup>：只有 <var>α</var><sub><var>N</var></sub> = 1 时与 <var>N</var> 无关，<var>α</var><sub><var>N</var></sub> 更小时随 <var>N</var> 增长，更大时随 <var>N</var> 衰减。实测结果完全一致：<var>α</var><sub><var>N</var></sub> = 0 和 1/2 时变化量随 <var>N</var> 增长，<var>α</var><sub><var>N</var></sub> = 3/2 时随 <var>N</var> 缩小；只有 <var>α</var><sub><var>N</var></sub> = 1 时，当 <var>N</var> 从 1 增大到 64，第一步更新的变化量始终稳定在 0.08 到 0.19 之间。前十步训练也呈现同样的规律。
 
 <LoopFigure id="one-step" language="zh" />
 
-<h2 id="recipe">Loop-μP 配方</h2>
+<h2 id="recipe">Loop-μP 参数化方案</h2>
 
-真实的 Looped Transformer 同时包含深度 <var>L</var> 和循环次数 <var>N</var>：每一次循环内部串联了 <var>L</var> 个权重独立的层，整组 <var>L</var> 层再共享权重重复执行 <var>N</var> 次。把上一节的结论分别用到这两个维度上：
+真实的 Looped Transformer 同时包含深度 <var>L</var> 和循环次数 <var>N</var>：单轮循环内部串联了 <var>L</var> 个权重独立的层，整组 <var>L</var> 层再共享权重重复执行 <var>N</var> 次。将上一节的结论分别应用到这两个维度上：
 
 - <strong>循环维度 <var>N</var></strong>：整组层重复 <var>N</var> 次时同向累加，唯一解是 <var>α</var><sub><var>N</var></sub> = 1、<var>γ</var><sub><var>N</var></sub> = 0——残差分支乘以 <var>N</var><sup>−1</sup>，学习率不随 <var>N</var> 缩放（乘 <var>N</var><sup>0</sup>）。
-- <strong>深度维度 <var>L</var></strong>：同一次循环内的 <var>L</var> 个独立层按 √<var>L</var> 累加，可行区间为 <var>α</var><sub><var>L</var></sub> ∈ [1/2, 1]、<var>γ</var><sub><var>L</var></sub> = 1 − <var>α</var><sub><var>L</var></sub>。与 Depth-μP 一样，我们要求同一次循环内各层的特征变化尽可能充分，从而选出左端点 <var>α</var><sub><var>L</var></sub> = 1/2、<var>γ</var><sub><var>L</var></sub> = 1/2——残差分支和隐藏层学习率都乘以 <var>L</var><sup>−1/2</sup>。
+- <strong>深度维度 <var>L</var></strong>：同一轮循环内的 <var>L</var> 个独立层按 √<var>L</var> 累加，可行区间为 <var>α</var><sub><var>L</var></sub> ∈ [1/2, 1]、<var>γ</var><sub><var>L</var></sub> = 1 − <var>α</var><sub><var>L</var></sub>。与 Depth-μP 一致，我们要求单轮循环内各层的特征更新保持最大化（Θ(1)），从而取左端点 <var>α</var><sub><var>L</var></sub> = 1/2、<var>γ</var><sub><var>L</var></sub> = 1/2——残差分支和隐藏层学习率均乘以 <var>L</var><sup>−1/2</sup>。
 - <strong>宽度维度 <var>n</var></strong>：沿用标准 μP，隐藏层的 Adam 学习率乘以 <var>n</var><sup>−1</sup>。
 
-把三个维度的缩放合在一起，就得到 <strong>Loop-μP</strong> 的残差分支系数与隐藏层 Adam 学习率：
+把三个维度的缩放结合起来，即得到 <strong>Loop-μP</strong> 的残差分支系数与隐藏层 Adam 学习率：
 
 <LoopMath name="multiplier" language="zh" />
 
-写成 pre-LN Transformer 的完整配方（相对于基础模型的宽度倍数记为 <var>m</var><sub><var>n</var></sub> = <var>n</var>/<var>n</var><sub>base</sub>、深度倍数记为 <var>m</var><sub><var>L</var></sub> = <var>L</var>/<var>L</var><sub>base</sub>），与非循环模型相比<strong>只有一处改动</strong>：注意力和 MLP 两个残差分支各自多乘一个 1/<var>N</var>。初始化方差、学习率、weight decay 和 AdamW <var>ε</var> 的规则都与非循环配方完全相同，所以在 <var>N</var> = 1 时调好超参数的模型，只需把残差分支除以 <var>N</var>，就能直接循环更多次。
+写成 Pre-LN Transformer 的完整参数化方案（相对于基础模型的宽度倍数记为 <var>m</var><sub><var>n</var></sub> = <var>n</var>/<var>n</var><sub>base</sub>、深度倍数记为 <var>m</var><sub><var>L</var></sub> = <var>L</var>/<var>L</var><sub>base</sub>），与非循环模型相比<strong>仅有一处改动</strong>：Attention 和 MLP 两个残差分支各自额外乘以 1/<var>N</var>。初始化方差、学习率、weight decay 与 AdamW <var>ε</var> 的缩放规则均与非循环 Depth-μP 完全一致。因此在 <var>N</var> = 1 上调好超参数的模型，只需将残差分支除以 <var>N</var>，即可直接扩展到更大的循环次数。
 
 <LoopRecipe language="zh" />
 
-<h2 id="experiments">一个学习率，适用于所有循环次数</h2>
+<h2 id="experiments">跨循环次数的学习率迁移</h2>
 
-我们在 FineWeb-Edu 上训练 Llama 风格的 pre-norm Looped Transformer，每个模型训练 10B token。词嵌入和输出层放在循环之外，中间的 <var>L</var> 层（<var>L</var> 取 12、24、48）循环 <var>N</var> 次（<var>N</var> 取 1、2、4、8）。对每一组 (<var>L</var>, <var>N</var>)，我们在 <var>L</var> = 12、<var>N</var> = 1 时调好的基础学习率附近扫描学习率。<var>L</var> = 12 时，我们比较四种循环因子：不缩放（1）、把循环当深度的 <var>N</var><sup>−1/2</sup>、Loop-μP 的 <var>N</var><sup>−1</sup>，以及比理论衰减更快的 <var>N</var><sup>−3/2</sup>。<var>L</var> = 24 和 48 时只用 Loop-μP，并按理论把学习率再乘以 (<var>L</var>/12)<sup>−1/2</sup>。
+我们在 FineWeb-Edu 上训练 Llama 风格的 Pre-LN Looped Transformer，每个模型训练 10B tokens。词嵌入与输出层置于循环之外，中间的 <var>L</var> 层（<var>L</var> 取 12、24、48）循环执行 <var>N</var> 次（<var>N</var> 取 1、2、4、8）。对每一组 (<var>L</var>, <var>N</var>)，我们在 <var>L</var> = 12、<var>N</var> = 1 上调好的基础学习率附近扫描学习率。<var>L</var> = 12 时，我们对比四种循环缩放因子：不缩放（1）、把循环视作深度的 <var>N</var><sup>−1/2</sup>、Loop-μP 的 <var>N</var><sup>−1</sup>，以及衰减过快的 <var>N</var><sup>−3/2</sup>；<var>L</var> = 24 和 48 时仅采用 Loop-μP，并按理论将学习率乘以 (<var>L</var>/12)<sup>−1/2</sup>。
 
 <LoopFigure id="lr-transfer" language="zh" />
 
-<strong>只有 <var>N</var><sup>−1</sup> 让最优学习率不随 <var>N</var> 移动。</strong>在 Loop-μP 下，<var>L</var> = 12 时每个 <var>N</var> 的最优基础学习率都是 1.25×10<sup>−3</sup>，<var>L</var> = 24 和 48 时也一样。其他三种循环因子下，最优学习率都会移动：
+<strong>只有 <var>N</var><sup>−1</sup> 能使最优学习率不随 <var>N</var> 漂移。</strong>在 Loop-μP 下，<var>L</var> = 12 时各个 <var>N</var> 的最优基础学习率稳定在 1.25×10<sup>−3</sup>，<var>L</var> = 24 和 48 时同样保持不变。而在其余三种缩放因子下，最优学习率均发生明显漂移：
 
-- 不缩放时，最优学习率从 <var>N</var> ≤ 2 时的 1.25×10<sup>−3</sup> 降到 <var>N</var> = 8 时的 7.5×10<sup>−4</sup>，学习率不低于 3×10<sup>−3</sup> 的训练在 <var>N</var> ≥ 4 时发散。这与一步更新随 <var>N</var> 增长的结果一致。
-- <var>N</var><sup>−3/2</sup> 下，最优学习率从 <var>N</var> = 1 时的 1.25×10<sup>−3</sup> 升到 <var>N</var> = 8 时的 3×10<sup>−3</sup>。理论能预测这一上移：这时一步更新的影响按 <var>N</var><sup>−1/2</sup> 缩小，要补回来，学习率需要按 <var>N</var><sup>1/2</sup> 增大，<var>N</var> = 8 时约为 3.5×10<sup>−3</sup>。
-- <var>N</var><sup>−1/2</sup> 下，最优学习率在 <var>N</var> ≥ 4 时也开始移动。
+- 不缩放时，最优学习率从 <var>N</var> ≤ 2 时的 1.25×10<sup>−3</sup> 下移至 <var>N</var> = 8 时的 7.5×10<sup>−4</sup>，且学习率不低于 3×10<sup>−3</sup> 的实验在 <var>N</var> ≥ 4 时训练发散，与单步更新随 <var>N</var> 放大的分析一致。
+- <var>N</var><sup>−3/2</sup> 下，最优学习率从 <var>N</var> = 1 时的 1.25×10<sup>−3</sup> 上移至 <var>N</var> = 8 时的 3×10<sup>−3</sup>。理论同样能够解释这一上移：此时单步更新对输出的影响按 <var>N</var><sup>−1/2</sup> 衰减，若要补偿这一衰减，学习率需按 <var>N</var><sup>1/2</sup> 增大（在 <var>N</var> = 8 时约为 3.5×10<sup>−3</sup>）。
+- <var>N</var><sup>−1/2</sup> 下，最优学习率在 <var>N</var> ≥ 4 时同样开始偏移。
 
-<strong>Loop-μP 的 loss 也最低。</strong>当 <var>N</var> > 1 时，它在每个 <var>N</var> 上的最低 loss 都低于其他三种循环因子，而且随 <var>N</var> 增大下降得最多。这与前向的分析一致：不缩放和 <var>N</var><sup>−1/2</sup> 让残差流随 <var>N</var> 增长，<var>N</var><sup>−3/2</sup> 则把循环模型推向恒等映射。
+<strong>Loop-μP 取得的 validation loss 也最低。</strong>当 <var>N</var> > 1 时，Loop-μP 在每个 <var>N</var> 上的最优 loss 均低于其余三种缩放方案，且随 <var>N</var> 增大带来的收益最为显著。这与前向分析完全吻合：不缩放和 <var>N</var><sup>−1/2</sup> 会导致残差流随 <var>N</var> 膨胀，而 <var>N</var><sup>−3/2</sup> 则将循环块推向恒等映射。
 
-加上深度因子后，同一个基础学习率在 <var>L</var> = 12、24、48 时都是最优的。也就是说，我们训练的所有 (<var>L</var>, <var>N</var>) 组合共用同一个最优基础学习率。
+结合深度缩放因子后，同一个基础学习率在 <var>L</var> = 12、24、48 下同样保持最优。换言之，实验覆盖的全部 (<var>L</var>, <var>N</var>) 组合共享同一个最优基础学习率。
 
-<h2 id="after-training">训练之后：循环的增量仍然同向</h2>
+<h2 id="after-training">训练后的残差流性质</h2>
 
-上面的两条预测都是在初始化时验证的。它们在完整训练（20,000 步）之后还成立吗？我们对 <var>N</var> = 8 的循环模型计算每两次循环增量之间的余弦相似度，并与训练后的非循环 <var>L</var> = 48 模型的逐层增量对比。
+上述理论预测主要基于初始化与训练早期分析，完整训练（20,000 步）之后这些性质是否依然成立？我们对训练完成的 <var>N</var> = 8 循环模型计算了各轮循环增量之间的余弦相似度，并与同等训练步数的非循环 <var>L</var> = 48 模型的逐层增量进行对比。
 
-循环增量之间的相似度比初始化时低，但除最后一次循环外，任意两次循环的增量都仍然正相关，三种深度都是如此；只有最后一次循环与其他循环弱相关或负相关。非循环模型的层增量整体相似度低，主要只与相邻的层相关。
+训练完成后，跨轮增量之间的余弦相似度相比初始化时有所下降，但除最后一轮循环外，任意两轮循环的增量依然保持明显正相关，在三种深度 <var>L</var> 下均是如此；仅最后一轮循环与前序循环呈弱相关或负相关。相比之下，非循环模型的逐层增量整体相关性很低，主要仅在相邻层之间存在局部相关。
 
 <LoopFigure id="trained-cosine" language="zh" />
 
-我们还记录了每次循环后残差流的范数。不同 <var>N</var> 的轨迹各不相同，但在同一深度下，最后一次循环后的范数最多相差 1.32 倍，与初始化时范数不随 <var>N</var> 变化的结论一致。
+我们还测量了每轮循环后残差流的范数演化。不同 <var>N</var> 的中间轨迹形态有所差异，但在同一物理深度 <var>L</var> 下，最后一轮循环结束时的残差流范数至多相差 1.32 倍，印证了最终残差流尺度不随 <var>N</var> 发散的结论。
 
 <LoopFigure id="pass-norm" language="zh" />
 
-<h2 id="conclusion">小结</h2>
+<h2 id="conclusion">总结与展望</h2>
 
-循环与加深的区别在于权重共享。共享权重让每次循环写入残差流的增量，以及一步更新带来的变化，都沿同一方向累加，而不像独立的层那样分散在互不相关的方向上。由此得到的 Loop-μP 在已有深度参数化的基础上，把每个残差分支乘以 1/<var>N</var>，学习率与 <var>N</var> 无关。在我们的语言模型实验中，Loop-μP 让学习率跨循环次数（到 8）和执行深度（到 384 层）迁移，loss 也比衰减更慢或更快的循环因子更低。
+循环与加深在动力学上的本质差异源于权重共享。权重共享使得每轮循环写入残差流的增量，以及参数更新对输出的影响，均沿相近方向相干累加，而非像独立层那样分散在近似正交的方向上。由此推导出的 Loop-μP 在既有深度参数化的基础上，仅需将每个残差分支额外乘以 1/<var>N</var>，而学习率无需随 <var>N</var> 调整。语言模型预训练实验证实，Loop-μP 能够使学习率跨循环次数（至 <var>N</var> = 8）和有效执行深度（至 384 层）稳定迁移，同时取得比其他缩放指数更低的预训练 loss。
 
-这项工作还有一些局限。我们的理论沿用 Depth-μP 的设定，分析的是去均值的 MLP 残差块，严格证明只针对线性网络；推广到非线性激活和 Adam 依赖额外假设，注意力层和归一化层也还没有纳入分析。受算力限制，我们最大的模型为 438M 参数、训练 10B token，更大规模上的表现留待以后验证。
+当前工作仍存在若干局限：理论分析沿用了 Depth-μP 的简化框架，主要针对去均值的 MLP 残差块，且严格证明聚焦于线性网络，向非线性激活函数和 Adam 的推广依赖额外假设，Attention 与 LayerNorm 的精确动力学尚未纳入严格证明；实验规模受算力限制，最大模型为 438M 参数、10B 训练 tokens，更大规模下的表现仍有待进一步检验。
 
-我们希望 Loop-μP 能为循环模型社区提供一个简单的配方，以更低的调参成本训练更好的循环模型。
+我们希望 Loop-μP 能为 Looped Transformer 的预训练提供一套简洁可靠的参数化准则，大幅降低跨循环轮数的调参成本。

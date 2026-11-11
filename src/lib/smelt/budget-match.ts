@@ -38,9 +38,9 @@ export function statusText(step: number, key: MeterKey, language: Language) {
   const amount = `${(size * 100).toFixed(size >= 0.1 ? 0 : 1)}%`;
   // No-break spaces keep a status on one line ("matched · +0.4%" never splits after the dot).
   const nb = '\u00a0';
-  if (step === 0) return { text: language === 'zh' ? '基线预算' : `reference${nb}budget`, state: 'reference' as const };
+  if (step === 0) return { text: language === 'zh' ? 'Baseline 预算' : `reference${nb}budget`, state: 'reference' as const };
   if (size < 5e-5) return { text: language === 'zh' ? '不变' : 'unchanged', state: 'matched' as const };
-  if (matched(ratio, key)) return { text: `${language === 'zh' ? '已匹配' : 'matched'}${nb}·${nb}${approx}${deviation >= 0 ? '+' : '−'}${amount}`, state: 'matched' as const };
+  if (matched(ratio, key)) return { text: `${language === 'zh' ? '已对齐' : 'matched'}${nb}·${nb}${approx}${deviation >= 0 ? '+' : '−'}${amount}`, state: 'matched' as const };
   return { text: language === 'zh' ? `${deviation > 0 ? '超出' : '不足'}${nb}${approx}${amount}` : `${approx}${amount}${nb}${deviation > 0 ? 'over' : 'under'}`, state: 'off' as const };
 }
 
@@ -143,28 +143,28 @@ const gqa = (config: StepConfig) => `${config.heads / config.kvHeads}:1`;
 
 export const copy = {
   zh: {
-    stepper: '预算匹配的五个步骤',
-    labels: ['基线', '循环 ×2', '缩窄', '加专家', '调注意力'],
-    titles: ['基线', '循环中间 50% 的层', '缩窄模型', '增加专家', '调整注意力 = SMELT'],
+    stepper: '等预算对齐的五个步骤',
+    labels: ['Baseline', '循环 ×2', '缩减宽度', '补充专家', '重配注意力'],
+    titles: ['Baseline', '循环中间 50% 物理层', '缩减模型宽度', '增加专家总数', '重配 Attention = SMELT'],
     bodies: [
-      `${b.physical} 层，隐藏维度 ${b.hidden}，每层 ${b.experts} 个专家、每个 token 激活 ${b.topk} 个。三项预算都以它为 1×。`,
-      `第 ${loopFrom}–${loopTo} 层执行两次，执行层数 ${b.executed} → ${steps[1]!.config.executed}。参数一个没加，但每 token FLOPs 和 KV cache 都涨到 ${r(1, 'flops')}。`,
-      `隐藏维度 ${b.hidden} → ${n.hidden}，专家 FFN ${b.ffn} → ${n.ffn}，Q 头 ${b.heads} → ${n.heads}。FLOPs 回到 ${r(2, 'flops')}，循环多花的计算被抵消；但每个专家都变小了，总参数量跌到 ${r(2, 'params')}。`,
-      `每层专家 ${n.experts} → ${s.experts}，每个 token 仍只激活 ${s.topk} 个，所以 FLOPs 几乎不动（${r(3, 'flops')}），总参数量回到 ${r(3, 'params')}。只剩 KV cache 还在 ${r(3, 'kv')}。`,
-      `head dim ${n.headDim} → ${s.headDim}，Q 头 ${n.heads} → ${s.heads}（GQA ${gqa(n)}\u00a0→\u00a0${gqa(s)}），Q 总宽度 ${s.heads} × ${s.headDim} = ${qWidth(s)}，正好等于隐藏维度。KV cache 回到 ${r(4, 'kv')}，FLOPs ${r(4, 'flops')}：三项预算全部对齐。`,
+      `${b.physical} 层物理深度，隐藏维度 ${b.hidden}，每层共 ${b.experts} 个专家、单 token 激活 ${b.topk} 个。三项预算均以此为基准（1×）。`,
+      `将第 ${loopFrom}–${loopTo} 层循环执行 2 轮，执行深度由 ${b.executed} 增至 ${steps[1]!.config.executed}。总参数量不变，但单 token FLOPs 与 KV cache 均增至 ${r(1, 'flops')}。`,
+      `隐藏维度缩减为 ${b.hidden} → ${n.hidden}，专家 FFN 维度 ${b.ffn} → ${n.ffn}，Q 头数 ${b.heads} → ${n.heads}。FLOPs 回落至 ${r(2, 'flops')}，抵消了循环的额外算力；但单个专家随之变窄，总参数量降至 ${r(2, 'params')}。`,
+      `每层专家总数从 ${n.experts} 增至 ${s.experts}，单 token 仍仅路由激活 ${s.topk} 个，因此 FLOPs 基本不变（${r(3, 'flops')}），总参数量恢复至 ${r(3, 'params')}。此时仅剩 KV cache 仍处于 ${r(3, 'kv')}。`,
+      `将 head dim 缩减为 ${n.headDim} → ${s.headDim}，Q 头数调至 ${n.heads} → ${s.heads}（GQA ${gqa(n)}\u00a0→\u00a0${gqa(s)}），保持 Q 投影总维度 ${s.heads} × ${s.headDim} = ${qWidth(s)} 等于隐藏维度。KV cache 回落至 ${r(4, 'kv')}，FLOPs 为 ${r(4, 'flops')}：三项核心预算全部对齐。`,
     ],
     stepWord: (index: number) => `第 ${index + 1} 步`,
     prev: '上一步', next: '下一步',
-    meters: { flops: '每 token FLOPs', params: '总参数量', kv: 'KV cache' } as Record<MeterKey, string>,
-    budgets: '三项预算（相对基线）',
-    reference: '基线', current: '当前', tolerance: '论文的典型误差', kvUnit: '每 token 缓存的 K/V 数', colon: '：',
+    meters: { flops: '单 token FLOPs', params: '总参数量', kv: 'KV cache' } as Record<MeterKey, string>,
+    budgets: '三项预算（相对 Baseline）',
+    reference: 'Baseline', current: '当前', tolerance: '论文允许偏差范围', kvUnit: '单 token 缓存的 K/V 元素数', colon: '：',
     panels: {
-      layers: { title: '深度与宽度', key: [['loop', '执行两次的层'], ['ghost', '基线宽度']] },
-      attention: { title: '注意力（每层）', key: [['hollow', 'Q 头'], ['added-head', '新增的 Q 头'], ['filled', 'K/V 头（被缓存）']] },
-      experts: { title: 'MoE 专家（每层）', key: [['expert', '面积 ∝ 每个专家的参数量'], ['added', `新增的 ${s.experts - b.experts} 个专家`], ['routed', '一个 token 的 top-8']] },
+      layers: { title: '物理深度与宽度', key: [['loop', '循环 2 轮的物理层'], ['ghost', 'Baseline 宽度']] },
+      attention: { title: 'Attention（每层）', key: [['hollow', 'Q 头'], ['added-head', '新增 Q 头'], ['filled', 'K/V 头（计入缓存）']] },
+      experts: { title: 'MoE 专家池（每层）', key: [['expert', '面积 ∝ 单专家参数量'], ['added', `新增的 ${s.experts - b.experts} 个专家`], ['routed', '单 token 路由 top-8']] },
     },
-    table: '配置与推算方法', item: '项目', baselineName: '基线', smeltName: 'SMELT',
-    pair: '200M 规模、S ≈ 95% 的一对匹配模型。',
+    table: '详细配置与预算核算', item: '项目', baselineName: 'Baseline', smeltName: 'SMELT',
+    pair: '200M 规模、S ≈ 95% 下的等预算配对模型示例。',
   },
   en: {
     stepper: 'Five steps of budget matching',

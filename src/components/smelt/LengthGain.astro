@@ -44,8 +44,8 @@ const statClass = { loop: 'is-loop', size: 'is-neutral', experts: 'is-neutral' }
       <path class="axis" d={`M${g.x0} ${g.y0}H${g.x1}`} />
       <text class="axis-title" x={(g.x0 + g.x1) / 2} y={g.y0 + 47} text-anchor="middle">{wide ? text.xAxis : text.xAxisShort}</text>
       {wide
-        ? <text class="axis-title" transform={`translate(16 ${(g.y0 + g.y1) / 2}) rotate(-90)`} text-anchor="middle">{text.yAxis}{language === 'zh' ? '（1.0 = 平均）' : ' (1.0 = mean)'}</text>
-        : <text class="axis-title" x="0" y="16">{text.yAxis}{language === 'zh' ? '（1.0 = 平均）' : ' (1.0 = mean)'}</text>}
+        ? <text class="axis-title" transform={`translate(16 ${(g.y0 + g.y1) / 2}) rotate(-90)`} text-anchor="middle">{text.yAxis}{language === 'zh' ? '（1.0 = 均值）' : ' (1.0 = mean)'}</text>
+        : <text class="axis-title" x="0" y="16">{text.yAxis}{language === 'zh' ? '（1.0 = 均值）' : ' (1.0 = mean)'}</text>}
       <line class="lg-guide" x1="0" x2="0" y1={g.y1 - 4} y2={g.y0} visibility="hidden" />
       {[...seriesKeys].reverse().map(key => {
         const paths = seriesPaths(variant, key);
@@ -74,14 +74,14 @@ const statClass = { loop: 'is-loop', size: 'is-neutral', experts: 'is-neutral' }
     </svg>;
   })}
   <p class="smelt-readout lg-definition">{language === 'zh'
-    ? '归一化收益：每组对比在某个长度区间上的损失下降，除以它在全部 8 个区间上的平均下降；阴影为跨对比的标准误，虚线为 SMELT 在短、长两半样本上的平均。'
+    ? '归一化收益：每组配对在特定长度分桶上的 loss 降幅，除以其在全部 8 个分桶上的平均降幅；阴影表示跨配对标准误，水平虚线标出 SMELT 在短样本与长样本半区的均值。'
     : "Normalized gain: a contrast's loss improvement in one length bucket, divided by its mean improvement over all 8 buckets; bands show the standard error across contrasts, and dashed segments mark SMELT's mean over the short and long halves."}</p>
   <details class="disclosure smelt-data">
-    <summary>{language === 'zh' ? '查看各长度区间的数值' : 'Values for every length bucket'}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
+    <summary>{language === 'zh' ? '查看各长度分桶数值' : 'Values for every length bucket'}<span class="disclosure-plus" aria-hidden="true">+</span></summary>
     <div class="disclosure-body">
       <div class="data-scroll" tabindex="0" role="region" aria-label={text.aria}>
         <table class="data-table">
-          <thead><tr><th scope="col">{language === 'zh' ? '长度上界（token）' : 'Upper bound (tokens)'}</th>{seriesKeys.map(key => <th scope="col">{text.series[key]}</th>)}</tr></thead>
+          <thead><tr><th scope="col">{language === 'zh' ? '长度上界（tokens）' : 'Upper bound (tokens)'}</th>{seriesKeys.map(key => <th scope="col">{text.series[key]}</th>)}</tr></thead>
           <tbody>
             {data.buckets.map((value, index) => <tr><th scope="row">{value}</th>{seriesKeys.map(key => <td>{valueWithSem(data.series[key].shape[index] ?? 0, data.series[key].sem[index] ?? 0)}</td>)}</tr>)}
             <tr data-highlight><th scope="row">{language === 'zh' ? '长 ÷ 短' : 'Long ÷ short'}</th>{seriesKeys.map(key => <td><strong>{ratioLabel(halves(key).ratio)}</strong></td>)}</tr>
@@ -89,7 +89,7 @@ const statClass = { loop: 'is-loop', size: 'is-neutral', experts: 'is-neutral' }
         </table>
       </div>
       <p>{language === 'zh'
-        ? `对比组数：SMELT vs 基线 ${data.series.loop.n} 组，增加参数 ${data.series.size.n} 组（同稀疏度下相邻规模），增加专家 ${data.series.experts.n} 组（同规模下相邻稀疏度）。`
+        ? `配对样本数：SMELT vs Baseline ${data.series.loop.n} 组，增加参数量 ${data.series.size.n} 组（同稀疏度下相邻规模），增加专家数 ${data.series.experts.n} 组（同规模下相邻稀疏度）。`
         : `Contrasts: SMELT vs Baseline ${data.series.loop.n}, More parameters ${data.series.size.n} (adjacent scales at the same sparsity), More experts ${data.series.experts.n} (adjacent sparsities at the same scale).`}</p>
     </div>
   </details>

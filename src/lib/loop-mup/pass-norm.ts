@@ -14,11 +14,11 @@ const loopClass: Record<string, string> = { '2': 'is-n2', '4': 'is-n4', '8': 'is
 
 const copy = {
   zh: {
-    layers: '层数 $L$', x: '第几次循环之后', y: '残差流范数 ‖$x$‖_{2}',
-    final: (n: string) => `$N$ = ${n}：最后一次循环后`, ratio: '最终范数的最大/最小比',
-    tip: (n: string, pass: number, value: number) => `N = ${n}\n${pass === 0 ? '嵌入层输出' : `第 ${pass} 次循环后`}：${compact(value)}`,
-    aria: (layers: string) => `折线图：L = ${layers} 的 Loop-μP 模型训练后，残差流范数在每次循环后的变化，N = 2、4、8 各一条线。`,
-    table: '数据表', pass: '循环',
+    layers: '层数 $L$', x: '循环轮次', y: '残差流范数 ‖$x$‖_{2}',
+    final: (n: string) => `$N$ = ${n}：最后一轮循环后`, ratio: '最终范数最大/最小比值',
+    tip: (n: string, pass: number, value: number) => `N = ${n}\n${pass === 0 ? 'Embedding 输出' : `第 ${pass} 轮循环后`}：${compact(value)}`,
+    aria: (layers: string) => `折线图：L = ${layers} 的 Loop-μP 模型训练后，残差流范数随循环轮次的变化（N = 2、4、8）。`,
+    table: '数据表', pass: '循环轮次',
   },
   en: {
     layers: 'Layers $L$', x: 'After pass', y: 'Residual-stream norm ‖$x$‖_{2}',

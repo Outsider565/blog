@@ -27,9 +27,9 @@ const baseTop = (size: string) => raxis.scale(scaleSummary(key, size).baseMean);
 const halfBar = Math.min(15, columnWidth * 0.28);
 const annotation = note(key, 'all', language);
 const ariaScatter = language === 'zh'
-  ? `分数与验证损失的散点图：基线拟合曲线，以及 96 个基线端点和 96 个 SMELT 端点；${text.scatterKeys}。`
+  ? `下游得分 vs. validation loss 散点图：Baseline 拟合曲线及 96 组 Baseline / SMELT 配对评测点；${text.scatterKeys}。`
   : `Score against validation loss: the Baseline-fitted curve with 96 Baseline and 96 SMELT endpoints; ${text.scatterKeys}.`;
-const ariaResidual = language === 'zh' ? 'SMELT 拟合残差按模型规模汇总，并标出同规模基线的平均拟合残差。' : 'SMELT residual by model scale, with the same-scale Baseline mean residual.';
+const ariaResidual = language === 'zh' ? '按模型规模汇总的 SMELT 拟合残差，同时标出同规模 Baseline 的平均拟合残差。' : 'SMELT residual by model scale, with the same-scale Baseline mean residual.';
 const colTip = (column: string) => {
   const u = unit(key, language);
   if (column === 'all') return `${text.pooled} · ${info.name}\n${text.mean} ${signed(all.mean, d)} ${u}\n${text.ci} ${signed(all.ci[0] ?? 0, d)} – ${signed(all.ci[1] ?? 0, d)}\n${text.positive} ${all.positive} / ${all.total}\n${text.pooledBase}`;
@@ -153,7 +153,7 @@ const colTip = (column: string) => {
     {benchKeys.map(item => <div class="data-scroll bl-endpoints" tabindex="0" role="region" aria-label={`${text.endpoints} · ${benchText(item, language).name}`} data-bl-endpoints={item}>
       <table class="data-table">
         <caption>{language === 'zh'
-          ? `${benchText(item, language).name}（${item === 'comp' ? '分数为 nats，拟合残差为 mnat' : '分数为 %，拟合残差为 pp'}）`
+          ? `${benchText(item, language).name}（${item === 'comp' ? '得分为 nats，拟合残差为 mnat' : '得分为 %，拟合残差为 pp'}）`
           : `${benchText(item, language).name} (${item === 'comp' ? 'scores in nats, residuals in mnat' : 'scores in %, residuals in pp'})`}</caption>
         <thead><tr>
           <th scope="col">{text.scale}</th><th scope="col">S</th><th scope="col">{text.branch}</th><th scope="col">{text.lossCol}</th>

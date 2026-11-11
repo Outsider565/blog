@@ -32,7 +32,7 @@ const trail = (size: string, es: number, arch: 0 | 1) => linePath(pairs
   .filter(pair => pair.size === size && pair.es === es)
   .map(pair => { const g = geometry[pair.index]!; return (arch ? [g.xl, g.yl] : [g.xb, g.yb]) as Point; }));
 const ariaChart = language === 'zh'
-  ? `${info.name}：${sizes.length} 个模型规模的小图，每组匹配对的基线与 SMELT 分数以连线相连。`
+  ? `${info.name}：按 ${sizes.length} 档模型规模分列展示，每组等预算配对的 Baseline 与 SMELT 得分由线段相连。`
   : `${info.name}: one small chart per model scale, each matched pair's Baseline and SMELT scores joined by a line.`;
 ---
 <div class="downstream-pairs" data-downstream-pairs data-metric={metric} data-language={language}>

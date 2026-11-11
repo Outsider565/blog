@@ -124,34 +124,34 @@ export const stepLabel = (step: number) => step >= 196000 ? '196k' : `${Math.rou
 
 const metricCopy = {
   core: {
-    zh: { name: 'DCLM Core', axis: 'DCLM Core（中心化准确率，%）', better: '越高越好', unit: 'pp', winLabel: '组匹配对中 SMELT 的 DCLM Core 更高' },
+    zh: { name: 'DCLM Core', axis: 'DCLM Core（中心化准确率，%）', better: '越高越优', unit: 'pp', winLabel: '组等预算配对中 SMELT 的 DCLM Core 得分更高' },
     en: { name: 'DCLM Core', axis: 'DCLM Core (centered accuracy, %)', better: 'higher is better', unit: 'pp', winLabel: 'matched pairs where SMELT scores higher on DCLM Core' },
   },
   comp: {
-    zh: { name: 'DCLM Completion', axis: 'DCLM Completion（标准答案损失，nats）', better: '越低越好', unit: 'nats', winLabel: '组匹配对中 SMELT 的 DCLM Completion 损失更低' },
+    zh: { name: 'DCLM Completion', axis: 'DCLM Completion（目标答案 loss，nats）', better: '越低越优', unit: 'nats', winLabel: '组等预算配对中 SMELT 的 DCLM Completion loss 更低' },
     en: { name: 'DCLM Completion', axis: 'DCLM Completion (gold-answer loss, nats)', better: 'lower is better', unit: 'nats', winLabel: 'matched pairs where SMELT has the lower DCLM Completion loss' },
   },
   mmlu: {
-    zh: { name: 'MMLU', axis: 'MMLU 准确率（%）', better: '越高越好', unit: 'pp', winLabel: '组基线明显高于随机水平的匹配对中 SMELT 的 MMLU 更高' },
+    zh: { name: 'MMLU', axis: 'MMLU 准确率（%）', better: '越高越优', unit: 'pp', winLabel: '组突破随机水平的配对中 SMELT 的 MMLU 准确率更高' },
     en: { name: 'MMLU', axis: 'MMLU accuracy (%)', better: 'higher is better', unit: 'pp', winLabel: 'pairs with a clearly above-chance Baseline where SMELT scores higher on MMLU' },
   },
 } as const;
 export const metricText = (metric: MetricKey, language: Language) => metricCopy[metric][language];
 export const winLabel = (metric: MetricKey, scope: Scope, language: Language) => metric === 'mmlu' && scope === 'all'
-  ? (language === 'zh' ? '组匹配对中 SMELT 的 MMLU 更高（不设门槛）' : 'matched pairs where SMELT scores higher on MMLU (no bar)')
+  ? (language === 'zh' ? '组配对中 SMELT 的 MMLU 准确率更高（未筛门槛）' : 'matched pairs where SMELT scores higher on MMLU (no bar)')
   : metricCopy[metric][language].winLabel;
 
 export const copy = {
   zh: {
-    metric: '指标', sparsity: '稀疏度 S', all: '全部', scope: '统计范围', scopeBar: '基线明显高于随机（30 组）', scopeAll: '全部 96 组',
-    base: '基线', loop: 'SMELT', loopAhead: 'SMELT 更好', baseAhead: '基线更好', excluded: '未计入（基线 < 35%）',
-    chance: '随机水平 25%', barLine: '计入门槛：基线 ≥ 35%',
-    ledgerRows: '每格一组匹配对：每行一个稀疏度（0% → ≈97%），每列一个衰减分支（10k → 196k 步）', cellWin: 'SMELT 更好', cellLoss: '基线更好', cellOut: '未计入',
+    metric: '指标', sparsity: '稀疏度 S', all: '全部', scope: '统计范围', scopeBar: 'Baseline 突破随机水平（30 组）', scopeAll: '全部 96 组',
+    base: 'Baseline', loop: 'SMELT', loopAhead: 'SMELT 更优', baseAhead: 'Baseline 更优', excluded: '未计入（Baseline < 35%）',
+    chance: '随机水平 25%', barLine: '筛选阈值：Baseline ≥ 35%',
+    ledgerRows: '每格对应一组配对：行表示稀疏度（0% → ≈97%），列表示衰减检查点（10k → 196k 步）', cellWin: 'SMELT 更优', cellLoss: 'Baseline 更优', cellOut: '未计入',
     xAxis: '累计训练 FLOPs（对数坐标）',
     branchFirst: '10k', branchLast: '196k',
-    step: '步分支', flops: 'FLOPs', diff: '差值', notCounted: '未计入胜率：基线低于 35%',
-    ahead: (better: boolean) => better ? 'SMELT 更好' : '基线更好',
-    table: '数据表：全部 96 组匹配对', scale: '规模', branch: '分支（步）',
+    step: '步检查点', flops: 'FLOPs', diff: '差值', notCounted: '未计入胜率：Baseline 低于 35%',
+    ahead: (better: boolean) => better ? 'SMELT 更优' : 'Baseline 更优',
+    table: '数据表：全部 96 组等预算配对', scale: '规模', branch: '检查点（步）',
     wins: (won: number, total: number) => `${won} / ${total}`,
   },
   en: {
@@ -207,7 +207,7 @@ export function summary(metric: MetricKey, scope: Scope, sparsity: Sparsity, lan
   const label = sparsity === 'all' ? '' : sparsityLabel(Number(sparsity));
   const prefix = label ? (zh ? `S ${label}：` : `S ${label}: `) : '';
   if (metric === 'mmlu' && scope === 'bar') return zh
-    ? `${prefix}基线明显高于随机的 ${total} 组中，SMELT 在 ${won} 组上更好，平均差值 ${gapText}。`
+    ? `${prefix}Baseline 突破随机水平的 ${total} 组配对中，SMELT 有 ${won} 组更优，平均领先 ${gapText}。`
     : `${prefix}SMELT is better on ${won} of the ${total} pairs with an above-chance Baseline, by ${gapText} on average.`;
-  return zh ? `${prefix}${total} 组中 SMELT 在 ${won} 组上更好，平均差值 ${gapText}。` : `${prefix}SMELT is better on ${won} of ${total} pairs, by ${gapText} on average.`;
+  return zh ? `${prefix}${total} 组配对中 SMELT 有 ${won} 组更优，平均差值 ${gapText}。` : `${prefix}SMELT is better on ${won} of ${total} pairs, by ${gapText} on average.`;
 }

@@ -59,53 +59,53 @@ const groupDigits = (value: number) => value.toLocaleString('en-US');
 
 export const copy = {
   zh: {
-    chart: '验证损失与累计训练计算量：16 个匹配配置中的基线与 SMELT',
-    sparsity: '稀疏度', all: '全部', scale: '规模', pick: '选择要查看训练曲线的模型', pickScale: '训练曲线的模型规模', pickSparsity: '训练曲线的稀疏度 S',
-    xTitle: '累计训练计算量（FLOPs，对数轴）', xShort: '训练计算量（FLOPs）',
-    yLoss: '验证损失', yDelta: '差值', deltaNote: 'SMELT − 基线', lowerZone: 'SMELT 更低',
-    zoneZoom: 'Δ < 0：SMELT 更低',
-    narrowKey: '上：验证损失 · 下：Δ = SMELT − 基线', insetKey: '上：训练损失 · 下：Δ = SMELT − 基线',
-    base: '基线', loop: 'SMELT', legendBase: '基线', legendLoop: 'SMELT',
-    staticNote: '空心点与虚线为基线，实心点与实线为 SMELT；大点为最长训练预算。',
-    keys: '方向键切换数据点，回车载入训练曲线。',
-    statFinal: '个配置中，SMELT 在最长训练预算下的验证损失更低',
-    statPairs: '组匹配训练时长中 SMELT 更低',
-    statParams: '最大总参数量（不含 embedding；1.6B 规模，S ≈ 97%）',
-    horizon: (k: number, tokens: number) => `训练时长 ${k}/6（≈${Math.round(tokens)}B token）`,
+    chart: 'validation loss 随累计训练算力的变化：16 组等预算配置下的 Baseline 与 SMELT',
+    sparsity: '稀疏度', all: '全部', scale: '规模', pick: '选择查看训练曲线的模型配置', pickScale: '训练曲线的模型规模', pickSparsity: '训练曲线的稀疏度 S',
+    xTitle: '累计训练算力（FLOPs，对数轴）', xShort: '训练算力（FLOPs）',
+    yLoss: 'validation loss', yDelta: '差值', deltaNote: 'SMELT − Baseline', lowerZone: 'SMELT 更优',
+    zoneZoom: 'Δ < 0：SMELT 更优',
+    narrowKey: '上：validation loss · 下：Δ = SMELT − Baseline', insetKey: '上：training loss · 下：Δ = SMELT − Baseline',
+    base: 'Baseline', loop: 'SMELT', legendBase: 'Baseline', legendLoop: 'SMELT',
+    staticNote: '空心点与虚线为 Baseline，实心点与实线为 SMELT；放大圆点表示最长训练预算终点。',
+    keys: '方向键切换数据点，回车加载对应训练曲线。',
+    statFinal: '组配置在最长训练预算终点处 SMELT 的 validation loss 更低',
+    statPairs: '组配对训练预算中 SMELT 的 validation loss 更低',
+    statParams: '最大模型总参数量（不含 embedding；1.6B 规模，S ≈ 97%）',
+    horizon: (k: number, tokens: number) => `训练预算 ${k}/6（≈${Math.round(tokens)}B tokens）`,
     S: 'S', total: '总参数', vs: ' / ',
     insetTitle: (scale: string, s: string) => `训练曲线｜${scale}，${s}`,
-    insetMeta: (cell: Cell) => `总参数 ${params(cell.base.params)} / ${params(cell.loop.params)} · SMELT 每 token 计算量为基线的 ${cell.fRatio.toFixed(3)} 倍`,
-    yTrain: '训练损失', xTokens: '训练 token 数', stable: '稳定阶段', decay: '衰减分支终点',
-    insetLabel: '所选配置的训练损失曲线与差值',
+    insetMeta: (cell: Cell) => `总参数 ${params(cell.base.params)} / ${params(cell.loop.params)} · SMELT 单 token FLOPs 为 Baseline 的 ${cell.fRatio.toFixed(3)}×`,
+    yTrain: 'training loss', xTokens: '训练 token 数', stable: '恒定学习率阶段', decay: '衰减分支终点',
+    insetLabel: '当前配置的训练损失曲线及差值',
     readout: (cell: Cell) => {
       const b = cell.base.loss.at(-1)!; const l = cell.loop.loss.at(-1)!;
       const lower = deltas(cell).filter(value => value < 0).length;
-      return `<strong>${cell.scale}，${sparsityLabel(SPARSITY.findIndex(level => level.es === cell.es))}</strong>：最长训练预算下验证损失 基线 ${b.toFixed(4)} → SMELT ${l.toFixed(4)}（${signedFixed(l - b)}，${signedPercent((l - b) / b)}）；6 个训练时长中 ${lower} 个 SMELT 更低。`;
+      return `<strong>${cell.scale}，${sparsityLabel(SPARSITY.findIndex(level => level.es === cell.es))}</strong>：最长训练预算终点处 validation loss 由 Baseline ${b.toFixed(4)} 降至 SMELT ${l.toFixed(4)}（${signedFixed(l - b)}，${signedPercent((l - b) / b)}）；6 档训练预算中有 ${lower} 档 SMELT 更低。`;
     },
-    tableSummary: '查看 16 个配置的数据',
-    table: ['规模', '稀疏度 S（基线 / SMELT）', '总参数（基线 / SMELT）', '基线', 'SMELT', '差值', 'SMELT 更低'],
-    tableNote: '损失为最长训练预算终点的验证损失；参数量不含 embedding。',
+    tableSummary: '查看全部 16 组配置数值',
+    table: ['规模', '稀疏度 S（Baseline / SMELT）', '总参数（Baseline / SMELT）', 'Baseline', 'SMELT', '差值', 'SMELT 更优档数'],
+    tableNote: '表中 loss 为最长训练预算终点的 validation loss；参数量不含 embedding。',
     pairTip: (cell: Cell, k: number) => {
       const b = cell.base.loss[k]!; const l = cell.loop.loss[k]!;
       const s = SPARSITY.findIndex(level => level.es === cell.es);
       const extra = (cell.loop.compute[k]! / cell.base.compute[k]! - 1);
       return [
-        `${cell.scale} · ${sparsityLabel(s)} · 训练时长 ${k + 1}/6（≈${Math.round(cell.horizonTokens[k]!)}B token）`,
-        `基线　${b.toFixed(4)} · ${flops(cell.base.compute[k]!)} FLOPs`,
+        `${cell.scale} · ${sparsityLabel(s)} · 训练预算 ${k + 1}/6（≈${Math.round(cell.horizonTokens[k]!)}B tokens）`,
+        `Baseline ${b.toFixed(4)} · ${flops(cell.base.compute[k]!)} FLOPs`,
         `SMELT ${l.toFixed(4)} · ${flops(cell.loop.compute[k]!)} FLOPs（${signedPercent(extra)}）`,
         `差值 ${signedFixed(l - b)}（${signedPercent((l - b) / b, 2)}）`,
-        `稀疏度 S：基线 ${cell.base.S.toFixed(1)}% · SMELT ${cell.loop.S.toFixed(1)}%`,
-        `总参数：基线 ${params(cell.base.params)} · SMELT ${params(cell.loop.params)}`,
+        `稀疏度 S：Baseline ${cell.base.S.toFixed(1)}% · SMELT ${cell.loop.S.toFixed(1)}%`,
+        `总参数：Baseline ${params(cell.base.params)} · SMELT ${params(cell.loop.params)}`,
       ].join('\n');
     },
-    stableTip: (tokens: number, b: number, l: number) => [`≈${Math.round(tokens)}B token · ${'稳定阶段'}`, `基线 ${b.toFixed(4)}`, `SMELT ${l.toFixed(4)}`, `差值 ${signedFixed(l - b)}`].join('\n'),
+    stableTip: (tokens: number, b: number, l: number) => [`≈${Math.round(tokens)}B tokens · 恒定学习率阶段`, `Baseline ${b.toFixed(4)}`, `SMELT ${l.toFixed(4)}`, `差值 ${signedFixed(l - b)}`].join('\n'),
     decayTip: (cell: Cell, k: number) => {
       const bt = cell.train.base.decay[k]!.at(-1)!; const lt = cell.train.loop.decay[k]!.at(-1)!;
       return [
-        `衰减分支 ${k + 1}：第 ${groupDigits(data.branchSteps[k]!)} 步分叉，终点 ${cell.horizonTokens[k]!.toFixed(1)}B token`,
-        `训练损失：基线 ${bt.toFixed(4)} · SMELT ${lt.toFixed(4)}（${signedFixed(lt - bt)}）`,
-        `验证损失：基线 ${cell.base.loss[k]!.toFixed(4)} · SMELT ${cell.loop.loss[k]!.toFixed(4)}（${signedFixed(cell.loop.loss[k]! - cell.base.loss[k]!)}）`,
-        ...noteFor(cell, k).map(note => `原始数据中这条${note.arch === 'loop' ? ' SMELT ' : '基线'}分支记录于 ${note.from.toFixed(1)}–${note.to.toFixed(1)}B token（${note.points} 个点，晚于分叉点），此处截至 ${note.clip.toFixed(1)}B，起点按日志绘制`),
+        `衰减分支 ${k + 1}：第 ${groupDigits(data.branchSteps[k]!)} 步开始衰减，终点 ${cell.horizonTokens[k]!.toFixed(1)}B tokens`,
+        `training loss：Baseline ${bt.toFixed(4)} · SMELT ${lt.toFixed(4)}（${signedFixed(lt - bt)}）`,
+        `validation loss：Baseline ${cell.base.loss[k]!.toFixed(4)} · SMELT ${cell.loop.loss[k]!.toFixed(4)}（${signedFixed(cell.loop.loss[k]! - cell.base.loss[k]!)}）`,
+        ...noteFor(cell, k).map(note => `原始日志中该条 ${note.arch === 'loop' ? 'SMELT' : 'Baseline'} 分支记录区间为 ${note.from.toFixed(1)}–${note.to.toFixed(1)}B tokens（共 ${note.points} 点，晚于衰减分叉步），此处截断至 ${note.clip.toFixed(1)}B 并按日志起点绘制`),
       ].join('\n');
     },
   },

@@ -70,7 +70,7 @@ const sliderTicks: Record<'F' | 'S' | 'D', { value: number; label: string }[]> =
   D: data.horizons.map((value, index) => ({ value, label: index === 0 || index === 2 || index === 5 ? formatParam('D', value) : '' })),
 };
 const ariaLabel = language === 'zh'
-  ? `分别拟合的系数：SMELT 的容量指数 a = ${loop.a.toFixed(4)}（基线 ${base.a.toFixed(4)}），数据指数 c = ${loop.c.toFixed(4)}（基线 ${base.c.toFixed(4)}）。`
+  ? `独立拟合的 Scaling Law 系数：SMELT 容量指数 a = ${loop.a.toFixed(4)}（Baseline ${base.a.toFixed(4)}），数据指数 c = ${loop.c.toFixed(4)}（Baseline ${base.c.toFixed(4)}）。`
   : `Separately fitted coefficients: SMELT's capacity exponent a = ${loop.a.toFixed(4)} (Baseline ${base.a.toFixed(4)}) and data exponent c = ${loop.c.toFixed(4)} (Baseline ${base.c.toFixed(4)}).`;
 const tipValue = (value: number) => value.toFixed(4);
 ---

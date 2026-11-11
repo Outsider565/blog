@@ -12,7 +12,7 @@
     "paperBundle": "smelt_arch",
     "captions": {
       "zh": {
-        "title": "SMELT 的核心做法：将中间 50% 的层执行两次，同时匹配计算量、参数量和 KV cache。",
+        "title": "SMELT 的等预算设计：将中间 50% 物理层循环执行 2 轮，同时对齐单 token FLOPs、总参数量与 KV cache。",
         "detail": ""
       },
       "en": {
@@ -33,7 +33,7 @@
     "paperBundle": "design_ablations",
     "captions": {
       "zh": {
-        "title": "循环中间约 50% 的层时验证损失最低。",
+        "title": "循环中间约 50% 物理层时 validation loss 最低。",
         "detail": ""
       },
       "en": {
@@ -54,7 +54,7 @@
     "paperBundle": "design_ablations",
     "captions": {
       "zh": {
-        "title": "Looped Transformer 的最优执行深宽比高于基线。",
+        "title": "Looped Transformer 的最优执行深宽比高于 Baseline。",
         "detail": ""
       },
       "en": {
@@ -75,7 +75,7 @@
     "paperBundle": "design_ablations",
     "captions": {
       "zh": {
-        "title": "循环两次效果最好；三次和四次不如两次（我们归因于模型被迫变窄），但仍优于基线。",
+        "title": "循环 2 轮表现最优；循环 3 轮与 4 轮因维持等 FLOPs 需进一步缩窄模型而有所回退，但仍优于 Baseline。",
         "detail": ""
       },
       "en": {
@@ -97,7 +97,7 @@
     "paperBundle": "loss_vs_compute",
     "captions": {
       "zh": {
-        "title": "在所有模型规模和稀疏度下，SMELT 都能以相近计算量获得更低的验证损失。",
+        "title": "在全部模型规模与稀疏度配置下，SMELT 在相同训练算力下均取得更低的 validation loss。",
         "detail": ""
       },
       "en": {
@@ -116,7 +116,7 @@
     "paperBundle": "frontier_ce_gain",
     "captions": {
       "zh": {
-        "title": "分别拟合基线和 SMELT 得到的 Scaling Law 系数。",
+        "title": "分别在 Baseline 与 SMELT 实验点上独立拟合得到的联合 Scaling Law 系数。",
         "detail": ""
       },
       "en": {
@@ -138,7 +138,7 @@
     "paperBundle": "frontier_ce_gain",
     "captions": {
       "zh": {
-        "title": "从 10²⁰ FLOPs 起，SMELT 的计算最优前沿更低；在 S ≈ 97%、10²¹ FLOPs 时可节省 14.7% 的训练计算量。",
+        "title": "自 10²⁰ FLOPs 起，SMELT 的 Compute-Optimal 前沿持续更低；在 S ≈ 97%、10²¹ FLOPs 处可节省 14.7% 训练算力。",
         "detail": ""
       },
       "en": {
@@ -162,7 +162,7 @@
     "paperBundle": "downstream_core_vs_compute",
     "captions": {
       "zh": {
-        "title": "SMELT 在 96 组匹配对中的 83 组上取得更高的 DCLM Core 分数。",
+        "title": "在全部 96 组等预算配对中，SMELT 有 83 组取得更高的 DCLM Core 得分。",
         "detail": ""
       },
       "en": {
@@ -186,7 +186,7 @@
     "paperBundle": "downstream_mmlu_vs_compute",
     "captions": {
       "zh": {
-        "title": "在基线明显高于随机水平的 30 组匹配对中，SMELT 在 29 组上取得更高的 MMLU 准确率。",
+        "title": "在 Baseline 突破随机猜测水平的 30 组配对中，SMELT 有 29 组取得更高的 MMLU 准确率。",
         "detail": ""
       },
       "en": {
@@ -208,7 +208,7 @@
     "paperBundle": "loss_to_benchmark",
     "captions": {
       "zh": {
-        "title": "即使验证损失相同，SMELT 在三项下游指标上的平均表现也都高于基线预测；相对这条合并拟合的基线曲线，这一额外收益大体随模型规模增大。",
+        "title": "对齐 validation loss 后，SMELT 在三项下游指标上的均值仍全部高于 Baseline 拟合曲线；相对合并拟合曲线，该额外优势整体随规模扩大。",
         "detail": ""
       },
       "en": {
@@ -230,7 +230,7 @@
     "paperBundle": "per_source",
     "captions": {
       "zh": {
-        "title": "SMELT 在所有数据领域上都有收益，其中代码数据收益最大。",
+        "title": "SMELT 在全部验证领域均取得正向收益，其中 Code 领域收益最为显著。",
         "detail": ""
       },
       "en": {
@@ -252,7 +252,7 @@
     "paperBundle": "length_icl",
     "captions": {
       "zh": {
-        "title": "长文本上 SMELT 相对基线的收益更明显：按各匹配对归一化后，约为短文本的 1.5 倍。",
+        "title": "SMELT 在长文本上的相对收益更突出：在各配对内归一化后，长样本收益约为短样本的 1.5 倍。",
         "detail": ""
       },
       "en": {
@@ -274,7 +274,7 @@
     "paperBundle": "length_icl",
     "captions": {
       "zh": {
-        "title": "给出 in-context 示例后，SMELT 的优势明显扩大；在 Dyck Languages 上，差距从 8 个示例起逐渐拉开。",
+        "title": "提供上下文示例后，SMELT 的领先优势进一步扩大；在 Dyck Languages 上，优势自 8-shot 起持续拉开。",
         "detail": ""
       },
       "en": {
@@ -296,7 +296,7 @@
     "paperBundle": "moe_expert_set_reuse",
     "captions": {
       "zh": {
-        "title": "第二次执行会复用部分专家，同时选择一些新专家；实际重叠远高于随机水平。",
+        "title": "第 2 轮循环既会复用部分首轮专家，也会调用新专家；两轮专家集合的重合度远高于独立随机路由。",
         "detail": ""
       },
       "en": {
@@ -318,7 +318,7 @@
     "paperBundle": "residual_flow_loop_block_zoom",
     "captions": {
       "zh": {
-        "title": "第二次执行向残差流写入的更新整体更大。",
+        "title": "第 2 轮循环向残差流写入的更新范数整体高于第 1 轮，且方向与首轮部分对齐。",
         "detail": ""
       },
       "en": {
@@ -340,7 +340,7 @@
     "paperBundle": "attention_qkv_decomposition",
     "captions": {
       "zh": {
-        "title": "两次执行通常看向相似的位置，但读取和写回的内容发生了更大变化。",
+        "title": "两轮循环检索的上下文位置总体相近，但读取并写回残差流的内容发生了显著变化。",
         "detail": ""
       },
       "en": {
@@ -362,7 +362,7 @@
     "paperBundle": "dyck_attention_map_1p6b",
     "captions": {
       "zh": {
-        "title": "在 Dyck 任务中，第二次执行把注意力从 BOS 转移到示例答案。",
+        "title": "在 Dyck 括号匹配任务中，第 2 轮循环将关键注意力头从 BOS 转移至各示例的答案位置。",
         "detail": ""
       },
       "en": {
@@ -384,7 +384,7 @@
     "paperBundle": "attention_sink_physical_depth_1p6b",
     "captions": {
       "zh": {
-        "title": "普通模型的 attention sink 随深度增强，而 SMELT 的第二次执行会减弱 attention sink。",
+        "title": "标准 Baseline 的 Attention sink 随层深持续增强，而 SMELT 进入第 2 轮循环后 BOS 注意力占比显著减弱。",
         "detail": ""
       },
       "en": {

@@ -6,10 +6,10 @@ const { language, mode } = Astro.props;
 const zh=language==='zh';
 const selected=mode==='prior'?'mup':'loop';
 const recipes=[
- {id:'mup',label:'μP',zh:'宽度缩放：隐藏层学习率与初始化方差按宽度倍率的倒数缩放。',en:'Width scaling: hidden learning rates and initialization variances scale inversely with width.'},
- {id:'depth',label:'Depth-μP',zh:'深度缩放：残差分支、隐藏层学习率均乘以深度倍率的 −1/2 次方。',en:'Depth scaling: residual branches and hidden learning rates both scale with inverse square root depth.'},
- {id:'complete',label:'CompleteP',zh:'深度缩放：残差分支乘以深度倍率的倒数，隐藏层学习率不随深度变化。',en:'Depth scaling: residual branches scale inversely with depth; hidden learning rates stay constant across depth.'},
- {id:'loop',label:'Loop-μP',zh:'宽度沿用 μP，物理深度沿用 Depth-μP；循环方向只给注意力与 MLP 残差分支再乘 1/$N$。',en:'μP for width, Depth-μP for physical depth; along loops, only the attention and MLP branches gain an extra 1/$N$.'}
+ {id:'mup',label:'μP',zh:'宽度缩放：隐藏层初始化方差与学习率按宽度倍率倒数缩放。',en:'Width scaling: hidden learning rates and initialization variances scale inversely with width.'},
+ {id:'depth',label:'Depth-μP',zh:'深度缩放：残差分支与隐藏层学习率同步乘以深度倍率的 −1/2 次方。',en:'Depth scaling: residual branches and hidden learning rates both scale with inverse square root depth.'},
+ {id:'complete',label:'CompleteP',zh:'深度缩放：残差分支乘以深度倍率倒数，隐藏层学习率保持与深度无关。',en:'Depth scaling: residual branches scale inversely with depth; hidden learning rates stay constant across depth.'},
+ {id:'loop',label:'Loop-μP',zh:'宽度遵循 μP，物理深度遵循 Depth-μP；循环维度仅在 Attention 与 MLP 残差分支上乘 1/$N$。',en:'μP for width, Depth-μP for physical depth; along loops, only the attention and MLP branches gain an extra 1/$N$.'}
 ].filter(r=>mode==='loop'||r.id!=='loop');
 const row=(zh:string,en:string,base:string,width=0,depth:'none'|'lr'|'branch'='none',loop=false)=>({name:language==='zh'?zh:en,base,width,depth,loop});
 const rows=[
@@ -38,12 +38,12 @@ const exponent=(v:number)=>String(v).replace('-','−');
     <div class="pt-choices" role="group" aria-label={zh?'选择参数化方案':'Choose a parameterization'}>
       {recipes.map(r=><button type="button" data-recipe-choice={r.id} aria-pressed={r.id===selected?'true':'false'}>{r.label}</button>)}
     </div>
-    <span class="pt-change-key">{zh?'黄色底：与上一个配方不同':'Yellow: differs from the previous recipe'}</span>
+    <span class="pt-change-key">{zh?'标黄项：相对上一方案的改动':'Yellow: differs from the previous recipe'}</span>
   </div>
   <div class="pt-description" aria-live="polite">{recipes.map(r=><p data-recipe-description={r.id} hidden={r.id!==selected} set:html={html(r[language])} />)}</div>
   <table>
     <colgroup><col style="width:29%"/><col style="width:26%"/><col style="width:15%"/><col style="width:15%"/><col style="width:15%"/></colgroup>
-    <thead><tr><th scope="col">{zh?'规则':'Rule'}</th><th scope="col">{zh?'基础项':'Base term'}</th><th scope="col" class="pt-width">{zh?'× 宽度因子':'× Width factor'}</th><th scope="col" class="pt-depth">{zh?'× 深度因子':'× Depth factor'}</th><th scope="col" class="pt-loop">{zh?'× 循环因子':'× Loop factor'}</th></tr></thead>
+    <thead><tr><th scope="col">{zh?'模块 / 超参数':'Rule'}</th><th scope="col">{zh?'基础项':'Base term'}</th><th scope="col" class="pt-width">{zh?'× 宽度因子':'× Width factor'}</th><th scope="col" class="pt-depth">{zh?'× 深度因子':'× Depth factor'}</th><th scope="col" class="pt-loop">{zh?'× 循环因子':'× Loop factor'}</th></tr></thead>
     <tbody>{rows.map((r,i)=><tr class:list={[r.loop&&'pt-residual',[2,4,8,10,12,15].includes(i)&&'pt-group']}>
       <th scope="row">{r.name}</th><td class="pt-base" set:html={html(r.base)}/>
       {[{axis:'width',value:exponent(r.width),key:''},{axis:'depth',value:r.depth==='none'||selected==='mup'?'0':'−1/2',key:r.depth},{axis:'loop',value:selected==='loop'&&r.loop?'−1':'0',key:r.loop?'branch':'none'}].map(f=><td class={`pt-${f.axis}`}><span class:list={['pt-factor',f.value==='0'&&'is-unit']} data-factor-axis={f.axis} data-factor-key={f.key}>

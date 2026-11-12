@@ -67,10 +67,6 @@ export const slides: Slide[] = [
       "zh": "Looped Transformer 的预训练科学：从残差缩放律 (Loop-μP) 到等预算混合专家扩展律 (SMELT)",
       "en": "The Pretraining Science of Looped Transformers: From Residual Scaling Laws (Loop-μP) to Budget-Matched MoE Scaling Laws (SMELT)"
     },
-    "lead": {
-      "zh": "重复执行同一组层：参数量不变，计算深度增加。",
-      "en": "Run the same layers several times: the same parameters, a deeper computation."
-    },
     "notes": {
       "zh": "大家好，我是清华大学的王少文。今天向大家汇报我们在 Looped Transformer 预训练上的两项工作：Loop-μP 与 SMELT。第一项工作解决如何稳定扩展循环次数并实现超参数零样本迁移；第二项工作回答一个更基础的问题——在严格对齐算力、参数量与 KV cache 之后，循环架构本身是否仍有扩展优势。我们先从训练参数化讲起。",
       "en": "Hello, I am Shaowen Wang from Tsinghua University. Today I will present two studies on the pretraining science of looped Transformers: from residual scaling laws with Loop-μP to budget-matched MoE scaling laws with SMELT. First, how can we increase the loop count while preserving stable training? Second, does looping still help under matched budgets? I will begin with parameterization and then turn to architectural scaling."
@@ -214,10 +210,6 @@ export const slides: Slide[] = [
     },
     "layout": "stack",
     "minutes": 1,
-    "lead": {
-      "zh": "对独立层而言，Depth-μP 与 CompleteP 并不矛盾：它们只是同一段可行区间的两个端点。",
-      "en": "For independent layers, Depth-μP and CompleteP do not conflict: they are the two ends of one feasible interval."
-    },
     "figures": [
       {
         "kind": "loop-problem",
@@ -337,16 +329,20 @@ export const slides: Slide[] = [
       "zh": "实测验证：初始化时各轮循环增量显著正相关",
       "en": "Measured: loop increments do align at initialization"
     },
+    "lead": {
+      "zh": "实验设置：Llama 风格 Pre-LN decoder-only Transformer，每块 12 层；固定随机 tokens，batch 1，序列长 128，10 个种子取平均。",
+      "en": "Setup: Llama-style pre-norm decoder-only Transformer, 12 layers per stack; fixed random tokens, batch 1, sequence length 128, averaged over 10 seeds."
+    },
     "points": {
       "zh": [
-        "串联 64 个独立块：各块增量两两近似正交",
-        "同一块循环 64 轮：各轮增量显著正相关，平均余弦相似度约 0.85",
-        "权重共享改变了残差增量的累积动力学"
+        "初始化、无残差缩放；测量块增量 $x$^{$r$} − $x$^{$r$−1} 的两两余弦相似度（$x$^{$r$} 为第 $r$ 个块后的残差流）",
+        "串联 64 个独立块：增量两两近似正交",
+        "同一块循环 64 轮：增量显著正相关，平均余弦相似度约 0.85"
       ],
       "en": [
-        "64 independent blocks: nearly orthogonal increments",
-        "One block looped 64 times: positively correlated increments, mean cosine ≈ 0.85",
-        "Weight sharing changes how residual increments accumulate"
+        "At initialization, no residual scaling. Measure pairwise cosines of $x$^{$r$} − $x$^{$r$−1}, where $x$^{$r$} is the residual stream after stack $r$.",
+        "64 independent stacks: nearly orthogonal increments",
+        "One stack looped 64 times: positively correlated increments, mean cosine ≈ 0.85"
       ]
     },
     "figures": [
@@ -357,8 +353,8 @@ export const slides: Slide[] = [
       }
     ],
     "notes": {
-      "zh": "我们在真实 Transformer 初始化时直接测量了增量的余弦相似度：64 个独立块之间几乎完全正交；而同一个块循环 64 轮时，任意两轮增量都显著正相关，平均余弦达到 0.85，证实了同向累加的现象。",
-      "en": "We can measure this directly. At initialization, increments from 64 independent blocks are nearly orthogonal. When one block runs 64 times, its increments are positively correlated, with a mean cosine of about 0.85. Shared loops really do add up in a common direction."
+      "zh": "实验使用 Llama 风格的 Pre-LN decoder-only Transformer，每个块包含 12 层。在初始化时、不加残差缩放，输入固定随机 tokens，batch size 为 1、序列长度 128，对 10 个随机种子取平均。这里 x^r 表示第 r 个 12 层块后的残差流，增量是 x^r−x^(r−1)。我们测量这些块增量的两两余弦相似度：64 个独立块之间几乎完全正交；而同一个块循环 64 轮时，任意两轮增量都显著正相关，平均余弦达到 0.85，证实了同向累加的现象。",
+      "en": "We use a Llama-style pre-norm decoder-only Transformer with 12 layers per stack, fixed random token inputs, batch size 1 and sequence length 128, averaging over 10 seeds. At initialization, with no residual scaling, we measure pairwise cosines of the change in the residual stream across each 12-layer stack. Increments from 64 independent stacks are nearly orthogonal. When one block runs 64 times, its increments are positively correlated, with a mean cosine of about 0.85. Shared loops really do add up in a common direction."
     }
   },
   {
@@ -381,8 +377,8 @@ export const slides: Slide[] = [
       }
     ],
     "notes": {
-      "zh": "下面建立定量分析。记 r 为循环轮次，t 为训练步。每轮循环先经共享权重 W 得到预激活 h，激活后乘以残差分支系数 c_N 并加回残差流 x；第 N 轮结束后由读出向量 V 给出输出 f。注意预激活 h 定义在乘 c_N 之前，后面推导会用到。固定宽度与物理深度，我们考察循环维度的两个缩放指数：控制分支幅度的 α_N，以及控制单步权重更新尺度的 γ_N。",
-      "en": "Now we turn the intuition into conditions. Let r index loops and t training steps. Each loop computes the preactivation h with the shared W, multiplies the activated branch by the coefficient c_N and adds it to the residual state x. After the last loop, V reads out the output f. Keep in mind that h comes before c_N; we will need this. With width and physical depth fixed, we study two loop exponents: alpha_N sets the branch coefficient and gamma_N the scale of weight updates, separate from the base learning rate."
+      "zh": "下面用极简循环残差网络建立定量分析：图上方将同一个残差块展开 N 轮，所有块共享同一组 W，最后由 V 线性读出。它保留共享权重与残差累加这两个核心结构，并非完整 Transformer。下方放大单轮内部，主分支依次经过 W、激活函数和 c_N，再与恒等跳连相加。图中省略训练步下标 t，r 表示循环轮次。我们的目标是找出随 N 增大仍使激活和更新有界、输出更新不退化的缩放方式。每轮循环先经共享权重 W 得到预激活 h，激活后乘以残差分支系数 c_N 并加回残差流 x；第 N 轮结束后由读出向量 V 给出输出 f。注意预激活 h 定义在乘 c_N 之前，后面推导会用到。固定宽度与物理深度，我们考察循环维度的两个缩放指数：控制分支幅度的 α_N，以及控制单步权重更新尺度的 γ_N。",
+      "en": "We analyze a minimal looped residual network, not a full Transformer. The top diagram unrolls the same block N times with one shared W and a final linear readout V. Below it, one block applies W, an activation, and c_N, then adds the identity skip. The diagram omits training-step index t; r indexes loops. We seek scaling rules that keep activations and updates bounded without making output updates vanish as N grows. Each loop computes the preactivation h with the shared W, multiplies the activated branch by the coefficient c_N and adds it to the residual state x. After the last loop, V reads out the output f. Keep in mind that h comes before c_N; we will need this. With width and physical depth fixed, we study two loop exponents: alpha_N sets the branch coefficient and gamma_N the scale of weight updates, separate from the base learning rate."
     }
   },
   {
@@ -577,6 +573,10 @@ export const slides: Slide[] = [
       "zh": "初始化残差范数：1/$N$ 精确控制累积幅度",
       "en": "Residual norms: 1/$N$ controls accumulation at initialization"
     },
+    "lead": {
+      "zh": "实验设置：Llama 风格 Pre-LN，每块 12 层；初始化，固定随机 tokens，batch 1，序列长 128，10 个种子取平均。",
+      "en": "Setup: Llama-style pre-norm, 12 layers per stack; at initialization, fixed random tokens, batch 1, sequence length 128, averaged over 10 seeds."
+    },
     "points": {
       "zh": [
         "对比 12 层 Pre-LN 块循环 $N$ 轮，与串联 $m$_{$L$} 个独立 12 层块的非循环模型",
@@ -623,8 +623,8 @@ export const slides: Slide[] = [
       }
     ],
     "notes": {
-      "zh": "下面看真实 Transformer 上的实验验证。初始化时，我们将一个 12 层 Pre-LN 块循环 N 轮，与串联 m_L 个独立 12 层块的非循环模型对比。不缩放时，循环模型的残差范数按 N 线性增长，非循环模型仅按平方根增长。乘 N^(−1/2) 压不住循环范数；乘 N^(−3/2) 虽有界，但残差分支贡献趋近于零，模型退化为恒等映射。只有 1/N 既保持有界又不退化。",
-      "en": "First, initialization. We loop a 12-layer pre-norm block N times and compare it with untied models chaining m_L independent 12-layer blocks. Without scaling, the looped residual norm grows linearly in N, the untied one only with the square root. N to the minus one half cannot hold the loops back; N to the minus three halves bounds the norm but drives branch contributions to zero, so the model approaches the identity map. Only 1/N is both bounded and nondegenerate."
+      "zh": "实验设置：Llama 风格 Pre-LN，每块 12 层；初始化，固定随机 tokens，batch 1，序列长 128，10 个种子取平均。 下面看真实 Transformer 上的实验验证。初始化时，我们将一个 12 层 Pre-LN 块循环 N 轮，与串联 m_L 个独立 12 层块的非循环模型对比。不缩放时，循环模型的残差范数按 N 线性增长，非循环模型仅按平方根增长。乘 N^(−1/2) 压不住循环范数；乘 N^(−3/2) 虽有界，但残差分支贡献趋近于零，模型退化为恒等映射。只有 1/N 既保持有界又不退化。",
+      "en": "Setup: Llama-style pre-norm, 12 layers per stack; at initialization, fixed random tokens, batch 1, sequence length 128, averaged over 10 seeds. First, initialization. We loop a 12-layer pre-norm block N times and compare it with untied models chaining m_L independent 12-layer blocks. Without scaling, the looped residual norm grows linearly in N, the untied one only with the square root. N to the minus one half cannot hold the loops back; N to the minus three halves bounds the norm but drives branch contributions to zero, so the model approaches the identity map. Only 1/N is both bounded and nondegenerate."
     }
   },
   {
@@ -639,6 +639,10 @@ export const slides: Slide[] = [
     "title": {
       "zh": "训练后残差范数：不同 $N$ 的输出范数保持一致",
       "en": "Residual norms: endpoints remain close after training"
+    },
+    "lead": {
+      "zh": "实验设置：Llama 风格 Pre-LN + Loop-μP；$L$ ∈ {12, 24, 48}，$N$ ∈ {2, 4, 8}；FineWeb-Edu 训练 10B tokens（20,000 步）后测量。",
+      "en": "Setup: Llama-style pre-norm + Loop-μP; $L$ ∈ {12, 24, 48}, $N$ ∈ {2, 4, 8}; measured after 10B FineWeb-Edu tokens (20,000 steps)."
     },
     "points": {
       "zh": [
@@ -679,8 +683,8 @@ export const slides: Slide[] = [
       }
     ],
     "notes": {
-      "zh": "训练完成后，我们测量每轮循环输出的残差流范数。不同循环次数的中间轨迹虽不相同，但在固定物理深度下，最后一轮输出的范数最多相差 1.32 倍，与理论预期一致，不会随循环次数增加而持续膨胀。",
-      "en": "After training, we record the residual-stream norm after each loop. The intermediate trajectories differ across loop counts, but at a fixed physical depth the final norms differ by at most 1.32 times. This matches the prediction at initialization: more loops do not keep inflating the final norm."
+      "zh": "实验设置：Llama 风格 Pre-LN + Loop-μP；$L$ ∈ {12, 24, 48}，$N$ ∈ {2, 4, 8}；FineWeb-Edu 训练 10B tokens（20,000 步）后测量。 训练完成后，我们测量每轮循环输出的残差流范数。不同循环次数的中间轨迹虽不相同，但在固定物理深度下，最后一轮输出的范数最多相差 1.32 倍，与理论预期一致，不会随循环次数增加而持续膨胀。",
+      "en": "Setup: Llama-style pre-norm + Loop-μP; $L$ ∈ {12, 24, 48}, $N$ ∈ {2, 4, 8}; measured after 10B FineWeb-Edu tokens (20,000 steps). After training, we record the residual-stream norm after each loop. The intermediate trajectories differ across loop counts, but at a fixed physical depth the final norms differ by at most 1.32 times. This matches the prediction at initialization: more loops do not keep inflating the final norm."
     }
   },
   {
@@ -695,6 +699,10 @@ export const slides: Slide[] = [
     "title": {
       "zh": "训练前十步：单步残差流更新幅度跨 $N$ 稳定",
       "en": "The first ten steps: stable residual-stream updates"
+    },
+    "lead": {
+      "zh": "实验设置：12 层 Llama 风格 Pre-LN 块，$N$ = 1–64；固定随机 tokens，batch 1，序列长 128，10 个种子平均；AdamW 前 10 步。",
+      "en": "Setup: 12-layer Llama-style pre-norm stack, $N$ = 1–64; fixed random tokens, batch 1, sequence length 128, 10-seed average; first 10 AdamW steps."
     },
     "points": {
       "zh": [
@@ -778,8 +786,8 @@ export const slides: Slide[] = [
       }
     ],
     "notes": {
-      "zh": "第二组实验考察训练初期的更新幅度。所有 N 共用同一个基础学习率，测量每一步 AdamW 更新后最终残差流的 RMS 变化。第 1 步到第 10 步规律完全一致：只有 1/N 能让 N 从 1 到 64 的变化量保持平稳；衰减慢于 1/N 时更新随 N 放大，快于 1/N 时更新随 N 消失。",
-      "en": "The second experiment looks at training updates. All loop counts share one base learning rate, and we measure the change of the final residual stream after one AdamW step. At the first step, 1/N keeps the change between 0.08 and 0.19 for N from 1 to 64. The animation then runs through the first ten steps, and the pattern holds: branches that decay slower than 1/N amplify updates with N, faster decay makes them vanish."
+      "zh": "实验设置：12 层 Llama 风格 Pre-LN 块，$N$ = 1–64；固定随机 tokens，batch 1，序列长 128，10 个种子平均；AdamW 前 10 步。 第二组实验考察训练初期的更新幅度。所有 N 共用同一个基础学习率，测量每一步 AdamW 更新后最终残差流的 RMS 变化。第 1 步到第 10 步规律完全一致：只有 1/N 能让 N 从 1 到 64 的变化量保持平稳；衰减慢于 1/N 时更新随 N 放大，快于 1/N 时更新随 N 消失。",
+      "en": "Setup: 12-layer Llama-style pre-norm stack, $N$ = 1–64; fixed random tokens, batch 1, sequence length 128, 10-seed average; first 10 AdamW steps. The second experiment looks at training updates. All loop counts share one base learning rate, and we measure the change of the final residual stream after one AdamW step. At the first step, 1/N keeps the change between 0.08 and 0.19 for N from 1 to 64. The animation then runs through the first ten steps, and the pattern holds: branches that decay slower than 1/N amplify updates with N, faster decay makes them vanish."
     }
   },
   {
@@ -794,6 +802,10 @@ export const slides: Slide[] = [
     "title": {
       "zh": "训练 20,000 步后，各轮循环增量依然保持同向",
       "en": "After 20,000 steps, loop increments remain aligned"
+    },
+    "lead": {
+      "zh": "实验设置：Llama 风格 Pre-LN + Loop-μP；$L$ ∈ {12, 24, 48}、$N$ = 8；FineWeb-Edu 训练 10B tokens 后，与非循环 $L$ = 48 对照。",
+      "en": "Setup: Llama-style pre-norm + Loop-μP; $L$ ∈ {12, 24, 48}, $N$ = 8; after 10B FineWeb-Edu tokens, compared with an untied $L$ = 48 model."
     },
     "points": {
       "zh": [
@@ -835,8 +847,8 @@ export const slides: Slide[] = [
       }
     ],
     "notes": {
-      "zh": "再看训练后的增量相关性。训练 20,000 步后，在 N=8 的三种物理深度下，除最后一轮循环外，前 7 轮循环的增量依然两两正相关；而 48 层非循环模型只在对角线附近的相邻层之间相关。说明权重共享带来的同向累加结构贯穿了整个训练过程。",
-      "en": "Back to the correlations. After 20,000 training steps we look at the eight-loop models again. At all three depths, increments of all but the last loop remain positively correlated; the last loop is weakly or even negatively correlated with the rest. The untied 48-layer model mainly correlates neighboring layers. The structure seen at initialization survives training."
+      "zh": "实验设置：Llama 风格 Pre-LN + Loop-μP；$L$ ∈ {12, 24, 48}、$N$ = 8；FineWeb-Edu 训练 10B tokens 后，与非循环 $L$ = 48 对照。 再看训练后的增量相关性。训练 20,000 步后，在 N=8 的三种物理深度下，除最后一轮循环外，前 7 轮循环的增量依然两两正相关；而 48 层非循环模型只在对角线附近的相邻层之间相关。说明权重共享带来的同向累加结构贯穿了整个训练过程。",
+      "en": "Setup: Llama-style pre-norm + Loop-μP; $L$ ∈ {12, 24, 48}, $N$ = 8; after 10B FineWeb-Edu tokens, compared with an untied $L$ = 48 model. Back to the correlations. After 20,000 training steps we look at the eight-loop models again. At all three depths, increments of all but the last loop remain positively correlated; the last loop is weakly or even negatively correlated with the rest. The untied 48-layer model mainly correlates neighboring layers. The structure seen at initialization survives training."
     }
   },
   {
@@ -922,42 +934,52 @@ export const slides: Slide[] = [
   {
     "part": "loop",
     "title": {
-      "zh": "Loop-μP：稳定扩展循环次数，实现超参数零样本迁移",
-      "en": "Loop-μP: stable loop scaling and hyperparameter transfer"
+      "zh": "Loop-μP：仅需残差乘 1/$N$，即可实现跨循环次数的超参迁移",
+      "en": "Loop-μP: scale residual branches by 1/$N$ for zero-shot transfer across loop counts"
     },
     "stage": {
-      "zh": "小结",
-      "en": "Conclusion"
+      "zh": "总结与展望",
+      "en": "Conclusions and outlook"
     },
-    "layout": "cards",
-    "minutes": 0.7,
-    "cards": [
+    "layout": "columns",
+    "minutes": 0.8,
+    "columns": [
       {
-        "tag": {
-          "zh": "缩放法则",
-          "en": "Scaling rule"
-        },
         "title": {
-          "zh": "残差分支乘以 1/$N$",
-          "en": "Scale branches by 1/$N$"
+          "zh": "核心结论",
+          "en": "Conclusion"
         },
-        "body": {
-          "zh": "权重共享使各轮残差增量同向累加；三条稳定性与学习条件唯一确定 $α$_{$N$} = 1、$γ$_{$N$} = 0。",
-          "en": "Shared weights make residual increments add up in one direction; the three conditions leave only $α$_{$N$} = 1, $γ$_{$N$} = 0."
+        "tone": "loop",
+        "items": {
+          "zh": [
+            "权重共享使各轮残差增量同向累加，将独立层的连续可行区间收缩为唯一解 ($α$_{$N$} = 1, $γ$_{$N$} = 0)",
+            "只需在残差分支额外乘以 1/$N$，基础学习率无需随循环次数 $N$ 调整",
+            "最高 438M 参数、有效深度 384 层（$N$ = 8）下，最优学习率严格对齐且取得最低 validation loss"
+          ],
+          "en": [
+            "Shared weights make residual increments accumulate coherently, shrinking the feasible interval to a unique point ($α$_{$N$} = 1, $γ$_{$N$} = 0)",
+            "Simply multiply residual branches by 1/$N$; the base learning rate needs no adjustment with $N$",
+            "Across settings up to 438M parameters and 384 effective layers ($N$ = 8), the optimal learning rate transfers directly and achieves the lowest loss"
+          ]
         }
       },
       {
-        "tag": {
-          "zh": "实验结果",
-          "en": "Empirical result"
-        },
         "title": {
-          "zh": "基础学习率跨 $N$ 迁移",
-          "en": "Transfer the base learning rate"
+          "zh": "局限与展望",
+          "en": "Limitations and outlook"
         },
-        "body": {
-          "zh": "残差范数、前十步更新与增量相关性均符合理论预测；最高 438M 参数、384 执行层下最优学习率保持不变，且 loss 最低。",
-          "en": "Residual norms, early updates and increment correlations all match the theory; in every tested setting the best learning rate stays fixed across $N$, with the lowest loss."
+        "tone": "muted",
+        "items": {
+          "zh": [
+            "理论严格证明基于去均值线性 MLP 残差块，向非线性激活与 Adam 的推广依赖额外假设，Attention 与 LayerNorm 的精确动力学有待纳入",
+            "受算力限制，实验验证最大规模为 438M 参数、单模型 10B tokens，更大规模下的表现仍待检验",
+            "为 Looped Transformer 提供了简洁可靠的训练基准，扫清了后续等预算架构扩展研究（SMELT）的调参障碍"
+          ],
+          "en": [
+            "Strict proofs focus on zero-mean linear MLP blocks; extensions to nonlinearities and Adam rely on extra assumptions, and exact Attention/LayerNorm dynamics remain open",
+            "Empirical validation is bounded by compute at 438M parameters and 10B tokens per run",
+            "Provides a clean parameterization baseline that removes tuning bottlenecks for fair architectural scaling studies (SMELT)"
+          ]
         }
       }
     ],
@@ -1631,46 +1653,8 @@ export const slides: Slide[] = [
       }
     ],
     "notes": {
-      "zh": "先考察同一 token 在两轮循环中激活的专家集合：在全部 16 组配置下，第 2 轮与第 1 轮选中专家的重合比例都远高于随机路由基线，但又并非完全照搬，而是在保留部分原专家的同时引入新专家。下一页通过单 token 路由示意与实测重合分布具体展示这一模式。",
-      "en": "We first compare the expert sets selected on the two visits. In all 16 configurations, reuse on the second visit is far above the random-routing expectation. Repeated execution retains some experts and introduces others. I will zoom in on a single-token illustration and the measured overlap distribution to make that pattern concrete."
-    }
-  },
-  {
-    "part": "smelt",
-    "stage": {
-      "zh": "内部机制分析",
-      "en": "Inside the loop"
-    },
-    "layout": "split",
-    "minutes": 0.9,
-    "textWidth": 280,
-    "title": {
-      "zh": "单 token 路由：兼顾专家复用与新专家调用",
-      "en": "One token: reuse some experts and select new ones"
-    },
-    "points": {
-      "zh": [
-        "左侧展示同一 token 先后两轮经过同一 MoE 专家池的路由选择",
-        "右侧对比实测重合分布与随机基线：跨轮专家复用显著偏高",
-        "可切换模型规模与稀疏度，观察重合分布随配置的变化"
-      ],
-      "en": [
-        "The animation illustrates two visits to one expert pool",
-        "The measured overlap distribution shows more reuse than random routing",
-        "Vary scale and sparsity to compare reuse patterns"
-      ]
-    },
-    "figures": [
-      {
-        "kind": "smelt",
-        "id": "expert-reuse",
-        "width": 940,
-        "panel": "detail"
-      }
-    ],
-    "notes": {
-      "zh": "左侧展示单个 token 两轮经过同一专家池时的激活情况：既有两轮均被选中的重合专家，也有仅在单轮激活的专家。右侧将实测的跨轮重合数分布与超几何随机基线对比，切换规模和稀疏度可以看到这一规律在各档配置下均稳定成立。",
-      "en": "The animation illustrates one token visiting the same expert pool twice. Some experts appear on both visits, while others are selected only once. Beside it, the measured overlap distribution is compared with random routing. Changing sparsity and scale shows how the pattern varies. The animation illustrates set overlap; the distribution provides the measured statistical evidence."
+      "zh": "先考察同一 token 在两轮循环中激活的专家集合：在全部 16 组配置下，第 2 轮与第 1 轮选中专家的重合比例都远高于随机路由基线，但又并非完全照搬，而是在保留部分原专家的同时引入新专家。接下来考察两轮循环对残差流的更新。",
+      "en": "We first compare the expert sets selected on the two visits. In all 16 configurations, reuse on the second visit is far above the random-routing expectation. Repeated execution retains some experts and introduces others. Next, we examine how the two visits update the residual stream."
     }
   },
   {

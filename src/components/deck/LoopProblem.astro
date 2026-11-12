@@ -4,7 +4,7 @@
 // conversion of those conditions into exponent inequalities. Display math is
 // MathML in the same math face as the article; prose variables use the label
 // notation so they match the rest of the deck.
-import { html } from '../../lib/loop-mup/markup';
+import { html, svgText } from '../../lib/loop-mup/markup';
 import type { Language } from '../../lib/site';
 interface Props { language: Language; view: 'question' | 'variables' | 'criteria' | 'exponents' }
 const { language, view } = Astro.props;
@@ -26,8 +26,8 @@ const half='<mn>1/2</mn>';
 const paren=(a:string)=>`<mo stretchy="false">(</mo>${a}<mo stretchy="false">)</mo>`;
 const uniform=(update=false)=>`<munder><mo>max</mo><mrow><mn>1</mn><mo>≤</mo><mi>r</mi><mo>≤</mo><mi>N</mi></mrow></munder><mo stretchy="false">{</mo>${norm((update?delta:'')+state('x','<mi>r</mi>'))}<mo>,</mo>${norm((update?delta:'')+state('h','<mi>r</mi>'))}<mo>,</mo>${absolute((update?delta:'')+f0)}<mo stretchy="false">}</mo><mo>=</mo>${order('O')}`;
 const recipes=[
- {name:'Depth-μP',pair:`${paren(`${alphaL}<mo>,</mo>${gammaL}`)}<mo>=</mo>${paren(`${half}<mo>,</mo>${half}`)}`,note:zh?'可行区间的左端点':'Left end of the feasible interval'},
- {name:'CompleteP',pair:`${paren(`${alphaL}<mo>,</mo>${gammaL}`)}<mo>=</mo>${paren('<mn>1</mn><mo>,</mo><mn>0</mn>')}`,note:zh?'可行区间的右端点':'Right end of the feasible interval'},
+ {name:'Depth-μP',pair:`${paren(`${alphaL}<mo>,</mo>${gammaL}`)}<mo>=</mo>${paren(`${half}<mo>,</mo>${half}`)}`,note:zh?'残差乘 1/√L，学习率随深度衰减':'Scale branches by 1/√L; decay LR with depth'},
+ {name:'CompleteP',pair:`${paren(`${alphaL}<mo>,</mo>${gammaL}`)}<mo>=</mo>${paren('<mn>1</mn><mo>,</mo><mn>0</mn>')}`,note:zh?'残差乘 1/L，学习率无需随深度缩放':'Scale branches by 1/L; keep LR unchanged'},
 ];
 const criteria=[
  {title:zh?'初始化：前向激活有界':'Initialization: no divergence',formula:uniform(),detail:zh?'各轮残差状态 $x$、预激活 $h$ 与最终输出 $f$ 均保持有界。':'Every residual state $x$ and preactivation $h$, and the final output $f$.'},
@@ -46,19 +46,61 @@ const exponents=[
     <div class="lp-comparison">
       {recipes.map(r=><section><h3>{r.name}</h3><math set:html={r.pair} /><p>{r.note}</p></section>)}
     </div>
-    <p class="lp-interval"><math set:html={`<mfrac><mn>1</mn><mn>2</mn></mfrac><mo>≤</mo>${alphaL}<mo>≤</mo><mn>1</mn><mo>,</mo><mspace width="0.6em"/>${gammaL}<mo>=</mo><mn>1</mn>${minus}${alphaL}`} /><span>{zh?'整段连续区间均可行，Depth-μP 与 CompleteP 分别是其左右端点。':'The whole interval is feasible; the two recipes are its ends.'}</span></p>
-    <p class="lp-question" set:html={html(zh?'若改为同一组共享权重循环执行 $N$ 轮，可行区间还剩多少？':'Replace the $L$ layers by one shared block looped $N$ times: how much of this interval survives?')} />
+    <p class="lp-interval"><math set:html={`<mfrac><mn>1</mn><mn>2</mn></mfrac><mo>≤</mo>${alphaL}<mo>≤</mo><mn>1</mn><mo>,</mo><mspace width="0.6em"/>${gammaL}<mo>=</mo><mn>1</mn>${minus}${alphaL}`} /><span>{zh?'整条线段上的方案都能稳定迁移，Depth-μP 与 CompleteP 只是它的两个端点。':'The whole interval is feasible; the two recipes are its ends.'}</span></p>
+    <p class="lp-question" set:html={html(zh?'一旦引入跨层权重共享（循环 $N$ 轮），这整段自由区间还成立吗？':'Replace the $L$ layers by one shared block looped $N$ times: how much of this interval survives?')} />
   </>}
   {view==='variables' && <>
+    <svg class="lp-model" viewBox="0 0 1120 262" role="img" aria-label={zh?'极简循环残差网络：同一残差块共享权重 W，重复 N 轮后线性读出。块内包含 W、激活函数、残差系数与恒等跳连。':'Minimal looped residual network: one block with shared W runs N times, followed by a linear readout. Inside each block: W, activation, branch scaling, and an identity skip.'}>
+      <defs><marker id="lp-model-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="var(--accent)" stroke-width="1.5" /></marker></defs>
+      <text x="0" y="20" class="lp-model-heading">{zh?'极简模型：共享权重的循环残差网络':'Minimal model: a looped residual network with shared weights'}</text>
+      <text x="20" y="88" class="lp-symbol" set:html={svgText('$x$^{0}')} />
+      <path d="M57 80 H108" class="lp-model-arrow" />
+      {[110,370,690].map((x,i)=><>
+        <rect x={x} y="56" width="170" height="48" rx="6" class="lp-model-block" />
+        <text x={x+85} y="86" text-anchor="middle">{zh?'同一残差块':'Same residual block'}</text>
+        <path d={`M${x+85} 56 V36`} class="lp-model-tie" />
+      </>)}
+      <path d="M195 36 H775" class="lp-model-tie" />
+      <rect x="317" y="24" width="336" height="24" fill="white" />
+      <text x="485" y="41" text-anchor="middle" class="lp-model-meta" set:html={svgText(zh?'共享同一组 $W$ · 共 $N$ 轮':'One shared $W$ · $N$ loops')} />
+      <path d="M280 80 H368 M540 80 H589 M640 80 H688 M860 80 H956 M1044 80 H1080" class="lp-model-arrow" />
+      <text x="322" y="72" text-anchor="middle" class="lp-symbol" set:html={svgText('$x$^{1}')} />
+      <text x="614" y="87" text-anchor="middle" class="lp-symbol">⋯</text>
+      <text x="907" y="72" text-anchor="middle" class="lp-symbol" set:html={svgText('$x$^{$N$}')} />
+      <rect x="958" y="56" width="86" height="48" rx="6" class="lp-model-head" />
+      <text x="1001" y="87" text-anchor="middle" class="lp-symbol" set:html={svgText('$V$^{⊤}')} />
+      <text x="1100" y="87" text-anchor="middle" class="lp-symbol" set:html={svgText('$f$')} />
+      <text x="1001" y="128" text-anchor="middle" class="lp-model-meta">{zh?'线性读出':'Linear readout'}</text>
+      <text x="0" y="157" class="lp-model-heading">{zh?'单轮残差块内部':'Inside one residual block'}</text>
+      <text x="20" y="208" class="lp-symbol" set:html={svgText('$x$^{$r$−1}')} />
+      <path d="M85 200 H165 M243 200 H360 M438 200 H510 M608 200 H696 M728 200 H794" class="lp-model-arrow" />
+      <circle cx="115" cy="200" r="3" fill="var(--accent)" />
+      <path d="M115 200 V244 H712 V218" class="lp-model-arrow" />
+      <text x="402" y="237" text-anchor="middle" class="lp-model-meta">{zh?'恒等跳连':'Identity skip'}</text>
+      <rect x="167" y="177" width="76" height="46" rx="5" class="lp-model-block" />
+      <text x="205" y="207" text-anchor="middle" class="lp-symbol">W</text>
+      <text x="300" y="189" text-anchor="middle" class="lp-symbol" set:html={svgText('$h$^{$r$}')} />
+      <rect x="362" y="177" width="76" height="46" rx="5" class="lp-model-head" />
+      <text x="400" y="207" text-anchor="middle" class="lp-symbol">φ</text>
+      <rect x="512" y="177" width="96" height="46" rx="5" class="lp-model-block" />
+      <text x="560" y="207" text-anchor="middle" class="lp-symbol" set:html={svgText('× $c$_{$N$}')} />
+      <circle cx="712" cy="200" r="16" class="lp-model-head" />
+      <text x="712" y="207" text-anchor="middle" class="lp-symbol">+</text>
+      <text x="820" y="208" text-anchor="middle" class="lp-symbol" set:html={svgText('$x$^{$r$}')} />
+      <text x="888" y="188" class="lp-model-meta">{zh?'W：共享权重矩阵':'W: shared weight matrix'}</text>
+      <text x="888" y="215" class="lp-model-meta" set:html={svgText(zh?'$V$：输出读出向量':'$V$: readout vector')} />
+      <text x="888" y="242" class="lp-model-meta">{zh?'φ：激活函数':'φ: activation'}</text>
+    </svg>
     <div class="lp-definitions">
-      <section><h3 set:html={html(zh?'分支预激活 $h$':'Branch preactivation $h$')} /><math set:html={`${state('h','<mi>r</mi>','t')}<mo>=</mo>${sub('W','t')}${state('x','<mi>r</mi><mo>−</mo><mn>1</mn>','t')}`} /><p>{zh?'经共享权重线性变换，尚未乘残差分支系数。':'Shared weights applied, before the branch coefficient.'}</p></section>
-      <section><h3 set:html={html(zh?'残差状态 $x$':'Residual state $x$')} /><math set:html={`${state('x','<mi>r</mi>','t')}<mo>=</mo>${state('x','<mi>r</mi><mo>−</mo><mn>1</mn>','t')}<mo>+</mo>${cn}<mi>φ</mi><mo stretchy="false">(</mo>${state('h','<mi>r</mi>','t')}<mo stretchy="false">)</mo>`} /><p>{zh?'非线性变换后乘分支系数并累加回残差流。':'The scaled branch is added to the residual stream.'}</p></section>
-      <section><h3 set:html={html(zh?'模型输出 $f$':'Output $f$')} /><math set:html={`${sub('f','t')}<mo>=</mo><msup><mi>V</mi><mo>⊤</mo></msup>${state('x','<mi>N</mi>','t')}`} /><p>{zh?'全部循环结束后由输出头线性读出。':'Read out after the last loop.'}</p></section>
+      <section><h3>{zh?'分支预激活 h':'Branch preactivation h'}</h3><math set:html={`${state('h','<mi>r</mi>','t')}<mo>=</mo>${sub('W','t')}${state('x','<mi>r</mi><mo>−</mo><mn>1</mn>','t')}`} /></section>
+      <section><h3>{zh?'残差状态 x':'Residual state x'}</h3><math set:html={`${state('x','<mi>r</mi>','t')}<mo>=</mo>${state('x','<mi>r</mi><mo>−</mo><mn>1</mn>','t')}<mo>+</mo>${cn}<mi>φ</mi>${paren(state('h','<mi>r</mi>','t'))}`} /></section>
+      <section><h3>{zh?'模型输出 f':'Model output f'}</h3><math set:html={`${sub('f','t')}<mo>=</mo><msup><mi>V</mi><mo>⊤</mo></msup>${state('x','<mi>N</mi>','t')}`} /></section>
     </div>
-    <p class="lp-index" set:html={html(zh?'$r$：循环轮次；$t$：训练步数。':'$r$: loop index; $t$: training step.')} />
+    <p class="lp-symbol-key" set:html={html(zh?'$x$^{0}：初始输入状态；$r$：循环轮次（1 至 $N$）；$N$：总循环次数；$t$：训练步数（图中省略）。':'$x$^{0}: initial input state; $r$: loop index (1 to $N$); $N$: total loops; $t$: training step (omitted in diagram).')} />
+    <p class="lp-purpose" set:html={html(zh?'分析目标：随循环次数 $N$ 增加，如何缩放残差分支与学习率，使激活和更新有界、输出更新不退化？':'Goal: as $N$ grows, how should the branch and learning rate scale to keep activations and updates bounded, with nonvanishing output updates?')} />
     <div class="lp-comparison">
-      <section><h3>{zh?'残差分支系数：控制单轮写回幅度':'Branch coefficient: how much each loop writes'}</h3><math set:html={`${cn}<mo>=</mo><mi>a</mi>${power('N',`${minus}${alpha}`)}`} /><p set:html={html(zh?'$α$_{$N$} 越大，单轮残差写回幅度随 $N$ 衰减越快。':'A larger $α$_{$N$} shrinks each write faster with $N$.')} /></section>
-      <section><h3>{zh?'参数更新尺度：控制单步权重步长':'Update scale: how far each step moves the weights'}</h3><math set:html={`${sn}<mo>=</mo>${power('N',`${minus}${gamma}`)}`} /><p set:html={html(zh?'$γ$_{$N$} = 0 表示基础学习率无需随循环次数 $N$ 缩放。':'At $γ$_{$N$} = 0 the base learning rate needs no change with $N$.')} /></section>
+      <section><h3>{zh?'残差分支系数：控制单轮写回幅度':'Branch coefficient: how much each loop writes'}</h3><math set:html={`${cn}<mo>=</mo><mi>a</mi>${power('N',`${minus}${alpha}`)}`} /><p set:html={html(zh?'$a$：固定分支幅度；$α$_{$N$}：分支缩放指数。':'$a$: fixed branch amplitude; $α$_{$N$}: branch scaling exponent.')} /></section>
+      <section><h3>{zh?'学习率缩放：控制单步参数更新尺度':'Learning-rate scaling: controlling each update'}</h3><math set:html={`${sn}<mo>=</mo>${power('N',`${minus}${gamma}`)}<mo>,</mo><mspace width="0.6em"/>${sub('η','N')}<mo>=</mo><msub><mi>η</mi><mtext>base</mtext></msub>${sn}`} /><p set:html={html(zh?'η_{base}：基础学习率；$γ$_{$N$}：学习率缩放指数，取 0 时无需缩放。':'η_{base}: base learning rate; $γ$_{$N$}: LR scaling exponent; 0 means no scaling.')} /></section>
     </div>
   </>}
   {view==='criteria' && <>
@@ -105,4 +147,27 @@ const exponents=[
 .lp-exponents td:last-child {width:30%}
 .lp-exponents small {display:block;margin-top:4px;font-size:13px;color:var(--muted)}
 .loop-problem .lp-note {margin-top:24px;font-size:17px}
+</style>
+
+<style>
+.lp-variables {padding:0}
+.lp-variables .lp-definitions {margin-top:4px}
+.lp-variables .lp-definitions h3 {font-size:17px;margin-bottom:5px}
+.lp-variables .lp-definitions math {font-size:24px}
+.loop-problem .lp-symbol-key {font-size:15px;margin:8px 0 0;line-height:1.4}
+.lp-model {display:block;width:100%;font:17px var(--sans);fill:var(--ink)}
+.lp-model-heading {font-size:18px;font-weight:700}
+.lp-model-meta {font-size:15px;fill:var(--muted)}
+.lp-model-block {fill:#f3f6ef;stroke:var(--accent);stroke-width:1.5}
+.lp-model-head {fill:white;stroke:#a7afa1;stroke-width:1.5}
+.lp-model-arrow {fill:none;stroke:var(--accent);stroke-width:1.6;marker-end:url(#lp-model-arrow)}
+.lp-model-tie {fill:none;stroke:#a7afa1;stroke-width:1.2}
+.lp-symbol {font-family:var(--serif);font-size:25px}
+.lp-model :global(.lm-var) {font-family:var(--serif);font-style:italic}
+.lp-model :global(.lm-script) {font-size:.72em}
+.loop-problem .lp-purpose {font-size:18px;color:var(--ink);margin:8px 0 10px;line-height:1.4}
+.lp-variables .lp-comparison section {padding-top:9px}
+.lp-variables .lp-comparison h3 {font-size:18px;margin-bottom:6px}
+.lp-variables .lp-comparison p {font-size:15px;margin-top:6px}
+.lp-variables .lp-comparison math {font-size:28px}
 </style>

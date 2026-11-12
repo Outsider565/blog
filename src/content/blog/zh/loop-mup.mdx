@@ -1,6 +1,6 @@
 ---
 title: "Loop-μP：Looped Transformer 的残差缩放与超参数迁移"
-subtitle: "循环不等于加深：残差分支乘以 1/N，学习率即可跨循环次数迁移"
+subtitle: "循环 ≠ 堆叠层数：用 1/N 残差缩放实现跨循环次数的学习率迁移"
 description: "Looped Transformer 增加循环次数后，为什么往往需要重调学习率？共享权重会使各轮循环的残差增量同向累加；将残差分支乘以 1/N 后，最小模型上调好的学习率在循环 8 次、有效深度 384 层时依然保持最优。"
 language: "zh"
 urlSlug: "loop-mup"

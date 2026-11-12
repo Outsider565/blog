@@ -48,7 +48,7 @@
 @font-face {
   font-family: "Farm Superscripts";
   src: local("Helvetica Neue"), local("HelveticaNeue"), local("Helvetica"), local("Segoe UI"), local("Roboto"), local("DejaVu Sans");
-  unicode-range: U+00B2-00B3, U+00B9, U+2070-209F;
+  unicode-range: U+00B2-00B3, U+00B9, U+2070-209F, U+221A;
 }
 /* The CJK subset draws quotes, dashes and × full-width; English pages take them from a Latin face. */
 @font-face {

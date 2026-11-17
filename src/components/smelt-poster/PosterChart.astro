@@ -1,0 +1,286 @@
+---
+// One static chart on the SMELT poster. Each chart is drawn for a poster
+// column (viewBox width = column width, so one unit is one CSS pixel) from
+// the same figure data the article uses; see src/lib/smelt-poster/data.ts.
+import type { Language } from '../../lib/site';
+import { posterCopy } from '../../lib/smelt-poster/copy';
+import {
+  aspectSweep, countSweep, dyckCurve, expertRows, expertTopK, fittedWindow, frontierLossCurve, frontierMarks, frontierRange,
+  lossGrid, gridSizes, primaryFrontierSparsity, sinkBaseline, sinkDepth, sinkVisit1, sinkVisit2, spanSweep, stages,
+} from '../../lib/smelt-poster/data';
+import { linear, linePath, log10Scale, powerLabel, type Point } from '../../lib/smelt/plot';
+import { loopFrom, loopTo, physicalLayers, executedLayers, isLooped } from '../../lib/smelt/smelt-hero';
+import Legend from './PosterLegend.astro';
+
+type Kind = 'schematic' | 'span' | 'aspect' | 'count' | 'grid' | 'frontier' | 'icl' | 'experts' | 'stages' | 'sink';
+interface Props { kind: Kind; language: Language; width?: number }
+const { kind, language, width = 328 } = Astro.props;
+const text = posterCopy[language];
+const zh = language === 'zh';
+const W = width;
+const minus = (value: number, digits = 3) => `${value < -1e-12 ? '−' : value > 1e-12 ? '+' : ''}${Math.abs(value).toFixed(digits)}`;
+const pct = (value: number, digits = 1) => `${(value * 100).toFixed(digits)}%`;
+const f = (value: number) => value.toFixed(2);
+/* Right-aligned legend on a chart's title row; widths are estimated (CJK ≈ 1 em, Latin ≈ 0.6 em). */
+type Swatch = 'line' | 'dash' | 'dot' | 'ring';
+interface LegendItem { swatch: Swatch; tone: 'loop' | 'base' | 'gain' | 'neutral'; label: string; opacity?: number }
+const textWidth = (value: string, size = 12) => [...value].reduce((sum, character) => sum + (/[\u3000-\u9fff\uff00-\uffef]/.test(character) ? size : size * 0.6), 0);
+function legend(items: LegendItem[], right = W, y = 10) {
+  let x = right;
+  return items.slice().reverse().map(item => {
+    x -= textWidth(item.label);
+    const label = x;
+    x -= item.swatch === 'line' || item.swatch === 'dash' ? 20 : 11;
+    const swatch = x;
+    x -= 12;
+    return { ...item, labelX: label, swatchX: swatch, y };
+  }).reverse();
+}
+
+/* Shared frame: a y-axis title row on top, ticks and an x-axis title at the bottom. */
+const frame = (height: number, left = 40, right = 8, xTitle = true) => ({
+  left, right: W - right, top: 20, bottom: height - (xTitle ? 31 : 18), tickY: height - (xTitle ? 17 : 4), titleY: height - 2, height,
+});
+
+/* ── Schematic: the same 12 physical layers, run once or with the middle half twice. ── */
+const sx0 = 22;
+const pitch = (W - sx0 - 22) / physicalLayers;
+const slabW = pitch - 5;
+const slabX = (layer: number) => sx0 + (layer - 1) * pitch + 2.5;
+const slabC = (layer: number) => slabX(layer) + slabW / 2;
+const rows = [
+  { kind: 'standard', title: text.setting.standard, titleY: 13, slabTop: 24, executed: physicalLayers },
+  { kind: 'looped', title: text.setting.looped, titleY: 70, slabTop: 98, executed: executedLayers },
+] as const;
+const slabH = 22;
+const outX = sx0 + physicalLayers * pitch + 8;
+const layers = Array.from({ length: physicalLayers }, (_, index) => index + 1);
+const arcTop = 84;
+const arcPath = `M${f(slabC(loopTo))} ${rows[1].slabTop - 2}V${arcTop + 5}Q${f(slabC(loopTo))} ${arcTop} ${f(slabC(loopTo) - 5)} ${arcTop}H${f(slabC(loopFrom) + 5)}Q${f(slabC(loopFrom))} ${arcTop} ${f(slabC(loopFrom))} ${arcTop + 5}V${rows[1].slabTop - 3}`;
+const arcMid = (slabC(loopFrom) + slabC(loopTo)) / 2;
+
+/* ── Loop recipe sweeps (Δ validation loss vs the 12-layer Baseline). ── */
+const span = frame(110);
+const spanX = linear([0, 100], [span.left + 6, span.right - 6]);
+const spanY = linear([0.004, -0.022], [span.top, span.bottom]);
+const spanPoints: Point[] = spanSweep.map(row => [spanX(row.pct), spanY(row.delta)]);
+const spanBest = spanSweep.reduce((best, row) => row.delta < best.delta ? row : best);
+const deltaTicks = [0, -0.01, -0.02];
+
+const aspect = frame(110);
+const aspectX = linear([9, 21], [aspect.left + 10, aspect.right - 10]);
+const aspectY = linear([0.024, -0.022], [aspect.top, aspect.bottom]);
+const aspectSeries = (['baseline', 'looped'] as const).map(key => {
+  const points = aspectSweep[key];
+  const best = points.reduce((low, row) => row.delta < low.delta ? row : low);
+  return { key, points: points.map(row => [aspectX(row.executed), aspectY(row.delta)] as Point), raw: points, best };
+});
+
+const count = { left: 40, right: W - 8, top: 20, bottom: 78, titleY: 94, height: 96 };
+const countX = linear([1, 4], [count.left + 34, count.right - 30]);
+const countY = linear([0.006, -0.026], [count.top, count.bottom]);
+const countBest = countSweep.reduce((best, row) => row.delta < best.delta ? row : best);
+
+/* ── 16 matched cells: final-horizon loss difference. ── */
+const gridLeft = 62;
+const gridHead = 18;
+const gridRow = 25;
+const cellW = (W - gridLeft) / gridSizes.length;
+const gridHeight = gridHead + lossGrid.length * gridRow;
+const shade = (value: number) => Math.min(1, Math.abs(value) / 0.03);
+
+/* ── Compute-optimal frontier: zoomed loss vs compute at S ≈ 85%, with CE Gain marked. ── */
+const fr = frame(132, 38, 10);
+const frX = log10Scale(frontierRange, [fr.left, fr.right]);
+const frY = linear([1.70, 1.80], [fr.bottom, fr.top]);
+const frSeries = (['baseline', 'smelt'] as const).map(arch => ({
+  arch,
+  path: linePath(frontierLossCurve(arch, primaryFrontierSparsity, frontierRange[0], frontierRange[1]).map(point => [frX(point.compute), frY(point.loss)] as Point)),
+}));
+const frTicks = [0.6e21, 1.0e21, 1.5e21];
+
+/* ── In-context examples: Dyck Languages accuracy across shots. ── */
+const ic = frame(100, 34, 38);
+const icX = linear([0, dyckCurve.length - 1], [ic.left + 8, ic.right - 6]);
+const icY = linear([0, 33], [ic.bottom, ic.top + 4]);
+const dyckBasePoints: Point[] = dyckCurve.map((row, index) => [icX(index), icY(row.base)]);
+const dyckLoopPoints: Point[] = dyckCurve.map((row, index) => [icX(index), icY(row.loop)]);
+const dyckEnd = dyckCurve.at(-1);
+const dyckEndX = icX(dyckCurve.length - 1);
+
+/* ── Expert reuse at 1.6B: measured overlap vs independent random routing. ── */
+const exLeft = 58;
+const exTop = 20;
+const exRow = 19;
+const exBottom = exTop + expertRows.length * exRow;
+const exX = linear([0, expertTopK], [exLeft + 6, W - 10]);
+const exHeight = exBottom + 31;
+
+/* ── Cross-visit cosine through one attention layer. ── */
+const st = { left: 6, right: W - 6, top: 16, bottom: 60, height: 98 };
+const stUnit = (st.right - st.left) / stages.length;
+const stX = (index: number) => st.left + stUnit * (index + 0.5);
+const stY = linear([0, 1], [st.bottom, st.top]);
+const symbols: Record<string, string> = { x: 'X', q: 'Q', k: 'K', v: 'V', pv: 'PV', o: 'O' };
+const stTone = (key: string) => key === 'x' ? 'is-neutral' : key === 'q' || key === 'k' ? 'is-base' : 'is-loop';
+
+/* ── Attention sink by physical layer (1.6B). ── */
+const sk = frame(106, 34, 8);
+const skX = linear([1, sinkDepth], [sk.left + 4, sk.right - 4]);
+const skY = linear([0, 1], [sk.bottom, sk.top]);
+const skLine = (points: { layer: number; share: number }[]) => linePath(points.map(point => [skX(point.layer), skY(point.share)] as Point));
+const skBlock = [sinkVisit1[0]!.layer, sinkVisit1.at(-1)!.layer] as const;
+---
+{kind === 'schematic' && <svg class="pc pc-schematic" viewBox={`0 0 ${W} 122`} role="img" aria-label={`${text.setting.standard}: ${text.setting.standardNote}. ${text.setting.looped}: ${text.setting.loopedNote}.`}>
+  <defs><marker id="pc-arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto"><path d="M0.8 1L7 4L0.8 7" class="pc-arrowhead" /></marker></defs>
+  {rows.map(row => {
+    const looped = row.kind === 'looped';
+    const rail = row.slabTop + slabH / 2;
+    return <g>
+      <text x="0" y={row.titleY} class="pc-title">{row.title}</text>
+      <text x={W} y={row.titleY} text-anchor="end" class="pc-note">{text.setting.physical} <tspan class="pc-num">{physicalLayers}</tspan> · {text.setting.executed} <tspan class:list={['pc-num', { 'is-loop': looped }]}>{row.executed}</tspan></text>
+      <line x1={sx0 - 6} x2={outX} y1={rail} y2={rail} class="pc-rail" />
+      <rect x={sx0 - 16} y={rail - 5} width="10" height="10" rx="2" class="pc-io" />
+      <circle cx={outX + 5} cy={rail} r="5" class="pc-io" />
+      {layers.map(layer => <g class:list={['pc-slab', { 'is-loop': looped && isLooped(layer) }]}>
+        <rect x={slabX(layer)} y={row.slabTop} width={slabW} height={slabH} rx="3" />
+        <text x={slabC(layer)} y={row.slabTop + slabH - 7} text-anchor="middle">{layer}</text>
+      </g>)}
+      {looped && <>
+        <path d={arcPath} class="pc-arc" marker-end="url(#pc-arrow)" />
+        <rect x={arcMid - 15} y={arcTop - 8} width="30" height="16" class="pc-knockout" />
+        <text x={arcMid} y={arcTop + 4.5} text-anchor="middle" class="pc-twice">×2</text>
+      </>}
+    </g>;
+  })}
+</svg>}
+
+{kind === 'span' && <svg class="pc" viewBox={`0 0 ${W} ${span.height}`} role="img" aria-label={`${text.recipe.spanAxis}: ${spanSweep.map(row => `${row.pct}% ${minus(row.delta)}`).join(', ')}`}>
+  <text x="0" y="10" class="pc-axis">{text.recipe.deltaAxis}</text>
+  {deltaTicks.map(tick => <g><line x1={span.left} x2={span.right} y1={spanY(tick)} y2={spanY(tick)} class:list={['pc-grid', { 'is-zero': tick === 0 }]} /><text x={span.left - 6} y={spanY(tick) + 4} text-anchor="end" class="pc-tick">{tick === 0 ? '0' : minus(tick, 2)}</text></g>)}
+  <path d={linePath(spanPoints)} class="pc-line is-loop" />
+  {spanSweep.map((row, index) => row.pct === 0
+    ? <circle cx={spanPoints[index]![0]} cy={spanPoints[index]![1]} r="3.6" class="pc-dot is-base" />
+    : <circle cx={spanPoints[index]![0]} cy={spanPoints[index]![1]} r={row === spanBest ? 4.6 : 3.2} class="pc-dot is-loop" />)}
+  <text x={spanX(spanBest.pct) + 8} y={spanY(spanBest.delta) + 4} class="pc-value is-loop">{minus(spanBest.delta)}</text>
+  {spanSweep.map(row => <text x={spanX(row.pct)} y={span.tickY} text-anchor="middle" class="pc-tick">{row.pct}%</text>)}
+  <text x={(span.left + span.right) / 2} y={span.titleY} text-anchor="middle" class="pc-axis">{text.recipe.spanAxis}</text>
+</svg>}
+
+{kind === 'aspect' && <svg class="pc" viewBox={`0 0 ${W} ${aspect.height}`} role="img" aria-label={`${text.recipe.aspectAxis}. ${text.recipe.aspectBase}: ${aspectSweep.baseline.map(row => `${row.executed} ${minus(row.delta)}`).join(', ')}. ${text.recipe.aspectLoop}: ${aspectSweep.looped.map(row => `${row.executed} ${minus(row.delta)}`).join(', ')}`}>
+  <text x="0" y="10" class="pc-axis">{text.recipe.deltaAxis}</text>
+  <Legend items={legend([{ swatch: 'ring', tone: 'base', label: text.recipe.aspectBase }, { swatch: 'dot', tone: 'loop', label: text.recipe.aspectLoop }])} />
+  {[0.02, 0, -0.02].map(tick => <g><line x1={aspect.left} x2={aspect.right} y1={aspectY(tick)} y2={aspectY(tick)} class:list={['pc-grid', { 'is-zero': tick === 0 }]} /><text x={aspect.left - 6} y={aspectY(tick) + 4} text-anchor="end" class="pc-tick">{tick === 0 ? '0' : minus(tick, 2)}</text></g>)}
+  {aspectSeries.map(series => <g>
+    <line x1={aspectX(series.best.executed)} x2={aspectX(series.best.executed)} y1={aspect.top} y2={aspect.bottom} class:list={['pc-guide', series.key === 'looped' ? 'is-loop' : 'is-base']} />
+    <path d={linePath(series.points)} class:list={['pc-line', series.key === 'looped' ? 'is-loop' : 'is-base']} />
+    {series.points.map(([x, y]) => <circle cx={x} cy={y} r="3.4" class:list={['pc-dot', series.key === 'looped' ? 'is-loop' : 'is-base']} />)}
+  </g>)}
+  <text x={aspectX(aspectSeries[1]!.best.executed) + 8} y={aspectY(aspectSeries[1]!.best.delta) + 4} class="pc-value is-loop">{minus(aspectSeries[1]!.best.delta)}</text>
+  {[9, 12, 15, 18, 21].map(tick => <text x={aspectX(tick)} y={aspect.tickY} text-anchor="middle" class:list={['pc-tick', { 'is-base-ink': tick === aspectSeries[0]!.best.executed, 'is-loop-ink': tick === aspectSeries[1]!.best.executed }]}>{tick}</text>)}
+  <text x={(aspect.left + aspect.right) / 2} y={aspect.titleY} text-anchor="middle" class="pc-axis">{text.recipe.aspectAxis}</text>
+</svg>}
+
+{kind === 'count' && <svg class="pc" viewBox={`0 0 ${W} ${count.height}`} role="img" aria-label={`${text.recipe.countAxis}: ${countSweep.map(row => `${row.visits} ${minus(row.delta)}`).join(', ')}`}>
+  <text x="0" y="10" class="pc-axis">{text.recipe.deltaAxis}</text>
+  {deltaTicks.map(tick => <g><line x1={count.left} x2={count.right} y1={countY(tick)} y2={countY(tick)} class:list={['pc-grid', { 'is-zero': tick === 0 }]} /><text x={count.left - 6} y={countY(tick) + 4} text-anchor="end" class="pc-tick">{tick === 0 ? '0' : minus(tick, 2)}</text></g>)}
+  {countSweep.map(row => {
+    const x = countX(row.visits);
+    if (row.visits === 1) return <g><line x1={x - 16} x2={x + 16} y1={countY(0)} y2={countY(0)} class="pc-line is-base" /><text x={x} y={countY(0) + 16} text-anchor="middle" class="pc-note is-base-ink">Baseline</text></g>;
+    return <g>
+      <rect x={x - 16} y={countY(0)} width="32" height={countY(row.delta) - countY(0)} class:list={['pc-bar', 'is-loop', { 'is-dim': row !== countBest }]} />
+      <text x={x} y={countY(row.delta) + 13} text-anchor="middle" class:list={row === countBest ? ['pc-value', 'is-loop'] : 'pc-tick'}>{minus(row.delta)}</text>
+    </g>;
+  })}
+  {countSweep.map(row => <text x={countX(row.visits)} y={countY(0) - 5} text-anchor="middle" class:list={['pc-tick', { 'is-loop-ink': row === countBest }]}>{row.visits}</text>)}
+  <text x={(count.left + count.right) / 2} y={count.titleY} text-anchor="middle" class="pc-axis">{text.recipe.countAxis}</text>
+</svg>}
+
+{kind === 'grid' && <svg class="pc" viewBox={`0 0 ${W} ${gridHeight}`} role="img" aria-label={`${text.scaling.gridNote}: ${lossGrid.map(row => `S ${row.approx ? '≈' : '='} ${row.label}: ${row.cells.map(cell => `${cell.size} ${minus(cell.delta)}`).join(', ')}`).join('; ')}`}>
+  {gridSizes.map((size, index) => <text x={gridLeft + cellW * (index + 0.5)} y="11" text-anchor="middle" class="pc-tick">{size}</text>)}
+  {lossGrid.map((row, rowIndex) => <g>
+    <text x="0" y={gridHead + rowIndex * gridRow + 16} class="pc-tick">S {row.approx ? '≈' : '='} {row.label}</text>
+    {row.cells.map((cell, index) => <g>
+      <rect x={gridLeft + cellW * index + 2} y={gridHead + rowIndex * gridRow + 2} width={cellW - 4} height={gridRow - 4} rx="3" class="pc-cell" style={`--t:${(0.12 + 0.78 * shade(cell.delta)).toFixed(3)}`} />
+      <text x={gridLeft + cellW * (index + 0.5)} y={gridHead + rowIndex * gridRow + 17} text-anchor="middle" class:list={['pc-cell-text', { 'is-strong': shade(cell.delta) > 0.5 }]}>{minus(cell.delta)}</text>
+    </g>)}
+  </g>)}
+</svg>}
+
+{kind === 'frontier' && <svg class="pc" viewBox={`0 0 ${W} ${fr.height}`} role="img" aria-label={`${text.scaling.frontierAxis}. ${frontierMarks.map(mark => `${powerLabel(mark.compute)}: CE Gain ${pct(mark.gain)}`).join('; ')}`}>
+  <text x="0" y="10" class="pc-axis">{text.scaling.frontierAxis}</text>
+  <Legend items={legend([{ swatch: 'line', tone: 'base', label: 'Baseline' }, { swatch: 'line', tone: 'loop', label: 'SMELT' }])} />
+  {[1.70, 1.75, 1.80].map(tick => <g><line x1={fr.left} x2={fr.right} y1={frY(tick)} y2={frY(tick)} class="pc-grid" /><text x={fr.left - 6} y={frY(tick) + 4} text-anchor="end" class="pc-tick">{tick.toFixed(2)}</text></g>)}
+  {frSeries.map(series => <path d={series.path} class:list={['pc-line', series.arch === 'smelt' ? 'is-loop' : 'is-base']} />)}
+  {frontierMarks.map(mark => {
+    const x1 = frX(mark.compute);
+    const x2 = frX(mark.baseCompute);
+    const y = frY(mark.loss);
+    return <g>
+      <line x1={x1} x2={x1} y1={y} y2={fr.bottom} class="pc-guide is-loop" />
+      <line x1={x1} x2={x2} y1={y} y2={y} class="pc-line is-gain" />
+      <circle cx={x1} cy={y} r="3.6" class="pc-dot is-loop" />
+      <circle cx={x2} cy={y} r="3.2" class="pc-dot is-base" />
+      <text x={x2 + 6} y={y - 6} class="pc-value is-gain">CE Gain {pct(mark.gain)}</text>
+    </g>;
+  })}
+  {frTicks.map(tick => <text x={frX(tick)} y={fr.tickY} text-anchor="middle" class="pc-tick">{(tick / 1e21).toFixed(1)}</text>)}
+  <text x={(fr.left + fr.right) / 2} y={fr.titleY} text-anchor="middle" class="pc-axis">{text.scaling.computeAxis}</text>
+</svg>}
+
+{kind === 'icl' && <svg class="pc" viewBox={`0 0 ${W} ${ic.height}`} role="img" aria-label={`${text.downstream.iclAxis}: ${dyckCurve.map(row => `${row.shots}: ${row.loop.toFixed(1)}% vs ${row.base.toFixed(1)}%`).join(', ')}`}>
+  <text x="0" y="10" class="pc-axis">{text.downstream.iclAxis}</text>
+  <Legend items={legend([{ swatch: 'ring', tone: 'base', label: 'Baseline' }, { swatch: 'dot', tone: 'loop', label: 'SMELT' }])} />
+  {[0, 15, 30].map(tick => <g><line x1={ic.left} x2={ic.right} y1={icY(tick)} y2={icY(tick)} class:list={['pc-grid', { 'is-zero': tick === 0 }]} /><text x={ic.left - 6} y={icY(tick) + 4} text-anchor="end" class="pc-tick">{tick}%</text></g>)}
+  <path d={linePath(dyckBasePoints)} class="pc-line is-base" />
+  <path d={linePath(dyckLoopPoints)} class="pc-line is-loop" />
+  {dyckBasePoints.map(([x, y]) => <circle cx={x} cy={y} r="3.2" class="pc-dot is-base" />)}
+  {dyckLoopPoints.map(([x, y], index) => <circle cx={x} cy={y} r={index === dyckCurve.length - 1 ? 4.2 : 3.2} class="pc-dot is-loop" />)}
+  {dyckEnd && <>
+    <text x={dyckEndX + 7} y={icY(dyckEnd.loop) + 2} class="pc-value is-loop">{dyckEnd.loop.toFixed(1)}%</text>
+    <text x={dyckEndX + 7} y={icY(dyckEnd.base) + 7} class="pc-note is-base-ink">{dyckEnd.base.toFixed(1)}%</text>
+  </>}
+  {dyckCurve.map((row, index) => <text x={icX(index)} y={ic.tickY} text-anchor="middle" class="pc-tick">{row.shots}</text>)}
+  <text x={(ic.left + ic.right) / 2} y={ic.titleY} text-anchor="middle" class="pc-axis">{text.downstream.shots}</text>
+</svg>}
+
+{kind === 'experts' && <svg class="pc" viewBox={`0 0 ${W} ${exHeight}`} role="img" aria-label={`${text.mechanism.expertsAxis}: ${expertRows.map(row => `S ≈ ${row.label}: ${row.measured.toFixed(2)} vs ${row.random.toFixed(2)}`).join('; ')}`}>
+  <Legend items={legend([{ swatch: 'dot', tone: 'loop', label: text.mechanism.measured }, { swatch: 'ring', tone: 'neutral', label: text.mechanism.random }], W, 10)} />
+  {Array.from({ length: expertTopK / 2 + 1 }, (_, index) => index * 2).map(tick => <g><line x1={exX(tick)} x2={exX(tick)} y1={exTop} y2={exBottom} class="pc-grid" /><text x={exX(tick)} y={exBottom + 14} text-anchor="middle" class="pc-tick">{tick}</text></g>)}
+  {expertRows.map((row, index) => {
+    const y = exTop + exRow * (index + 0.5);
+    return <g>
+      <text x="0" y={y + 4} class="pc-tick">S ≈ {row.label}</text>
+      <line x1={exX(row.random)} x2={exX(row.measured)} y1={y} y2={y} class="pc-stem" />
+      <circle cx={exX(row.random)} cy={y} r="3.6" class="pc-dot is-neutral" />
+      <circle cx={exX(row.measured)} cy={y} r="4.4" class="pc-dot is-loop" />
+      <text x={exX(row.measured) + 9} y={y + 4} class="pc-value is-loop">{row.measured.toFixed(2)}</text>
+    </g>;
+  })}
+  <text x={(exLeft + W) / 2} y={exHeight - 4} text-anchor="middle" class="pc-axis">{text.mechanism.expertsAxis}</text>
+</svg>}
+
+{kind === 'stages' && <svg class="pc" viewBox={`0 0 ${W} ${st.height}`} role="img" aria-label={`${text.mechanism.cosineAxis}: ${stages.map(stage => `${symbols[stage.key]} ${stage.cosine.toFixed(2)}`).join(', ')}`}>
+  <line x1={st.left} x2={st.right} y1={st.bottom} y2={st.bottom} class="pc-grid is-zero" />
+  {stages.map((stage, index) => <g>
+    <rect x={stX(index) - 17} y={stY(stage.cosine)} width="34" height={st.bottom - stY(stage.cosine)} class:list={['pc-bar', stTone(stage.key)]} />
+    <text x={stX(index)} y={stY(stage.cosine) - 5} text-anchor="middle" class="pc-value">{stage.cosine.toFixed(2)}</text>
+    <text x={stX(index)} y={st.bottom + 15} text-anchor="middle" class="pc-symbol">{symbols[stage.key]}</text>
+  </g>)}
+  <path d={`M${stX(1) - 17} ${st.bottom + 22}v4H${stX(2) + 17}v-4`} class="pc-brace is-base" />
+  <text x={(stX(1) + stX(2)) / 2} y={st.bottom + 38} text-anchor="middle" class="pc-note is-base-ink">{text.mechanism.look}</text>
+  <path d={`M${stX(3) - 17} ${st.bottom + 22}v4H${stX(5) + 17}v-4`} class="pc-brace is-loop" />
+  <text x={stX(4)} y={st.bottom + 38} text-anchor="middle" class="pc-note is-loop-ink">{text.mechanism.read}</text>
+</svg>}
+
+{kind === 'sink' && <svg class="pc" viewBox={`0 0 ${W} ${sk.height}`} role="img" aria-label={`${text.mechanism.sinkAxis}`}>
+  <text x="0" y="10" class="pc-axis">{text.mechanism.sinkAxis}</text>
+  <Legend items={legend([{ swatch: 'line', tone: 'base', label: text.mechanism.baseline }, { swatch: 'dash', tone: 'loop', label: text.mechanism.visit1 }, { swatch: 'line', tone: 'loop', label: text.mechanism.visit2 }])} />
+  <rect x={skX(skBlock[0]) - 3} y={sk.top} width={skX(skBlock[1]) - skX(skBlock[0]) + 6} height={sk.bottom - sk.top} class="pc-band" />
+  {[0, 0.5, 1].map(tick => <g><line x1={sk.left} x2={sk.right} y1={skY(tick)} y2={skY(tick)} class:list={['pc-grid', { 'is-zero': tick === 0 }]} /><text x={sk.left - 6} y={skY(tick) + 4} text-anchor="end" class="pc-tick">{Math.round(tick * 100)}%</text></g>)}
+  <path d={skLine(sinkBaseline)} class="pc-line is-base" />
+  <path d={skLine(sinkVisit1)} class="pc-line is-loop is-dashed" />
+  <path d={skLine(sinkVisit2)} class="pc-line is-loop" />
+  {[1, 10, 20, sinkDepth].map(tick => <text x={skX(tick)} y={sk.tickY} text-anchor="middle" class="pc-tick">{tick}</text>)}
+  <text x={(sk.left + sk.right) / 2} y={sk.titleY} text-anchor="middle" class="pc-axis">{text.mechanism.layerAxis}</text>
+</svg>}

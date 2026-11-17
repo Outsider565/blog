@@ -1,12 +1,13 @@
 # Blog
 
-SMELT 与 Loop-μP 两篇 Looped Transformer 研究文章的独立博客，以及据此制作的一份报告幻灯片，中英文各一版，基于 Astro 与 MDX。推送到 GitHub 的 `main` 分支后自动构建并发布到 GitHub Pages。
+SMELT 与 Loop-μP 两篇 Looped Transformer 研究文章的独立博客，以及据此制作的一份报告幻灯片和一张 SMELT 海报，中英文各一版，基于 Astro 与 MDX。推送到 GitHub 的 `main` 分支后自动构建并发布到 GitHub Pages。
 
 | 页面 | 中文 | English |
 | --- | --- | --- |
 | SMELT | https://outsider565.github.io/blog/smelt/ | https://outsider565.github.io/blog/en/smelt/ |
 | Loop-μP | https://outsider565.github.io/blog/loop-mup/ | https://outsider565.github.io/blog/en/loop-mup/ |
 | 报告幻灯片 | https://outsider565.github.io/blog/loop-science/ | https://outsider565.github.io/blog/en/loop-science/ |
+| SMELT 海报 | https://outsider565.github.io/blog/smelt-poster/ | https://outsider565.github.io/blog/en/smelt-poster/ |
 
 `/blog/` 本身没有目录页。页面不带站点页眉、页脚或返回链接，每篇文章右上角只有语言切换和主题切换。
 
@@ -25,6 +26,15 @@ SMELT 与 Loop-μP 两篇 Looped Transformer 研究文章的独立博客，以�
 - 幻灯片隐藏图下的数据表、读数行，以及 SMELT 图 5 的所选训练曲线和图 6 的代入试算；Dyck 示例原文可滚动查看。原始文章保留完整交互内容。
 - 字体沿用 Farm Sans 中文子集，已从同版本 Noto Sans CJK SC 2.004 补齐报告所需汉字。修改文案后检查常规和粗体字形覆盖，并用浏览器逐页核验公式、缩放与交互。
 
+## SMELT 海报
+
+一张 16:9 静态海报（1920 × 1080），中英文各一版，沿用文章的字体、配色与图表样式，按“等预算评测设定 → 架构设计消融 → Scaling Law → 下游任务 → 内部机制”五栏概括 SMELT 全文，顶部为五个关键数字，底部为总结与引用。
+
+- 屏幕上整张海报按窗口等比缩放；工具栏可切换语言、跳转文章、查看原始尺寸。“导出 PDF”调用浏览器打印，页面尺寸固定为一页 1920 × 1080（20 × 11.25 英寸），在打印窗口中选择“存储为 PDF”即可；直接打印（⌘P）效果相同。
+- 所有数字与图都从 `src/data/smelt/` 的图表数据读取，或用文章已有的 `src/lib/smelt/` 函数重新计算（`src/lib/smelt-poster/data.ts`），不手抄数值；文案在 `src/lib/smelt-poster/copy.ts`，措辞取自文章与图注，改动后保持中英同步。
+- 版面 `src/components/smelt-poster/SmeltPoster.astro`，图表 `PosterChart.astro`（每张图的 viewBox 宽度等于栏宽，1 单位即 1 px），样式 `src/styles/smelt-poster.css`，缩放与导出脚本 `src/scripts/smelt-poster.ts`，路由 `src/pages/smelt-poster.astro` 与 `src/pages/en/smelt-poster.astro`。
+- 五栏高度已排满，增删文字后需在浏览器中确认各栏没有超出底部总结栏；中文新字同样要检查 Farm Sans 子集的字形覆盖。
+
 ## 本地开发
 
 需要 Node.js 22.22.0 或更高版本（`.node-version` 与发布流程使用 Node.js 24）。
@@ -34,7 +44,7 @@ npm ci
 npm run dev
 ```
 
-开发地址为 `http://localhost:4321/blog/smelt/`、`http://localhost:4321/blog/loop-mup/`、`http://localhost:4321/blog/loop-science/`，英文版在路径中加 `en/`。
+开发地址为 `http://localhost:4321/blog/smelt/`、`http://localhost:4321/blog/loop-mup/`、`http://localhost:4321/blog/loop-science/`、`http://localhost:4321/blog/smelt-poster/`，英文版在路径中加 `en/`。
 
 ```sh
 npm run build:verified   # 类型检查 + 构建，输出到 dist/

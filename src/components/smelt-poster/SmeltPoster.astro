@@ -1,0 +1,188 @@
+---
+// The SMELT poster: one 1920 × 1080 sheet in the articles' type and colours,
+// scaled to the window on screen and printed (or saved as PDF) at full size.
+import authors from '../../data/smelt/authors.json';
+import { blogPath, type Language } from '../../lib/site';
+import { posterCopy } from '../../lib/smelt-poster/copy';
+import { budgetKeys, budgetSteps, coefficients, domainGains, iclOneGap, iclZeroGap, isMatched, winCount } from '../../lib/smelt-poster/data';
+import { qrSvgPath } from '../../lib/smelt-poster/qr';
+import PosterChart from './PosterChart.astro';
+import '../../styles/smelt.css';
+import '../../styles/smelt-poster.css';
+interface Props { language: Language }
+const { language } = Astro.props;
+const text = posterCopy[language];
+const byline = authors[language];
+const paper = 'https://arxiv.org/abs/2609.01343';
+const article = new URL(blogPath(language, 'smelt'), Astro.site);
+const qr = qrSvgPath(article.href, 2);
+const display = (url: URL | string) => String(url).replace(/^https?:\/\//, '').replace(/\/$/, '');
+const ratio = (value: number) => `${value.toFixed(2)}×`;
+const stepNumber: Record<string, number | undefined> = { narrow: 1, experts: 2, smelt: 3 };
+const wins = [
+  { name: 'DCLM Completion', ...winCount('comp'), note: false },
+  { name: 'DCLM Core', ...winCount('core'), note: false },
+  { name: 'MMLU', ...winCount('mmlu'), note: true },
+];
+const domainMax = 25;
+const exponents = [
+  { label: text.scaling.capacityExp, base: coefficients.baseline.a, smelt: coefficients.smelt.a },
+  { label: text.scaling.dataExp, base: coefficients.baseline.c, smelt: coefficients.smelt.c },
+];
+---
+<div class="poster-page" data-poster-page data-language={language}>
+  <header class="poster-toolbar">
+    <p class="toolbar-label"><b>SMELT</b> {text.toolbar.label.replace(/^SMELT\s*/, '')}</p>
+    <div class="toolbar-actions">
+      <span class="language-switch" aria-label={text.toolbar.language}>
+        <a href={blogPath('zh', 'smelt-poster')} lang="zh-CN" hreflang="zh-CN" aria-current={language === 'zh' ? 'page' : undefined}>中文</a>
+        <span aria-hidden="true">/</span>
+        <a href={blogPath('en', 'smelt-poster')} lang="en" hreflang="en" aria-current={language === 'en' ? 'page' : undefined}>EN</a>
+      </span>
+      <a class="toolbar-link" href={blogPath(language, 'smelt')}>{text.toolbar.article} ↗</a>
+      <button type="button" class="toolbar-button" data-poster-zoom aria-pressed="false" hidden>{language === 'zh' ? '原始尺寸' : 'Actual size'}</button>
+      <button type="button" class="toolbar-button is-primary" data-poster-export title={text.toolbar.exportHint}>
+        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v8.5M4.5 6.8 8 10.2l3.5-3.4M2.5 11v2.5h11V11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        {text.toolbar.export}
+      </button>
+    </div>
+  </header>
+
+  <main id="main" class="poster-viewport" data-poster-viewport>
+    <div class="poster-frame" data-poster-frame>
+      <article class="poster" aria-label={text.title}>
+        <header class="poster-head">
+          <div class="poster-head-main">
+            <div class="poster-topline">
+              <p class="poster-kicker"><b>SMELT</b><span>{text.kicker}</span></p>
+              <p class="poster-links">
+                <span>{text.links.paper}</span><a href={paper}>{display(paper)}</a>
+                <span>{text.links.blog}</span><a href={article.href}>{display(article)}</a>
+              </p>
+            </div>
+            <h1 class="poster-title">{text.title}</h1>
+            <p class="poster-subtitle">{text.subtitle}</p>
+            <p class="poster-byline">
+              <span class="poster-authors">{byline.names.map(author => <span>{author.name}<sup>{author.markers}</sup></span>)}</span>
+              <span class="poster-affiliations">{byline.affiliations.map(item => <span><sup>{item.marker}</sup>{item.name}</span>)}{byline.roles.map(role => <span>{role}</span>)}</span>
+            </p>
+          </div>
+          <a class="poster-qr" href={article.href} aria-label={`${text.links.qrLabel}: ${display(article)}`}>
+            <svg viewBox={`0 0 ${qr.viewSize} ${qr.viewSize}`} width="106" height="106" shape-rendering="crispEdges" role="img" aria-hidden="true">
+              <rect width={qr.viewSize} height={qr.viewSize} fill="#fff" />
+              <path d={qr.path} fill="currentColor" />
+            </svg>
+            <span class="poster-qr-label">{text.links.qrLabel}</span>
+          </a>
+        </header>
+
+        <section class="poster-stats" aria-label={language === 'zh' ? '主要结论' : 'Key results'}>
+          {text.stats.map(stat => <div class="poster-stat">
+            <span class:list={['poster-stat-value', `is-${stat.tone}`]}>{stat.value}</span>
+            <span class="poster-stat-label">{stat.label}</span>
+          </div>)}
+        </section>
+
+        <div class="poster-body">
+          <section class="poster-col">
+            <h2 class="poster-col-title"><span>1</span>{text.sections[0]}{text.sectionTags[0] && <small>{text.sectionTags[0]}</small>}</h2>
+            <p class="poster-question">{text.setting.question}</p>
+            <PosterChart kind="schematic" language={language} />
+            <p class="poster-claim" set:html={text.setting.claimHtml} />
+            <table class="poster-budget">
+              <thead><tr><th scope="col"></th>{text.setting.budgetHead.map(head => <th scope="col">{head}</th>)}</tr></thead>
+              <tbody>
+                {budgetSteps.map(step => {
+                  const number = stepNumber[step.id];
+                  return <tr class:list={{ 'is-final': step.id === 'smelt', 'is-reference': step.id === 'baseline' }}>
+                    <th scope="row">{number && <span class="poster-step">{number}</span>}{text.setting.steps[step.id as keyof typeof text.setting.steps]}</th>
+                    {budgetKeys.map(key => <td class:list={step.id === 'baseline' ? undefined : isMatched(key, step.ratio[key]) ? 'is-ok' : 'is-off'}>{ratio(step.ratio[key])}</td>)}
+                  </tr>;
+                })}
+              </tbody>
+            </table>
+            <p class="poster-note">{text.setting.budgetNote}</p>
+            <p class="poster-callout is-quiet" set:html={text.setting.gridHtml} />
+          </section>
+
+          <section class="poster-col">
+            <h2 class="poster-col-title"><span>2</span>{text.sections[1]}{text.sectionTags[1] && <small>{text.sectionTags[1]}</small>}</h2>
+            <p class="poster-note is-lead" set:html={text.recipe.introHtml} />
+            <div class="poster-finding"><p class="poster-claim"><span class="poster-step">1</span><span set:html={text.recipe.spanHtml} /></p><PosterChart kind="span" language={language} /></div>
+            <div class="poster-finding"><p class="poster-claim"><span class="poster-step">2</span><span set:html={text.recipe.aspectHtml} /></p><PosterChart kind="aspect" language={language} /></div>
+            <div class="poster-finding"><p class="poster-claim"><span class="poster-step">3</span><span set:html={text.recipe.countHtml} /></p><PosterChart kind="count" language={language} /></div>
+            <p class="poster-callout" set:html={text.recipe.resultHtml} />
+          </section>
+
+          <section class="poster-col">
+            <h2 class="poster-col-title"><span>3</span>{text.sections[2]}{text.sectionTags[2] && <small>{text.sectionTags[2]}</small>}</h2>
+            <p class="poster-claim" set:html={text.scaling.gridHtml} />
+            <div><PosterChart kind="grid" language={language} /><p class="poster-note is-center">{text.scaling.gridNote}</p></div>
+            <p class="poster-claim" set:html={text.scaling.lawHtml} />
+            <div class="poster-formula" role="math" aria-label="L(F, S, D) = E + A (1 − S)^b / F^a + K / D^c">
+              <span class="poster-formula-line" aria-hidden="true">
+                <span><var>L</var>(<var>F</var>, <var>S</var>, <var>D</var>)</span><span class="op">=</span>
+                <span class="term term-e"><var>E</var></span><span class="op">+</span>
+                <span class="term term-capacity"><span class="frac"><span class="num"><var>A</var>(1 − <var>S</var>)<sup><var>b</var></sup></span><span class="den"><var>F</var><sup><var>a</var></sup></span></span></span><span class="op">+</span>
+                <span class="term term-data"><span class="frac"><span class="num"><var>K</var></span><span class="den"><var>D</var><sup><var>c</var></sup></span></span></span>
+              </span>
+              <table class="poster-exponents">
+                <thead><tr>{text.scaling.exponentHead.map(head => <th scope="col">{head}</th>)}</tr></thead>
+                <tbody>{exponents.map(row => <tr><th scope="row" set:html={row.label} /><td class="is-base">{row.base.toFixed(4)}</td><td class="is-loop">{row.smelt.toFixed(4)}</td></tr>)}</tbody>
+              </table>
+            </div>
+            <p class="poster-claim" set:html={text.scaling.frontierHtml} />
+            <PosterChart kind="frontier" language={language} />
+          </section>
+
+          <section class="poster-col">
+            <h2 class="poster-col-title"><span>4</span>{text.sections[3]}{text.sectionTags[3] && <small>{text.sectionTags[3]}</small>}</h2>
+            <p class="poster-claim" set:html={text.downstream.winsHtml} />
+            <div class="poster-rows">
+              {wins.map(row => <div class="poster-row">
+                <span class="poster-row-label">{row.name}{row.note && <sup>*</sup>}</span>
+                <span class="poster-row-track"><span class="poster-row-fill is-loop" style={`width:${(row.won / row.total * 100).toFixed(2)}%`}></span></span>
+                <span class="poster-row-value is-loop">{row.won} / {row.total}</span>
+              </div>)}
+              <p class="poster-note"><sup>*</sup> {text.downstream.mmluNote}</p>
+            </div>
+            <p class="poster-claim" set:html={text.downstream.beyondHtml} />
+            <p class="poster-claim" set:html={text.downstream.domainHtml} />
+            <div class="poster-rows is-tight">
+              {domainGains.map(row => <div class="poster-row">
+                <span class="poster-row-label">{text.domainName(row)}</span>
+                <span class="poster-row-track"><span class="poster-row-fill is-gain" style={`width:${(row.gain / domainMax * 100).toFixed(2)}%`}></span></span>
+                <span class="poster-row-value is-gain">{row.gain.toFixed(1)}%</span>
+              </div>)}
+              <p class="poster-note is-right">{text.downstream.domainAxis}</p>
+            </div>
+            <p class="poster-claim" set:html={text.downstream.lengthHtml} />
+            <p class="poster-claim" set:html={text.downstream.iclHtml} />
+            <div>
+              <PosterChart kind="icl" language={language} />
+              <p class="poster-note is-center">{text.downstream.iclMean(iclZeroGap.toFixed(1), iclOneGap.toFixed(1))}</p>
+            </div>
+          </section>
+
+          <section class="poster-col">
+            <h2 class="poster-col-title"><span>5</span>{text.sections[4]}{text.sectionTags[4] && <small>{text.sectionTags[4]}</small>}</h2>
+            <p class="poster-claim" set:html={text.mechanism.expertsHtml} />
+            <PosterChart kind="experts" language={language} />
+            <p class="poster-claim" set:html={text.mechanism.residualHtml} />
+            <p class="poster-claim" set:html={text.mechanism.attentionHtml} />
+            <PosterChart kind="stages" language={language} />
+            <p class="poster-claim" set:html={text.mechanism.sinkHtml} />
+            <PosterChart kind="sink" language={language} />
+          </section>
+        </div>
+
+        <footer class="poster-foot">
+          <span class="poster-foot-label">{text.conclusionLabel}</span>
+          <span class="poster-foot-text">{text.conclusion}</span>
+          <span class="poster-foot-cite">Wang et al., 2026 · arXiv:2609.01343</span>
+        </footer>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="../../scripts/smelt-poster.ts"></script>

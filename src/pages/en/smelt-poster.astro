@@ -1,0 +1,9 @@
+---
+import SmeltPoster from '../../components/smelt-poster/SmeltPoster.astro';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import { posterCopy } from '../../lib/smelt-poster/copy';
+const text = posterCopy.en;
+---
+<SiteLayout title={text.pageTitle} description={text.description} language="en" slug="smelt-poster">
+  <SmeltPoster language="en" />
+</SiteLayout>

@@ -1,0 +1,14 @@
+---
+// A legend drawn inside a poster chart's SVG (see PosterChart.astro, legend()).
+interface Item { swatch: 'line' | 'dash' | 'dot' | 'ring'; tone: string; label: string; opacity?: number; labelX: number; swatchX: number; y: number }
+interface Props { items: Item[] }
+const { items } = Astro.props;
+---
+<g class="pc-legend">
+  {items.map(item => <g style={item.opacity === undefined ? undefined : `--o:${item.opacity}`}>
+    {(item.swatch === 'line' || item.swatch === 'dash') && <line x1={item.swatchX} x2={item.swatchX + 15} y1={item.y - 4} y2={item.y - 4} class:list={['pc-line', `is-${item.tone}`, 'pc-faded', { 'is-dashed': item.swatch === 'dash' }]} />}
+    {item.swatch === 'dot' && <circle cx={item.swatchX + 4} cy={item.y - 4} r="3.6" class={`pc-dot is-${item.tone}`} />}
+    {item.swatch === 'ring' && <circle cx={item.swatchX + 4} cy={item.y - 4} r="3.4" class={`pc-dot is-${item.tone}`} />}
+    <text x={item.labelX} y={item.y} class="pc-note">{item.label}</text>
+  </g>)}
+</g>

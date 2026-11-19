@@ -64,7 +64,7 @@ html[lang="en"] .poster-page { --sans: "Farm Superscripts", "Farm Latin Punctuat
 .poster-links span { color: var(--muted); }
 .poster-links span:not(:first-child) { margin-left: 14px; }
 .poster-links a { color: var(--accent); text-decoration: none; font-family: var(--mono); font-size: 12.5px; }
-.poster-title { margin: 0; font-size: 44px; line-height: 1.25; font-weight: 700; letter-spacing: -.015em; white-space: nowrap; }
+.poster-title { margin: 0; font-size: 38px; line-height: 1.25; font-weight: 700; letter-spacing: -.015em; white-space: nowrap; }
 html[lang="en"] .poster-title { font-family: var(--serif); font-weight: 400; font-size: 48px; line-height: 1.15; letter-spacing: -.02em; }
 .poster-subtitle { margin-top: 6px !important; font-size: 20px; line-height: 1.5; color: var(--muted); }
 html[lang="en"] .poster-subtitle { font-family: var(--serif); font-size: 21px; }

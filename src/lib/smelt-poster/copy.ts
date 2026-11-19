@@ -59,11 +59,11 @@ export interface PosterCopy {
 }
 
 const zh: PosterCopy = {
-  pageTitle: 'SMELT 海报：预算匹配下的 Looped Transformer Scaling Law',
+  pageTitle: 'SMELT 海报：同等算力、参数量与 KV Cache 预算下 Looped Transformer 的优势与最优结构配方',
   description: 'SMELT 研究的 16:9 单页海报：同时对齐每 token FLOPs、非 embedding 总参数量与 KV cache 后，循环机制依然能提升稀疏 MoE 的预训练效率。可导出为 PDF。',
   toolbar: { label: 'SMELT 研究速览 · 16:9', language: '语言', export: '导出 PDF', exportHint: '在打印窗口中选择“存储为 PDF”', article: '阅读文章' },
   kicker: '模型架构 · arXiv 2609.01343',
-  title: 'SMELT：预算匹配下的 Looped Transformer Scaling Law',
+  title: 'SMELT：同等算力、参数量与 KV Cache 预算下 Looped Transformer 的优势与最优结构配方',
   subtitle: '对齐算力、参数量与 KV Cache 后，循环机制依然能提升稀疏 MoE 的预训练效率',
   links: { paper: '论文', blog: '博客', qrLabel: '扫码读博客' },
   stats: [
